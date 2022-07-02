@@ -34,6 +34,8 @@ morphology.add_noun("jompus", "jompuses")
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, stop_probability=0.3)
 
 def generate_question(num_deduction_steps):
+	if num_deduction_steps < 2:
+		raise ValueError("num_deduction_steps must be at least 2.")
 	available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
 	available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 	index = randrange(len(available_concept_names))
@@ -159,8 +161,8 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 			response = opt.predict(model_size, prompt, "/scratch/as17582/opt_weights/")
 		elif model_name == 'dummy':
 			response = ''
-		print_output('\nPredicted answer:' + response)
-		print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer)
+		print_output('\nPredicted answer:' + response, log)
+		print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer, log)
 
 		if answer == 'True':
 			acceptable_answers = {'true', 't', 'yes', 'y', 'correct', 'right'}
@@ -171,9 +173,9 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		index = response.find('Q:')
 		if index != -1:
 			response = response[:index]
-		while response[-1].isspace():
+		while len(response) != 0 and response[-1].isspace():
 			response = response[:-1]
-		if response[(response.rindex(' ') + 1):].lower() in acceptable_answers:
+		if response[(response.rfind(' ') + 1):].lower() in acceptable_answers:
 			results.append(1.0)
 		else:
 			results.append(0.0)
@@ -181,13 +183,13 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		# compute the posterior beta parameters
 		alpha = np.sum(results) + 1
 		beta = trial - np.sum(results) + 1
-		print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)))
+		print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
 		mu = np.sum(results) / trial
 		stddev = np.sqrt(mu*(1 - mu)/trial)
-		print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n')
+		print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
 	log.close()
 	return results
 
-#run_experiment("gpt3", "175B", 1, 8, 10, "gpt_1hop.log")
-#run_experiment("opt", "30B", 1, 8, 500, "opt30b_1hop.log")
-run_experiment("dummy", '', 1, 8, 1, "dummy_1hop.log")
+#run_experiment("gpt3", "175B", 2, 8, 10, "gpt_1hop.log")
+#run_experiment("opt", "30B", 2, 8, 500, "opt30b_1hop.log")
+run_experiment("dummy", '', 2, 8, 1, "dummy_1hop.log")
