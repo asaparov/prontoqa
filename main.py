@@ -35,6 +35,7 @@ config = OntologyConfig(max_child_count=1, generate_negation=True, generate_prop
 
 def generate_question(num_deduction_steps):
 	if num_deduction_steps < 2:
+		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
 	available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
 	available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
@@ -133,6 +134,8 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 			gpt_api_key = getpass.getpass(prompt='Enter OpenAI API Key:')
 	elif model_name == 'opt':
 		import opt
+	elif model_name == 'unifiedqa':
+		import unifiedqa
 	elif model_name != 'dummy':
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
@@ -159,6 +162,8 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 			response = gpt3.predict(gpt_api_key, prompt)
 		elif model_name == 'opt':
 			response = opt.predict(model_size, prompt, "/scratch/as17582/opt_weights/")
+		elif model_name == 'unifiedqa':
+			response = unifiedqa.predict(model_size, prompt)
 		elif model_name == 'dummy':
 			response = ''
 		print_output('\nPredicted answer:' + response, log)
@@ -187,9 +192,11 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		mu = np.sum(results) / trial
 		stddev = np.sqrt(mu*(1 - mu)/trial)
 		print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
+		log.flush()
 	log.close()
 	return results
 
-#run_experiment("gpt3", "175B", 2, 8, 10, "gpt_1hop.log")
-#run_experiment("opt", "30B", 2, 8, 500, "opt30b_1hop.log")
-run_experiment("dummy", '', 2, 8, 1, "dummy_1hop.log")
+for hops in range(1,8+1):
+	#run_experiment("gpt3", "175B", 1 + hops, 8, 10, "gpt_' + str(hops) + 'hop.log")
+	run_experiment("opt", "66B", 1 + hops, 8, 500, "opt66b_" + str(hops) + "hop.log")
+	#run_experiment("unifiedqa", "v2-t5-11b", 1 + hops, 8, 500, "unifiedqa_v2_t5_11b_" + str(hops) + "hop.log")
