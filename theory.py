@@ -1,5 +1,5 @@
 import fol
-from random import randrange, shuffle, random
+from random import randrange, shuffle, random, choice
 import numpy as np
 
 class OntologyConfig(object):
@@ -17,6 +17,8 @@ class OntologyNode(object):
 		self.properties = []
 		self.negated_properties = []
 		self.are_children_disjoint = False
+		if parent is not None:
+			parent.children.append(self)
 
 def generate_ontology(parent, level, available_concept_names, available_property_families, config):
 	# choose a family of properties for the children at this node
@@ -51,7 +53,6 @@ def generate_ontology(parent, level, available_concept_names, available_property
 		# create a child node and choose its concept name
 		index = randrange(len(available_concept_names))
 		new_child = OntologyNode(available_concept_names[index], parent)
-		parent.children.append(new_child)
 		del available_concept_names[index]
 
 		# choose a property or negated property of this concept
@@ -136,14 +137,91 @@ def get_properties_formula(node):
 		consequent
 	))
 
-def get_formulas(theory):
+def get_formulas(theory, ordering="postorder"):
 	formulas = []
+	if ordering == "preorder":
+		for child in theory.children:
+			formulas.extend(get_formulas(child, ordering))
+
+	if ordering == "preorder":
+		get_disjointness_formulas(formulas, theory)
+		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
+			formulas.append(get_properties_formula(theory))
 	if theory.parent != None:
 		formulas.append(get_subsumption_formula(theory))
-	if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
-		formulas.append(get_properties_formula(theory))
-	get_disjointness_formulas(formulas, theory)
-
-	for child in theory.children:
-		formulas.extend(get_formulas(child))
+	if ordering == "postorder":
+		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
+			formulas.append(get_properties_formula(theory))
+		get_disjointness_formulas(formulas, theory)
+	
+	if ordering == "postorder":
+		for child in theory.children:
+			formulas.extend(get_formulas(child, ordering))
 	return formulas
+
+def sample_real_ontology(available_entity_names, num_deduction_steps):
+	if num_deduction_steps > 7:
+		raise ValueError('sample_real_ontology ERROR: No available ontologies with depth greater than 7.')
+	r = randrange(3)
+	if r == 0:
+		animal = OntologyNode("animal", None)
+		if randrange(2) == 0:
+			animal.properties = ["multicellular"]
+		else:
+			animal.negated_properties = ["unicellular"]
+		vertebrate = OntologyNode("vertebrate", animal)
+		mammal = OntologyNode("mammal", vertebrate)
+		r = randrange(3)
+		if r == 0:
+			mammal.properties = ["furry"]
+		elif r == 1:
+			mammal.properties = ["warm-blooded"]
+		else:
+			mammal.negated_properties = ["cold-blooded"]
+		carnivore = OntologyNode("carnivore", mammal)
+		if randrange(2) == 0:
+			carnivore.properties = ["carnivorous"]
+		else:
+			carnivore.negated_properties = ["herbivorous"]
+		feline = OntologyNode("feline", carnivore)
+		cat = OntologyNode("cat", feline)
+		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "vertebrate":"insect", "mammal":"reptile", "furry":"snake", "warm-blooded":"snake", "cold-blooded":"snake", "carnivore":"cow", "carnivorous":"sheep", "herbivorous":"sheep", "feline":"dog", "cat":"dog"})
+	elif r == 1:
+		plant = OntologyNode("plant", None)
+		if randrange(2) == 0:
+			plant.properties = [choice(["photosynthetic", "sessile", "multicellular"])]
+		else:
+			plant.negated_properties = [choice(["mobile", "heterotrophic", "unicellular"])]
+		vascular_plant = OntologyNode("vascular plant", plant)
+		vascular_plant.properties = ["vascular"]
+		angiosperm = OntologyNode("angiosperm", vascular_plant)
+		angiosperm.properties = ["flowering"]
+		eudicot = OntologyNode("eudicot", angiosperm)
+		rosid = OntologyNode("rosid", eudicot)
+		rose = OntologyNode("rose", rosid)
+		rose.properties = ["perennial"]
+		return (plant, choice(available_entity_names), {"plant":"animal", "photosynthetic":"fish", "sessile":"whale", "multicellular":"bacteria", "mobile":"fish", "heterotrophic":"animal", "unicellular":"animal", "vascular plant":"moss", "angiosperm":"conifer", "flowering":"conifer", "eudicot":"wheat", "rosid":"asterid", "rose":"cabbage", "perennial":"carrot"})
+	elif r == 2:
+		number = OntologyNode("number", None)
+		real_number = OntologyNode("real number", number)
+		if randrange(2) == 0:
+			real_number.properties = ["real"]
+		else:
+			real_number.negated_properties = ["imaginary"]
+		integer = OntologyNode("integer", real_number)
+		natural_number = OntologyNode("natural number", integer)
+		if randrange(2) == 0:
+			natural_number.properties = ["positive"]
+		else:
+			natural_number.negated_properties = ["negative"]
+		prime_number = OntologyNode("prime number", natural_number)
+		if randrange(2) == 0:
+			prime_number.properties = ["prime"]
+		else:
+			prime_number.negated_properties = ["composite"]
+		mersenne_prime = OntologyNode("Mersenne prime", prime_number)
+		if randrange(2) == 0:
+			mersenne_prime.properties = ["prime"]
+		else:
+			mersenne_prime.negated_properties = ["composite"]
+		return (number, str(choice([3, 7, 31, 127, 8191, 131071])), {"number":"function", "real number":"imaginary number", "real":"imaginary number", "imaginary":"complex number", "integer":"fraction", "natural number":"negative number", "positive":"negative number", "negative":"negative number", "prime number":"composite number", "prime":"composite number", "composite":"composite number", "Mersenne prime":"even number"})

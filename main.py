@@ -1,7 +1,7 @@
 from theory import *
 from syntax import *
 from proof import *
-from random import choice, randrange
+from random import choice, randrange, shuffle
 import numpy as np
 from scipy.special import betaincinv
 import argparse
@@ -32,38 +32,90 @@ morphology.add_noun("vumpus", "vumpuses")
 morphology.add_noun("impus", "impuses")
 morphology.add_noun("jompus", "jompuses")
 
+morphology.add_noun("animal", "animals")
+morphology.add_noun("vertebrate", "vertebrates")
+morphology.add_noun("mammal", "mammals")
+morphology.add_noun("carnivore", "carnivores")
+morphology.add_noun("feline", "felines")
+morphology.add_noun("cat", "cats")
+morphology.add_noun("bacteria", "bacteria")
+morphology.add_noun("insect", "insects")
+morphology.add_noun("reptile", "reptiles")
+morphology.add_noun("snake", "snakes")
+morphology.add_noun("cow", "cows")
+morphology.add_noun("sheep", "sheep")
+morphology.add_noun("dog", "dogs")
+
+morphology.add_noun("plant", "plants")
+morphology.add_noun("vascular plant", "vascular plants")
+morphology.add_noun("angiosperm", "angiosperms")
+morphology.add_noun("eudicot", "eudicots")
+morphology.add_noun("rosid", "rosids")
+morphology.add_noun("rose", "roses")
+morphology.add_noun("fish", "fishes")
+morphology.add_noun("whale", "whales")
+morphology.add_noun("moss", "mosses")
+morphology.add_noun("conifer", "conifers")
+morphology.add_noun("cabbage", "cabbages")
+morphology.add_noun("asterid", "asterids")
+morphology.add_noun("carrot", "carrots")
+
+morphology.add_noun("number", "numbers")
+morphology.add_noun("real number", "real numbers")
+morphology.add_noun("integer", "integers")
+morphology.add_noun("natural number", "natural numbers")
+morphology.add_noun("prime number", "prime numbers")
+morphology.add_noun("Mersenne prime", "Mersenne primes")
+morphology.add_noun("function", "functions")
+morphology.add_noun("real number", "real numbers")
+morphology.add_noun("imaginary number", "imaginary numbers")
+morphology.add_noun("complex number", "complex numbers")
+morphology.add_noun("fraction", "fractions")
+morphology.add_noun("negative number", "negative numbers")
+morphology.add_noun("composite number", "composite numbers")
+morphology.add_noun("even number", "even numbers")
+
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, stop_probability=0.3)
 
-def generate_question(num_deduction_steps):
+def generate_question(num_deduction_steps, formula_ordering="postorder", use_real_ontology=False):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
 	available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
 	available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
-	index = randrange(len(available_concept_names))
-	distractor_concept = available_concept_names[index]
-	del available_concept_names[index]
+	if use_real_ontology:
+		(theory, selected_entity, distractor_map) = sample_real_ontology(available_entity_names, num_deduction_steps)
+	else:
+		index = randrange(len(available_concept_names))
+		distractor_concept = available_concept_names[index]
+		del available_concept_names[index]
 
-	config.stop_probability = 1 / (num_deduction_steps + 1)
-	theory = generate_theory(
-					available_concept_names,
-					[["blue", "red", "brown", "orange"],
-					 ["small", "large"],
-					 ["metallic", "wooden", "luminous", "liquid"],
-					 ["transparent", "opaque"],
-					 ["nervous", "happy", "feisty", "shy"],
-					 ["bright", "dull"],
-					 ["sweet", "sour", "spicy", "bitter"],
-					 ["floral", "fruity", "earthy"],
-					 ["hot", "cold", "temperate"],
-					 ["kind", "mean", "angry", "amenable", "aggressive"]],
-					config)
-	formulas = get_formulas(theory)
+		config.stop_probability = 1 / (num_deduction_steps + 1)
+		theory = generate_theory(
+						available_concept_names,
+						[["blue", "red", "brown", "orange"],
+						 ["small", "large"],
+						 ["metallic", "wooden", "luminous", "liquid"],
+						 ["transparent", "opaque"],
+						 ["nervous", "happy", "feisty", "shy"],
+						 ["bright", "dull"],
+						 ["sweet", "sour", "spicy", "bitter"],
+						 ["floral", "fruity", "earthy"],
+						 ["hot", "cold", "temperate"],
+						 ["kind", "mean", "angry", "amenable", "aggressive"]],
+						config)
+		selected_entity = choice(available_entity_names)
+
+	if formula_ordering == "random":
+		formulas = get_formulas(theory, ordering="preorder")
+		shuffle(formulas)
+	else:
+		formulas = get_formulas(theory, ordering=formula_ordering)
 	sentences = []
 	for formula in formulas:
 		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology)), end_punctuation='.'))
 
-	(premise, conclusion, proof, num_steps) = generate_membership_question(theory, choice(available_entity_names), num_deduction_steps, False, True)
+	(premise, conclusion, proof, num_steps) = generate_membership_question(theory, selected_entity, num_deduction_steps, False, True)
 	if proof == None or num_steps != num_deduction_steps:
 		return (None, None, None)
 	proof_formulas = get_proof_intermediate_formulas(proof)
@@ -71,12 +123,16 @@ def generate_question(num_deduction_steps):
 	distractor_lf = None
 	if type(conclusion) == fol.FOLFuncApplication:
 		# if the question is the form `x is A`, and there is an existing sentence of the form `every B is A`, then create a distractor sentence of the form `every D is not A`
+		if use_real_ontology:
+			distractor_concept = distractor_map[conclusion.function]
 		distractor_lf = fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
 				fol.FOLNot(fol.FOLFuncApplication(conclusion.function, [fol.FOLVariable(1)]))
 			))
 	elif type(conclusion) == fol.FOLNot and type(conclusion.operand) == fol.FOLFuncApplication:
 		# if the question is the form `x is not A`, and there is an existing sentence of the form `every B is not A`, then create a distractor sentence of the form `every D is A`
+		if use_real_ontology:
+			distractor_concept = distractor_map[conclusion.operand.function]
 		distractor_lf = fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
 				fol.FOLFuncApplication(conclusion.operand.function, [fol.FOLVariable(1)])
@@ -205,7 +261,7 @@ def parse_log(log):
 	print('Resuming previous experiment at trial ' + str(trial + 1))
 	return (trial, results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, resume=False):
+def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", use_real_ontology=False, resume=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		if model_size.lower() != '175b':
@@ -234,13 +290,13 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		prompt = ''
 		for i in range(num_fewshot_examples):
 			while True:
-				(question, chain_of_thought, answer) = generate_question(num_proof_steps)
+				(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology)
 				if question != None:
 					break
 			prompt += 'Q: ' + question + '\nA: ' + chain_of_thought + ' ' + answer + '\n\n'
 
 		while True:
-			(question, chain_of_thought, answer) = generate_question(num_proof_steps)
+			(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology)
 			if question != None:
 				break
 		prompt += 'Q: ' + question + '\nA:'
@@ -274,17 +330,21 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--resume", action='store_true')
 parser.add_argument("--model-name", type=str, required=True)
 parser.add_argument("--model-size", type=str, required=True)
+parser.add_argument("--ordering", type=str, default="postorder", choices=["postorder", "preorder", "random"])
 parser.add_argument("--num-trials", type=int, default=500)
 parser.add_argument("--few-shot-examples", type=int, default=8)
+parser.add_argument("--real-ontology", action='store_true')
 args = parser.parse_args()
 
 for hops in range(1,8+1):
 	if args.model_name == 'gpt3':
-		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt_" + str(hops) + "hop.log", args.resume)
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
 	elif args.model_name == 'opt':
-		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.resume)
+		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
 	elif args.model_name == 'unifiedqa':
-		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.resume)
+		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
+	elif args.model_name == 'dummy':
+		run_experiment("dummy", "", 1 + hops, args.few_shot_examples, args.num_trials, "dummy_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
 	else:
-		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa'}))
+		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 		break

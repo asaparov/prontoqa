@@ -198,8 +198,8 @@ def yield_tokens(tree):
 
 def inflect(tokens, end_punctuation):
 	for i in range(len(tokens)):
-		if tokens[i] == "a" and i + 1 < len(tokens):
-			if tokens[i + 1][0] in {'a', 'e', 'i', 'o', 'u'}:
+		if tokens[i] == "a":
+			if i + 1 < len(tokens) and tokens[i + 1][0] in {'a', 'e', 'i', 'o', 'u'} and not tokens[i + 1].startswith('eu'):
 				tokens[i] = "an"
 	sentence = ' '.join(tokens)
 	return sentence[0].upper() + sentence[1:] + end_punctuation
