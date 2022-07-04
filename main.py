@@ -4,6 +4,7 @@ from proof import *
 from random import choice, randrange
 import numpy as np
 from scipy.special import betaincinv
+import argparse
 import getpass
 
 class Morphology(object):
@@ -124,7 +125,87 @@ def print_output(str, log):
 
 gpt_api_key = None
 
-def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file):
+def evaluate_response(response, expected_answer):
+	answer = expected_answer[(expected_answer.rfind(' ') + 1):]
+
+	if answer == 'True':
+		acceptable_answers = {'true', 't', 'yes', 'y', 'correct', 'right'}
+	else:
+		acceptable_answers = {'false', 'f', 'no', 'n', 'incorrect', 'wrong'}
+
+	index = response.find('Q:')
+	if index != -1:
+		response = response[:index]
+	while len(response) != 0 and response[-1].isspace():
+		response = response[:-1]
+	if response[(response.rfind(' ') + 1):].lower() in acceptable_answers:
+		return 1.0
+	else:
+		return 0.0
+
+def parse_log(log):
+	trial = 0
+	results = []
+	resume_position = 0
+	line_number = 0
+	while True:
+		# look for the next line beginning with 'Predicted answer:'
+		line = log.readline()
+		line_number += 1
+		if not line:
+			break # found the end of the file
+		elif not line.startswith('Predicted answer:'):
+			continue
+
+		# read the predicted answer
+		expected_answer = None
+		predicted_answer = line[len('Predicted answer:'):]
+		while True:
+			line = log.readline()
+			line_number += 1
+			if not line:
+				break # found the end of the file
+			elif line.startswith('Expected answer: '):
+				expected_answer = line[len('Expected answer: '):]
+				break
+			predicted_answer += line
+
+		# read the expected answer
+		mean = None
+		while expected_answer is not None:
+			line = log.readline()
+			line_number += 1
+			if not line:
+				break # found the end of the file
+			elif line.startswith('n: '):
+				# read the summary statistics
+				current_trial = int(line[len('n: '):line.index(',')])
+				if current_trial != trial + 1:
+					raise ValueError('Trial number is inconsistent on line ' + str(line_number))
+				trial = current_trial
+				normal_statistics = log.readline()
+				if normal_statistics is not None:
+					index = normal_statistics.find('mean: ')
+					mean = float(normal_statistics[(index + len('mean: ')):normal_statistics.index(',')])
+				log.readline() # consume the empty line separating each example
+				line_number += 2
+				resume_position = log.tell()
+				break
+			expected_answer += line
+
+		# evaluate the correctness of this example
+		if predicted_answer[-1] == '\n':
+			predicted_answer = predicted_answer[:-1]
+		if expected_answer[-1] == '\n':
+			expected_answer = expected_answer[:-1]
+		results.append(evaluate_response(predicted_answer, expected_answer))
+		expected_mean = np.sum(results) / trial
+		if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
+			raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
+	print('Resuming previous experiment at trial ' + str(trial + 1))
+	return (trial, results, resume_position)
+
+def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, resume=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		if model_size.lower() != '175b':
@@ -139,10 +220,16 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 	elif model_name != 'dummy':
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
-	log = open(log_file, "w")
+	if resume:
+		log = open(log_file, "a+")
+		log.seek(0)
+		(trial, results, truncate_pos) = parse_log(log)
+		log.truncate(truncate_pos)
+	else:
+		log = open(log_file, "w")
+		trial = 0
+		results = []
 
-	trial = 0
-	results = []
 	while trial < num_trials:
 		prompt = ''
 		for i in range(num_fewshot_examples):
@@ -161,7 +248,7 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		if model_name == 'gpt3':
 			response = gpt3.predict(gpt_api_key, prompt)
 		elif model_name == 'opt':
-			response = opt.predict(model_size, prompt, "/scratch/as17582/opt_weights/")
+			response = opt.predict(model_size, prompt)
 		elif model_name == 'unifiedqa':
 			response = unifiedqa.predict(model_size, prompt)
 		elif model_name == 'dummy':
@@ -169,23 +256,10 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		print_output('\nPredicted answer:' + response, log)
 		print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer, log)
 
-		if answer == 'True':
-			acceptable_answers = {'true', 't', 'yes', 'y', 'correct', 'right'}
-		else:
-			acceptable_answers = {'false', 'f', 'no', 'n', 'incorrect', 'wrong'}
-
-		trial += 1
-		index = response.find('Q:')
-		if index != -1:
-			response = response[:index]
-		while len(response) != 0 and response[-1].isspace():
-			response = response[:-1]
-		if response[(response.rfind(' ') + 1):].lower() in acceptable_answers:
-			results.append(1.0)
-		else:
-			results.append(0.0)
+		results.append(evaluate_response(response, chain_of_thought + ' ' + answer))
 
 		# compute the posterior beta parameters
+		trial += 1
 		alpha = np.sum(results) + 1
 		beta = trial - np.sum(results) + 1
 		print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
@@ -196,7 +270,21 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 	log.close()
 	return results
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--resume", action='store_true')
+parser.add_argument("--model-name", type=str, required=True)
+parser.add_argument("--model-size", type=str, required=True)
+parser.add_argument("--num-trials", type=int, default=500)
+parser.add_argument("--few-shot-examples", type=int, default=8)
+args = parser.parse_args()
+
 for hops in range(1,8+1):
-	#run_experiment("gpt3", "175B", 1 + hops, 8, 10, "gpt_' + str(hops) + 'hop.log")
-	run_experiment("opt", "66B", 1 + hops, 8, 500, "opt66b_" + str(hops) + "hop.log")
-	#run_experiment("unifiedqa", "v2-t5-11b", 1 + hops, 8, 500, "unifiedqa_v2_t5_11b_" + str(hops) + "hop.log")
+	if args.model_name == 'gpt3':
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt_" + str(hops) + "hop.log", args.resume)
+	elif args.model_name == 'opt':
+		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.resume)
+	elif args.model_name == 'unifiedqa':
+		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.resume)
+	else:
+		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa'}))
+		break
