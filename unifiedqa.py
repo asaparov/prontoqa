@@ -4,8 +4,6 @@ import torch
 tokenizers = {}
 models = {}
 
-device = torch.device("cuda")
-
 def predict(model_size, prompt):
 	global tokenizers, models
 	model_size = model_size.lower()
@@ -14,12 +12,11 @@ def predict(model_size, prompt):
 
 	if model_size not in models:
 		tokenizers[model_size] = T5Tokenizer.from_pretrained("allenai/unifiedqa-" + model_size)
-		models[model_size] = T5ForConditionalGeneration.from_pretrained("allenai/unifiedqa-" + model_size)
+		models[model_size] = T5ForConditionalGeneration.from_pretrained("allenai/unifiedqa-" + model_size).cuda()
 	tokenizer = tokenizers[model_size]
 	model = models[model_size]
-	model.to(device)
 
-	input_ids = tokenizer.encode(prompt.replace('\n', ' \\n '), return_tensors="pt").to(device)
+	input_ids = tokenizer.encode(prompt.replace('\n', ' \\n '), return_tensors="pt").cuda()
 	res = model.generate(input_ids, max_new_tokens=256, do_sample=False)
 	generated_string = tokenizer.batch_decode(res, skip_special_tokens=True)
 

@@ -337,14 +337,19 @@ parser.add_argument("--real-ontology", action='store_true')
 args = parser.parse_args()
 
 for hops in range(1,8+1):
+	log_suffix = '_' + str(hops) + 'hop'
+	if args.ordering != 'postorder':
+		log_suffix += '_' + args.ordering
+	if args.real_ontology:
+		log_suffix += '_realontology'
 	if args.model_name == 'gpt3':
-		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
 	elif args.model_name == 'opt':
-		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
 	elif args.model_name == 'unifiedqa':
-		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + "_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
 	elif args.model_name == 'dummy':
-		run_experiment("dummy", "", 1 + hops, args.few_shot_examples, args.num_trials, "dummy_" + str(hops) + "hop.log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("dummy", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "dummy" + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
 	else:
 		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 		break
