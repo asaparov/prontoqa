@@ -180,6 +180,7 @@ def print_output(str, log):
 	print(str)
 
 gpt_api_key = None
+opt_server = None
 
 def evaluate_response(response, expected_answer):
 	answer = expected_answer[(expected_answer.rfind(' ') + 1):]
@@ -304,7 +305,7 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		if model_name == 'gpt3':
 			response = gpt3.predict(gpt_api_key, prompt)
 		elif model_name == 'opt':
-			response = opt.predict(model_size, prompt)
+			response = opt.predict(model_size, prompt, opt_server)
 		elif model_name == 'unifiedqa':
 			response = unifiedqa.predict(model_size, prompt)
 		elif model_name == 'dummy':
@@ -334,7 +335,10 @@ parser.add_argument("--ordering", type=str, default="postorder", choices=["posto
 parser.add_argument("--num-trials", type=int, default=500)
 parser.add_argument("--few-shot-examples", type=int, default=8)
 parser.add_argument("--real-ontology", action='store_true')
+parser.add_argument("--opt-server", type=str, default=None)
 args = parser.parse_args()
+
+opt_server = args.opt_server
 
 for hops in range(1,8+1):
 	if args.model_name == 'gpt3':
