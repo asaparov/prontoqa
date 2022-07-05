@@ -200,7 +200,7 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 		rosid = OntologyNode("rosid", eudicot)
 		rose = OntologyNode("rose", rosid)
 		rose.properties = ["perennial"]
-		return (plant, choice(available_entity_names), {"plant":"animal", "photosynthetic":"fish", "sessile":"whale", "multicellular":"bacteria", "mobile":"fish", "heterotrophic":"animal", "unicellular":"animal", "vascular plant":"moss", "angiosperm":"conifer", "flowering":"conifer", "eudicot":"wheat", "rosid":"asterid", "rose":"cabbage", "perennial":"carrot"})
+		return (plant, choice(available_entity_names), {"plant":"animal", "photosynthetic":"fish", "sessile":"whale", "multicellular":"bacteria", "mobile":"fish", "heterotrophic":"animal", "unicellular":"animal", "vascular plant":"moss", "vascular":"moss", "angiosperm":"conifer", "flowering":"conifer", "eudicot":"wheat", "rosid":"asterid", "rose":"cabbage", "perennial":"carrot"})
 	elif r == 2:
 		number = OntologyNode("number", None)
 		real_number = OntologyNode("real number", number)
