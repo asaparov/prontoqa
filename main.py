@@ -1,7 +1,7 @@
 from theory import *
 from syntax import *
 from proof import *
-from random import choice, randrange, shuffle
+from random import choice, randrange, shuffle, seed
 import numpy as np
 from scipy.special import betaincinv
 import argparse
@@ -77,7 +77,7 @@ morphology.add_noun("even number", "even numbers")
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, formula_ordering="postorder", use_real_ontology=False):
+def generate_question(num_deduction_steps, formula_ordering="postorder", use_real_ontology=False, add_distractor=True):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -137,7 +137,7 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", use_rea
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
 				fol.FOLFuncApplication(conclusion.operand.function, [fol.FOLVariable(1)])
 			))
-	if distractor_lf != None:
+	if add_distractor and distractor_lf != None:
 		distractor_sentence = inflect(yield_tokens(formula_to_clause(distractor_lf, morphology)), end_punctuation='.')
 		index = randrange(len(formulas) + 1)
 		formulas.insert(index, distractor_lf)
@@ -262,7 +262,7 @@ def parse_log(log):
 	print('Resuming previous experiment at trial ' + str(trial + 1))
 	return (trial, results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", use_real_ontology=False, resume=False):
+def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", use_real_ontology=False, add_distractor=True, resume=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		if model_size.lower() != '175b':
@@ -277,29 +277,39 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 	elif model_name != 'dummy':
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
+	# set the random seed for reproducibility
+	seed(62471893)
+	np.random.seed(62471893)
+
+	trial = 0
 	if resume:
 		log = open(log_file, "a+")
 		log.seek(0)
-		(trial, results, truncate_pos) = parse_log(log)
+		(resume_trial, results, truncate_pos) = parse_log(log)
 		log.truncate(truncate_pos)
 	else:
 		log = open(log_file, "w")
-		trial = 0
+		resume_trial = 0
 		results = []
 
 	while trial < num_trials:
 		prompt = ''
 		for i in range(num_fewshot_examples):
 			while True:
-				(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology)
+				(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology, add_distractor)
 				if question != None:
 					break
 			prompt += 'Q: ' + question + '\nA: ' + chain_of_thought + ' ' + answer + '\n\n'
 
 		while True:
-			(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology)
+			(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology, add_distractor)
 			if question != None:
 				break
+
+		trial += 1
+		if trial <= resume_trial:
+			continue
+
 		prompt += 'Q: ' + question + '\nA:'
 		print_output(prompt, log)
 		if model_name == 'gpt3':
@@ -316,7 +326,6 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		results.append(evaluate_response(response, chain_of_thought + ' ' + answer))
 
 		# compute the posterior beta parameters
-		trial += 1
 		alpha = np.sum(results) + 1
 		beta = trial - np.sum(results) + 1
 		print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
@@ -336,6 +345,7 @@ parser.add_argument("--num-trials", type=int, default=500)
 parser.add_argument("--few-shot-examples", type=int, default=8)
 parser.add_argument("--real-ontology", action='store_true')
 parser.add_argument("--opt-server", type=str, default=None)
+parser.add_argument("--no-distractor", action='store_true')
 args = parser.parse_args()
 
 opt_server = args.opt_server
@@ -347,13 +357,13 @@ for hops in range(1,8+1):
 	if args.real_ontology:
 		log_suffix += '_realontology'
 	if args.model_name == 'gpt3':
-		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'opt':
-		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'unifiedqa':
-		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'dummy':
-		run_experiment("dummy", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "dummy" + log_suffix + ".log", args.ordering, args.real_ontology, args.resume)
+		run_experiment("dummy", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "dummy" + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
 	else:
 		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 		break
