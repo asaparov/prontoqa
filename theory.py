@@ -187,7 +187,30 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 		cat = OntologyNode("cat", feline)
 		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "vertebrate":"insect", "mammal":"reptile", "furry":"snake", "warm-blooded":"snake", "cold-blooded":"snake", "carnivore":"cow", "carnivorous":"sheep", "herbivorous":"sheep", "feline":"dog", "cat":"dog"})
 	elif r == 1:
-		plant = OntologyNode("plant", None)
+		animal = OntologyNode("animal", None)
+		if randrange(2) == 0:
+			animal.properties = ["multicellular"]
+		else:
+			animal.negated_properties = ["unicellular"]
+		invertebrate = OntologyNode("invertebrate", animal)
+		arthropod = OntologyNode("arthropod", invertebrate)
+		r = randrange(3)
+		if r == 0:
+			arthropod.properties = ["segmented"]
+		elif r == 1:
+			arthropod.properties = ["small"]
+		else:
+			arthropod.negated_properties = ["bony"]
+		insect = OntologyNode("insect", arthropod)
+		if randrange(2) == 0:
+			insect.properties = ["six-legged"]
+		else:
+			insect.negated_properties = ["eight-legged"]
+		lepidopteran = OntologyNode("lepidopteran", insect)
+		butterfly = OntologyNode("butterfly", lepidopteran)
+		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "invertebrate":"mammal", "arthropod":"mullosc", "segmented":"nematode", "small":"whale", "bony":"whale", "insect":"crustacean", "six-legged":"spider", "eight-legged":"spider", "lepidopteran":"ant", "butterfly":"moth"})
+
+		'''plant = OntologyNode("plant", None)
 		if randrange(2) == 0:
 			plant.properties = [choice(["photosynthetic", "sessile", "multicellular"])]
 		else:
@@ -200,7 +223,7 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 		rosid = OntologyNode("rosid", eudicot)
 		rose = OntologyNode("rose", rosid)
 		rose.properties = ["perennial"]
-		return (plant, choice(available_entity_names), {"plant":"animal", "photosynthetic":"fish", "sessile":"whale", "multicellular":"bacteria", "mobile":"fish", "heterotrophic":"animal", "unicellular":"animal", "vascular plant":"moss", "vascular":"moss", "angiosperm":"conifer", "flowering":"conifer", "eudicot":"wheat", "rosid":"asterid", "rose":"cabbage", "perennial":"carrot"})
+		return (plant, choice(available_entity_names), {"plant":"animal", "photosynthetic":"fish", "sessile":"whale", "multicellular":"bacteria", "mobile":"fish", "heterotrophic":"animal", "unicellular":"animal", "vascular plant":"moss", "vascular":"moss", "angiosperm":"conifer", "flowering":"conifer", "eudicot":"wheat", "rosid":"asterid", "rose":"cabbage", "perennial":"carrot"})'''
 	elif r == 2:
 		number = OntologyNode("number", None)
 		real_number = OntologyNode("real number", number)

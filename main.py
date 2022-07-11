@@ -46,6 +46,18 @@ morphology.add_noun("cow", "cows")
 morphology.add_noun("sheep", "sheep")
 morphology.add_noun("dog", "dogs")
 
+morphology.add_noun("invertebrate", "invertebrates")
+morphology.add_noun("arthropod", "arthropods")
+morphology.add_noun("lepidopteran", "lepidopterans")
+morphology.add_noun("butterfly", "butterflies")
+morphology.add_noun("mullosc", "mulloscs")
+morphology.add_noun("nematode", "nematodes")
+morphology.add_noun("whale", "whales")
+morphology.add_noun("custacean", "custaceans")
+morphology.add_noun("spider", "spiders")
+morphology.add_noun("ant", "ants")
+morphology.add_noun("moth", "moths")
+
 morphology.add_noun("plant", "plants")
 morphology.add_noun("vascular plant", "vascular plants")
 morphology.add_noun("angiosperm", "angiosperms")
@@ -346,11 +358,16 @@ parser.add_argument("--few-shot-examples", type=int, default=8)
 parser.add_argument("--real-ontology", action='store_true')
 parser.add_argument("--opt-server", type=str, default=None)
 parser.add_argument("--no-distractor", action='store_true')
+parser.add_argument("--api-key", type=str, default=None)
+parser.add_argument("--min-hops", type=int, default=1)
+parser.add_argument("--max-hops", type=int, default=8)
+parser.add_argument("--hops-skip", type=int, default=1)
 args = parser.parse_args()
 
 opt_server = args.opt_server
+gpt_api_key = args.api_key
 
-for hops in range(1,8+1):
+for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 	log_suffix = '_' + str(hops) + 'hop'
 	if args.ordering != 'postorder':
 		log_suffix += '_' + args.ordering

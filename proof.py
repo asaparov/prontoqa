@@ -26,11 +26,13 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 	max_level = 0
 	for _, level in nodes:
 		max_level = max(max_level, level)
-	deepest_nodes = []
+	sufficiently_deep_nodes = []
 	for node, level in nodes:
-		if level == max_level:
-			deepest_nodes.append(node)
-	start = choice(deepest_nodes)
+		if level >= num_deduction_steps:
+			sufficiently_deep_nodes.append(node)
+	if len(sufficiently_deep_nodes) == 0:
+		return (None, None, None, None)
+	start = choice(sufficiently_deep_nodes)
 
 	start_formula = fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])
 	start_axiom = ProofStep(ProofStepType.AXIOM, [], start_formula)
