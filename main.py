@@ -324,14 +324,24 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 
 		prompt += 'Q: ' + question + '\nA:'
 		print_output(prompt, log)
-		if model_name == 'gpt3':
-			response = gpt3.predict(gpt_api_key, prompt)
-		elif model_name == 'opt':
-			response = opt.predict(model_size, prompt, opt_server)
-		elif model_name == 'unifiedqa':
-			response = unifiedqa.predict(model_size, prompt)
-		elif model_name == 'dummy':
-			response = ''
+		try_num = 0
+		while True:
+			try:
+				if model_name == 'gpt3':
+					response = gpt3.predict(gpt_api_key, prompt)
+				elif model_name == 'opt':
+					response = opt.predict(model_size, prompt, opt_server)
+				elif model_name == 'unifiedqa':
+					response = unifiedqa.predict(model_size, prompt)
+				elif model_name == 'dummy':
+					response = ''
+				break
+			except RuntimeError:
+				try_num += 1
+				if try_num == 5:
+					raise
+				print("Encountered runtime error. This may be due to CUDA instability. Trying again (try \#{})...".format(try_num + 1))
+				continue
 		print_output('\nPredicted answer:' + response, log)
 		print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer, log)
 
@@ -373,6 +383,8 @@ for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 		log_suffix += '_' + args.ordering
 	if args.real_ontology:
 		log_suffix += '_realontology'
+	if args.no_distractor:
+		log_suffix += '_nodistractor'
 	if args.model_name == 'gpt3':
 		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'opt':
