@@ -139,22 +139,22 @@ def get_properties_formula(node):
 
 def get_formulas(theory, ordering="postorder"):
 	formulas = []
-	if ordering == "preorder":
+	if ordering == "postorder":
 		for child in theory.children:
 			formulas.extend(get_formulas(child, ordering))
 
-	if ordering == "preorder":
+	if ordering == "postorder":
 		get_disjointness_formulas(formulas, theory)
 		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
 			formulas.append(get_properties_formula(theory))
 	if theory.parent != None:
 		formulas.append(get_subsumption_formula(theory))
-	if ordering == "postorder":
+	if ordering == "preorder":
 		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
 			formulas.append(get_properties_formula(theory))
 		get_disjointness_formulas(formulas, theory)
 	
-	if ordering == "postorder":
+	if ordering == "preorder":
 		for child in theory.children:
 			formulas.extend(get_formulas(child, ordering))
 	return formulas
@@ -169,7 +169,12 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 			animal.properties = ["multicellular"]
 		else:
 			animal.negated_properties = ["unicellular"]
-		vertebrate = OntologyNode("vertebrate", animal)
+		if num_deduction_steps >= 5:
+			bilaterian = OntologyNode("bilaterian", animal)
+			chordate = OntologyNode("chordate", bilaterian)
+			vertebrate = OntologyNode("vertebrate", chordate)
+		else:
+			vertebrate = OntologyNode("vertebrate", animal)
 		mammal = OntologyNode("mammal", vertebrate)
 		r = randrange(3)
 		if r == 0:
@@ -185,7 +190,9 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 			carnivore.negated_properties = ["herbivorous"]
 		feline = OntologyNode("feline", carnivore)
 		cat = OntologyNode("cat", feline)
-		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "vertebrate":"insect", "mammal":"reptile", "furry":"snake", "warm-blooded":"snake", "cold-blooded":"snake", "carnivore":"cow", "carnivorous":"sheep", "herbivorous":"sheep", "feline":"dog", "cat":"dog"})
+		if num_deduction_steps >= 6:
+			tabby = OntologyNode("tabby", cat)
+		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "vertebrate":"insect", "chordate":"insect", "mammal":"reptile", "furry":"snake", "warm-blooded":"snake", "cold-blooded":"snake", "carnivore":"cow", "carnivorous":"sheep", "herbivorous":"sheep", "feline":"dog", "cat":"dog", "tabby":"dog"})
 	elif r == 1:
 		animal = OntologyNode("animal", None)
 		if randrange(2) == 0:
@@ -193,7 +200,11 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 		else:
 			animal.negated_properties = ["unicellular"]
 		invertebrate = OntologyNode("invertebrate", animal)
-		arthropod = OntologyNode("arthropod", invertebrate)
+		if num_deduction_steps >= 6:
+			protostome = OntologyNode("protostome", invertebrate)
+			arthropod = OntologyNode("arthropod", protostome)
+		else:
+			arthropod = OntologyNode("arthropod", invertebrate)
 		r = randrange(3)
 		if r == 0:
 			arthropod.properties = ["segmented"]
@@ -208,7 +219,9 @@ def sample_real_ontology(available_entity_names, num_deduction_steps):
 			insect.negated_properties = ["eight-legged"]
 		lepidopteran = OntologyNode("lepidopteran", insect)
 		butterfly = OntologyNode("butterfly", lepidopteran)
-		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "invertebrate":"mammal", "arthropod":"mullosc", "segmented":"nematode", "small":"whale", "bony":"whale", "insect":"crustacean", "six-legged":"spider", "eight-legged":"spider", "lepidopteran":"ant", "butterfly":"moth"})
+		if num_deduction_steps >= 6:
+			painted_lady = OntologyNode("painted lady", butterfly)
+		return (animal, choice(available_entity_names), {"animal":"plant", "multicellular":"bacteria", "unicellular":"bacteria", "invertebrate":"mammal", "protostome":"mammal", "arthropod":"mullosc", "segmented":"nematode", "small":"whale", "bony":"whale", "insect":"crustacean", "six-legged":"spider", "eight-legged":"spider", "lepidopteran":"ant", "butterfly":"moth", "painted lady":"moth"})
 
 		'''plant = OntologyNode("plant", None)
 		if randrange(2) == 0:

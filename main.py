@@ -33,11 +33,14 @@ morphology.add_noun("impus", "impuses")
 morphology.add_noun("jompus", "jompuses")
 
 morphology.add_noun("animal", "animals")
+morphology.add_noun("bilaterian", "bilaterians")
+morphology.add_noun("chordate", "chordates")
 morphology.add_noun("vertebrate", "vertebrates")
 morphology.add_noun("mammal", "mammals")
 morphology.add_noun("carnivore", "carnivores")
 morphology.add_noun("feline", "felines")
 morphology.add_noun("cat", "cats")
+morphology.add_noun("tabby", "tabbies")
 morphology.add_noun("bacteria", "bacteria")
 morphology.add_noun("insect", "insects")
 morphology.add_noun("reptile", "reptiles")
@@ -47,13 +50,15 @@ morphology.add_noun("sheep", "sheep")
 morphology.add_noun("dog", "dogs")
 
 morphology.add_noun("invertebrate", "invertebrates")
+morphology.add_noun("protostome", "protostomes")
 morphology.add_noun("arthropod", "arthropods")
 morphology.add_noun("lepidopteran", "lepidopterans")
 morphology.add_noun("butterfly", "butterflies")
+morphology.add_noun("painted lady", "painted ladies")
 morphology.add_noun("mullosc", "mulloscs")
 morphology.add_noun("nematode", "nematodes")
 morphology.add_noun("whale", "whales")
-morphology.add_noun("custacean", "custaceans")
+morphology.add_noun("crustacean", "crustaceans")
 morphology.add_noun("spider", "spiders")
 morphology.add_noun("ant", "ants")
 morphology.add_noun("moth", "moths")
@@ -89,15 +94,24 @@ morphology.add_noun("even number", "even numbers")
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, formula_ordering="postorder", use_real_ontology=False, add_distractor=True):
+def generate_question(num_deduction_steps, formula_ordering="postorder", ontology="fictional", add_distractor=True):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
-	available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
 	available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
-	if use_real_ontology:
+	if ontology == "true":
 		(theory, selected_entity, distractor_map) = sample_real_ontology(available_entity_names, num_deduction_steps)
 	else:
+		if ontology == "false":
+			r = randrange(3)
+			if r == 0:
+				available_concept_names = ["animal", "vertebrate", "mammal", "carnivore", "feline", "cat", "dog", "sheep", "cow", "snake"]
+			elif r == 1:
+				available_concept_names = ["animal", "invertebrate", "arthropod", "insect", "lepidopteran", "butterfly", "moth", "ant", "spider", "crustacean"]
+			else:
+				available_concept_names = ["number", "real number", "integer", "natural number", "prime number", "Mersenne prime", "even number", "composite number", "negative number", "fraction"]
+		else:
+			available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
 		index = randrange(len(available_concept_names))
 		distractor_concept = available_concept_names[index]
 		del available_concept_names[index]
@@ -135,7 +149,7 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", use_rea
 	distractor_lf = None
 	if type(conclusion) == fol.FOLFuncApplication:
 		# if the question is the form `x is A`, and there is an existing sentence of the form `every B is A`, then create a distractor sentence of the form `every D is not A`
-		if use_real_ontology:
+		if ontology == "true":
 			distractor_concept = distractor_map[conclusion.function]
 		distractor_lf = fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
@@ -143,7 +157,7 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", use_rea
 			))
 	elif type(conclusion) == fol.FOLNot and type(conclusion.operand) == fol.FOLFuncApplication:
 		# if the question is the form `x is not A`, and there is an existing sentence of the form `every B is not A`, then create a distractor sentence of the form `every D is A`
-		if use_real_ontology:
+		if ontology == "true":
 			distractor_concept = distractor_map[conclusion.operand.function]
 		distractor_lf = fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
@@ -274,7 +288,7 @@ def parse_log(log):
 	print('Resuming previous experiment at trial ' + str(trial + 1))
 	return (trial, results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", use_real_ontology=False, add_distractor=True, resume=False):
+def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		if model_size.lower() != '175b':
@@ -308,13 +322,13 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		prompt = ''
 		for i in range(num_fewshot_examples):
 			while True:
-				(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology, add_distractor)
+				(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, ontology, add_distractor)
 				if question != None:
 					break
 			prompt += 'Q: ' + question + '\nA: ' + chain_of_thought + ' ' + answer + '\n\n'
 
 		while True:
-			(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, use_real_ontology, add_distractor)
+			(question, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, ontology, add_distractor)
 			if question != None:
 				break
 
@@ -365,7 +379,7 @@ parser.add_argument("--model-size", type=str, required=True)
 parser.add_argument("--ordering", type=str, default="postorder", choices=["postorder", "preorder", "random"])
 parser.add_argument("--num-trials", type=int, default=500)
 parser.add_argument("--few-shot-examples", type=int, default=8)
-parser.add_argument("--real-ontology", action='store_true')
+parser.add_argument("--ontology", type=str, default="fictional", choices=["fictional", "true", "false"])
 parser.add_argument("--opt-server", type=str, default=None)
 parser.add_argument("--no-distractor", action='store_true')
 parser.add_argument("--api-key", type=str, default=None)
@@ -381,18 +395,20 @@ for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 	log_suffix = '_' + str(hops) + 'hop'
 	if args.ordering != 'postorder':
 		log_suffix += '_' + args.ordering
-	if args.real_ontology:
-		log_suffix += '_realontology'
+	if args.ontology == "true":
+		log_suffix += '_trueontology'
+	elif args.ontology == "false":
+		log_suffix += '_falseontology'
 	if args.no_distractor:
 		log_suffix += '_nodistractor'
 	if args.model_name == 'gpt3':
-		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'opt':
-		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
+		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'unifiedqa':
-		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
+		run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, args.few_shot_examples, args.num_trials, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'dummy':
-		run_experiment("dummy", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "dummy" + log_suffix + ".log", args.ordering, args.real_ontology, not args.no_distractor, args.resume)
+		run_experiment("dummy", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	else:
 		print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 		break

@@ -28,7 +28,7 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 		max_level = max(max_level, level)
 	sufficiently_deep_nodes = []
 	for node, level in nodes:
-		if level >= num_deduction_steps:
+		if level + 1 >= num_deduction_steps:
 			sufficiently_deep_nodes.append(node)
 	if len(sufficiently_deep_nodes) == 0:
 		return (None, None, None, None)
