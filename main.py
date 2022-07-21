@@ -228,6 +228,7 @@ def evaluate_response(response, expected_answer):
 
 def parse_log(log):
 	trial = 0
+	too_long_responses = 0
 	results = []
 	resume_position = 0
 	line_number = 0
@@ -281,18 +282,19 @@ def parse_log(log):
 			predicted_answer = predicted_answer[:-1]
 		if expected_answer[-1] == '\n':
 			expected_answer = expected_answer[:-1]
-		results.append(evaluate_response(predicted_answer, expected_answer))
-		expected_mean = np.sum(results) / trial
+		if 'CONTEXT_TOO_LONG_ERROR' in predicted_answer:
+			too_long_responses += 1
+		else:
+			results.append(evaluate_response(predicted_answer, expected_answer))
+		expected_mean = np.sum(results) / (trial - too_long_responses)
 		if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
 			raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	print('Resuming previous experiment at trial ' + str(trial + 1))
-	return (trial, results, resume_position)
+	return (trial, too_long_responses, results, resume_position)
 
 def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples, num_trials, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
-		if model_size.lower() != '175b':
-			raise ValueError('model_size must be "175B" when model_name is "gpt3"')
 		import gpt3
 		if gpt_api_key == None:
 			gpt_api_key = getpass.getpass(prompt='Enter OpenAI API Key:')
@@ -308,10 +310,11 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 	np.random.seed(62471893)
 
 	trial = 0
+	too_long_responses = 0
 	if resume:
 		log = open(log_file, "a+")
 		log.seek(0)
-		(resume_trial, results, truncate_pos) = parse_log(log)
+		(resume_trial, too_long_responses, results, truncate_pos) = parse_log(log)
 		log.truncate(truncate_pos)
 	else:
 		log = open(log_file, "w")
@@ -342,7 +345,7 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 		while True:
 			try:
 				if model_name == 'gpt3':
-					response = gpt3.predict(gpt_api_key, prompt)
+					response = gpt3.predict(gpt_api_key, model_size, prompt)
 				elif model_name == 'opt':
 					response = opt.predict(model_size, prompt, opt_server)
 				elif model_name == 'unifiedqa':
@@ -356,17 +359,24 @@ def run_experiment(model_name, model_size, num_proof_steps, num_fewshot_examples
 					raise
 				print("Encountered runtime error. This may be due to CUDA instability. Trying again (try \#{})...".format(try_num + 1))
 				continue
-		print_output('\nPredicted answer:' + response, log)
+		if response == None:
+			print('WARNING: Context has too many tokens for this model. Skipping question...')
+			print_output('\nPredicted answer: CONTEXT_TOO_LONG_ERROR', log)
+		else:
+			print_output('\nPredicted answer:' + response, log)
 		print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer, log)
 
-		results.append(evaluate_response(response, chain_of_thought + ' ' + answer))
+		if response == None:
+			too_long_responses += 1
+		else:
+			results.append(evaluate_response(response, chain_of_thought + ' ' + answer))
 
 		# compute the posterior beta parameters
 		alpha = np.sum(results) + 1
-		beta = trial - np.sum(results) + 1
+		beta = (trial - too_long_responses) - np.sum(results) + 1
 		print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
-		mu = np.sum(results) / trial
-		stddev = np.sqrt(mu*(1 - mu)/trial)
+		mu = np.sum(results) / (trial - too_long_responses)
+		stddev = np.sqrt(mu*(1 - mu)/(trial - too_long_responses))
 		print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
 		log.flush()
 	log.close()
@@ -402,7 +412,7 @@ for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 	if args.no_distractor:
 		log_suffix += '_nodistractor'
 	if args.model_name == 'gpt3':
-		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
+		run_experiment("gpt3", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'opt':
 		run_experiment("opt", args.model_size, 1 + hops, args.few_shot_examples, args.num_trials, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume)
 	elif args.model_name == 'unifiedqa':
