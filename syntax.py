@@ -203,3 +203,193 @@ def inflect(tokens, end_punctuation):
 				tokens[i] = "an"
 	sentence = ' '.join(tokens)
 	return sentence[0].upper() + sentence[1:] + end_punctuation
+
+def is_int(text):
+	try:
+		int(text)
+		return True
+	except ValueError:
+		return False
+
+def parse_np_prime(tokens, index, morphology):
+	# first check if the next two tokens form a compound common noun
+	if index + 1 < len(tokens):
+		compound = ' '.join(tokens[index:(index+2)])
+	else:
+		compound = None
+
+	if compound != None and morphology.is_noun(compound):
+		is_plural = (None if morphology.is_plural_noun(compound) else False)
+		lf = fol.FOLFuncApplication(compound, [fol.FOLVariable(1)])
+		index += 2
+	elif compound != None and morphology.is_noun(compound.lower()):
+		is_plural = (None if morphology.is_plural_noun(compound) else False)
+		lf = fol.FOLFuncApplication(compound.lower(), [fol.FOLVariable(1)])
+		index += 2
+	elif compound != None and morphology.is_plural_noun(compound):
+		is_plural = (None if morphology.is_noun(compound) else True)
+		lf = fol.FOLFuncApplication(morphology.to_root(compound), [fol.FOLVariable(1)])
+		index += 2
+	elif compound != None and morphology.is_plural_noun(compound.lower()):
+		is_plural = (None if morphology.is_noun(compound) else True)
+		lf = fol.FOLFuncApplication(morphology.to_root(compound.lower()), [fol.FOLVariable(1)])
+		index += 2
+	elif compound != None and morphology.is_noun(tokens[index].lower()) and morphology.is_noun(tokens[index + 1]):
+		is_plural = (None if morphology.is_plural_noun(tokens[index + 1]) else False)
+		lf = fol.FOLAnd([
+				fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]),
+				fol.FOLFuncApplication(tokens[index + 1], [fol.FOLVariable(1)])
+			])
+		index += 2
+	elif compound != None and morphology.is_noun(tokens[index].lower()) and morphology.is_plural_noun(tokens[index + 1]):
+		is_plural = (None if morphology.is_noun(tokens[index + 1]) else True)
+		lf = fol.FOLAnd([
+				fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]),
+				fol.FOLFuncApplication(morphology.to_root(tokens[index + 1]), [fol.FOLVariable(1)])
+			])
+		index += 2
+	elif morphology.is_noun(tokens[index].lower()):
+		is_plural = (None if morphology.is_plural_noun(tokens[index].lower()) else False)
+		lf = fol.FOLFuncApplication(tokens[index], [fol.FOLVariable(1)])
+		index += 1
+	elif morphology.is_plural_noun(tokens[index].lower()):
+		is_plural = (None if morphology.is_noun(tokens[index].lower()) else True)
+		lf = fol.FOLFuncApplication(morphology.to_root(tokens[index].lower()), [fol.FOLVariable(1)])
+		index += 1
+	else:
+		# the noun is not common
+		is_plural = False
+		if not morphology.is_proper_noun(tokens[index]) and not is_int(tokens[index]):
+			return (None, None, None) # proper noun should be capitalized
+		lf = fol.FOLConstant(tokens[index])
+		index += 1
+	return (lf, index, is_plural)
+
+def parse_adjp(tokens, index, morphology):
+	return (fol.FOLFuncApplication(tokens[index], [fol.FOLVariable(1)]), index + 1)
+
+def parse_np(tokens, index, morphology):
+	if tokens[index].lower() in {"each", "every"}:
+		is_quantified = True
+		is_negated = False
+		det_is_plural = False
+		index += 1
+	elif tokens[index].lower() == "all":
+		is_quantified = True
+		is_negated = False
+		det_is_plural = True
+		index += 1
+	elif tokens[index].lower() in {"a", "an"}:
+		is_quantified = False
+		is_negated = False
+		det_is_plural = False
+		index += 1
+	elif tokens[index].lower() == 'no':
+		is_quantified = False
+		is_negated = True
+		det_is_plural = None
+		index += 1
+	else:
+		is_quantified = False
+		is_negated = False
+		det_is_plural = None
+
+	(lf, new_index, is_plural) = parse_np_prime(tokens, index, morphology)
+	if lf == None and index + 1 < len(tokens):
+		# try parsing an ADJP before the noun
+		(adjp_lf, index) = parse_adjp(tokens, index, morphology)
+		if adjp_lf == None or index >= len(tokens):
+			return (None, None, None, None, None)
+		(lf, index, is_plural) = parse_np_prime(tokens, index, morphology)
+		if lf == None or not isinstance(lf, fol.FOLFormula):
+			return (None, None, None, None, None)
+		adjp_operands = adjp_lf.operands if type(adjp_lf) == fol.FOLAnd else [adjp_lf]
+		np_operands = lf.operands if type(lf) == fol.FOLAnd else [lf]
+		lf = fol.FOLAnd(adjp_operands + np_operands)
+	else:
+		index = new_index
+
+	if det_is_plural != None and is_plural != None and is_plural != det_is_plural:
+		return (None, None, None, None, None) # the grammatical number of the determiner and the noun don't agree
+
+	return (lf, index, is_plural, is_negated, is_quantified)
+
+def parse_vp_arg(tokens, index, morphology):
+	(lf, new_index, is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
+	if lf == None or is_quantified or is_negated:
+		# this cannot be parsed as an NP, so parse it as an ADJP
+		(lf, index) = parse_adjp(tokens, index, morphology)
+		is_plural = None
+	else:
+		index = new_index
+	return (lf, index, is_plural)
+
+def parse_clause(tokens, index, morphology):
+	if tokens[index].lower() == 'is':
+		is_plural = False
+		invert = True
+		index += 1
+	elif tokens[index].lower() == 'are':
+		is_plural = True
+		invert = True
+		index += 1
+	else:
+		is_plural = None
+		invert = False
+
+	(left_lf, index, np_is_plural, np_is_negated, is_quantified) = parse_np(tokens, index, morphology)
+	if left_lf == None:
+		return (None, None, None)
+	if is_plural != None and is_plural != np_is_plural:
+		return (None, None, None) # grammatical number does not agree
+
+	if not invert:
+		if tokens[index] == 'is':
+			is_plural = False
+			index += 1
+		elif tokens[index] == 'are':
+			is_plural = True
+			index += 1
+		else:
+			# missing main verb for this clause
+			return (None, None, None)
+
+	if tokens[index] == 'not':
+		is_negated = True
+		index += 1
+	else:
+		is_negated = False
+
+	(right_lf, index, vp_is_plural) = parse_vp_arg(tokens, index, morphology)
+	if vp_is_plural != None and vp_is_plural != is_plural:
+		return (None, None, None) # grammatical number does not agree
+
+	if type(left_lf) == fol.FOLConstant:
+		if is_plural:
+			return (None, None, None) # outside the coverage of the grammar
+		lf = fol.substitute(right_lf, fol.FOLVariable(1), left_lf)
+		if is_negated:
+			lf = fol.FOLNot(lf)
+	elif is_quantified or np_is_plural == True or np_is_plural == None:
+		if np_is_negated:
+			if type(right_lf) == fol.FOLAnd:
+				remaining_conjuncts = right_lf.operands
+			else:
+				remaining_conjuncts = [right_lf]
+			lf = fol.FOLNot(fol.FOLExists(1, fol.FOLAnd([left_lf] + remaining_conjuncts)))
+		else:
+			if is_negated:
+				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, fol.FOLNot(right_lf)))
+			else:
+				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
+	else:
+		return (None, None, None) # outside the coverage of the grammar
+	return (lf, index, invert)
+
+def parse_sentence(sentence, morphology, expect_invert=None):
+	if type(sentence) == str:
+		sentence = sentence.split()
+	(lf, index, invert) = parse_clause(sentence, 0, morphology)
+	if expect_invert != None and invert != expect_invert:
+		return None # subject and auxiliary were either incorrectly inverted or incorrectly not inverted
+	return lf

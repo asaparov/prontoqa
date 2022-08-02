@@ -1,0 +1,8 @@
+.*\shas\s.*
+^Tumpus\sis\s.*
+^True\sor\sfalse.*
+^A\s:.*
+^Fompus.*
+^Fepus.*
+^Impure.*
+^Red\sis.*

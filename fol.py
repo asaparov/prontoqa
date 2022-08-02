@@ -491,3 +491,55 @@ def fol_to_tptp(formula):
 		return formula.function + '(' + ','.join([fol_term_to_tptp(arg) for arg in formula.args]) + ')'
 	else:
 		raise Exception(f"fol_to_tptp ERROR: Unrecognized formula type {type(formula)}.")
+
+def unify_term(first, second, first_var_map, second_var_map):
+	if type(first) == FOLVariable:
+		if not isinstance(second, FOLTerm):
+			return False
+		if first.variable in first_var_map:
+			return first_var_map[first.variable] == second
+		else:
+			first_var_map[first.variable] = second
+			return True
+	elif type(second) == FOLVariable:
+		if not isinstance(first, FOLTerm):
+			return False
+		if second.variable in second_var_map:
+			return second_var_map[second.variable] == first
+		else:
+			second_var_map[second.variable] = first
+			return True
+	else:
+		return first == second
+
+def unify(first, second, first_var_map, second_var_map):
+	if type(first) != type(second):
+		return False
+	elif type(first) == FOLAnd or type(first) == FOLOr:
+		if len(first.operands) != len(second.operands):
+			return False
+		for i in range(len(first.operands)):
+			if not unify(first.operands[i], second.operands[i], first_var_map, second_var_map):
+				return False
+	elif type(first) == FOLNot:
+		return unify(first.operand, second.operand, first_var_map, second_var_map)
+	elif type(first) == FOLIfThen or type(first) == FOLIff:
+		return unify(first.antecedent, second.antecedent, first_var_map, second_var_map) and unify(first.consequent, second.consequent, first_var_map, second_var_map)
+	elif type(first) == FOLEquals:
+		return unify_term(first.left, second.left, first_var_map, second_var_map) and unify_term(first.right, second.right, first_var_map, second_var_map)
+	elif type(first) == FOLForAll or type(first) == FOLExists:
+		first_var_map[first.variable] = FOLVariable(second.variable)
+		second_var_map[second.variable] = FOLVariable(first.variable)
+		if not unify(first.operand, second.operand, first_var_map, second_var_map):
+			return False
+		del first_var_map[first.variable]
+		del second_var_map[second.variable]
+	elif type(first) == FOLFuncApplication:
+		if first.function != second.function or len(first.args) != len(second.args):
+			return False
+		for i in range(len(first.args)):
+			if not unify_term(first.args[i], second.args[i], first_var_map, second_var_map):
+				return False
+	else:
+		raise Exception(f"unify ERROR: Unrecognized formula type {type(first)}.")
+	return True
