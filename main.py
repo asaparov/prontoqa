@@ -111,7 +111,15 @@ morphology.add_noun("even number", "even numbers")
 # for being able to parse overgenerated sentences
 morphology.add_noun("person", "people")
 morphology.add_noun("object", "objects")
+morphology.add_noun("thing", "things")
 morphology.add_noun("food", "food")
+morphology.add_noun("bird", "birds")
+morphology.add_noun("leptopod", "leptopods")
+morphology.add_noun("cell", "cells")
+morphology.add_noun("figure", "figures")
+morphology.add_noun("cricket", "crickets")
+morphology.add_noun("crow", "crows")
+morphology.add_noun("fruit", "fruits")
 
 available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 for name in available_entity_names:
@@ -266,6 +274,72 @@ def parse_reasoning(response):
 			start = end + 1
 	return lfs
 
+def is_provable(formula, axioms, proof, correct_steps, skip_steps):
+	# check if this is an axiom
+	if formula in axioms:
+		return (1, True)
+
+	# check if this is an instance of UNIVERSAL_INSTANTIATION
+	is_valid = False
+	is_valid_with_skip_steps = False
+	smallest_subproof_size = None
+	missing_axiom = False
+	for prev_step_index in (correct_steps + skip_steps + axioms):
+		if type(prev_step_index) == int:
+			prev_step = proof[prev_step_index]
+		else:
+			missing_axiom = True
+			prev_step = prev_step_index
+		first_var_map = {}
+		second_var_map = {}
+		if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(formula, prev_step.operand.consequent, first_var_map, second_var_map):
+			other_premise = fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable])
+			try:
+				if proof.index(other_premise) in correct_steps:
+					if prev_step_index in correct_steps:
+						is_valid = True
+						break
+					elif prev_step_index in skip_steps:
+						is_valid_with_skip_steps = True
+					elif missing_axiom:
+						smallest_subproof_size = 2
+				if proof.index(other_premise) in skip_steps:
+					if missing_axiom:
+						smallest_subproof_size = 2
+					is_valid_with_skip_steps = True
+			except ValueError:
+				pass
+
+			# this could be provable with additional steps of universal instantiation
+			(num_steps, valid_subproof) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
+			if valid_subproof and num_steps != None:
+				if smallest_subproof_size == None:
+					smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
+				else:
+					smallest_subproof_size = min(smallest_subproof_size, num_steps + 1 + (1 if missing_axiom else 0))
+	if is_valid:
+		return (1, True)
+	if is_valid_with_skip_steps:
+		return (1, False)
+	return (smallest_subproof_size, True)
+
+def find_path_length(provability_graph, src, dst):
+	queue = [(src, 0)]
+	visited = set()
+	found_target = False
+	while len(queue) > 0:
+		(current, path_length) = queue.pop()
+		if current not in provability_graph:
+			continue
+		for next_consequent in provability_graph[current]:
+			if next_consequent in visited:
+				continue
+			if next_consequent == dst:
+				return path_length + 1
+			queue.append((next_consequent, path_length + 1))
+			visited.add(next_consequent)
+	return -1
+
 def evaluate_response(response, expected_answer, axioms):
 	acceptable_answers = {
 		'True':{'true', 't', 'yes', 'y', 'correct', 'right'},
@@ -288,6 +362,15 @@ def evaluate_response(response, expected_answer, axioms):
 	expected_label_index = expected_answer.rfind(' ')
 	expected_proof = parse_reasoning(expected_answer[:expected_label_index])
 
+	# construct a graph of provable universally quantified rules from the axioms
+	provability_graph = {}
+	for step in axioms:
+		if type(step) == fol.FOLForAll and type(step.operand) == fol.FOLIfThen:
+			if step.operand.antecedent not in provability_graph:
+				provability_graph[step.operand.antecedent] = [step.operand.consequent]
+			else:
+				provability_graph[step.operand.antecedent].append(step.operand.consequent)
+
 	# evaluate the proof
 	proof = parse_reasoning(response[:label_index])
 	correct_steps = []
@@ -296,7 +379,15 @@ def evaluate_response(response, expected_answer, axioms):
 	unparseable_steps = []
 	incorrect_steps = []
 	wrong_branch_steps = []
+	skip_steps = []
+	wrong_skip_steps = []
+	useful_skip_steps = []
+	wrong_non_atomic_steps = []
+	useful_non_atomic_steps = []
+	invalid_steps = []
 	found_conclusion = False
+	found_conclusion_with_skip_steps = False
+	found_conclusion_with_non_atomic_steps = False
 	for i in range(len(proof)):
 		proof_step = proof[i]
 		if proof_step == None:
@@ -308,46 +399,59 @@ def evaluate_response(response, expected_answer, axioms):
 		is_conclusion = (proof_step == expected_proof[-1])
 
 		# check if we've gone down the wrong branch
-		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll:
+		last_step = (proof[correct_steps[-1]] if len(correct_steps) > 0 else None)
+		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen and type(proof_step.operand.antecedent) == fol.FOLFuncApplication and last_step != None and type(last_step) == fol.FOLFuncApplication and proof_step.operand.antecedent.function == last_step.function:
 			wrong_branch_steps.append(i)
 
 		if proof_step in proof[:i]:
 			redundant_steps.append(i)
 			continue
 
-		# check if this is an axiom
-		if proof_step in axioms:
-			correct_steps.append(i)
+		(num_steps, is_valid) = is_provable(proof_step, axioms, proof, correct_steps, skip_steps)
+		if num_steps == 1:
+			if is_valid:
+				correct_steps.append(i)
+				if is_useful:
+					correct_and_useful_steps.append(i)
+				if is_conclusion:
+					found_conclusion = True
+				continue
+			else:
+				skip_steps.append(i)
+				if is_conclusion:
+					found_conclusion_with_skip_steps = True
+				continue
+		elif num_steps != None:
 			if is_useful:
-				correct_and_useful_steps.append(i)
+				useful_non_atomic_steps.append(i)
+			else:
+				wrong_non_atomic_steps.append(i)
 			if is_conclusion:
-				found_conclusion = True
+				found_conclusion_with_non_atomic_steps = True
 			continue
 
-		# check if this is an instance of UNIVERSAL_INSTANTIATION
-		is_valid = False
-		for prev_step in proof[:i]:
-			first_var_map = {}
-			second_var_map = {}
-			if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(proof_step, prev_step.operand.consequent, first_var_map, second_var_map):
-				other_premise = fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable])
-				if other_premise in proof[:i]:
-					is_valid = True
-					break
-		if is_valid:
-			correct_steps.append(i)
-			if is_useful:
-				correct_and_useful_steps.append(i)
-			if is_conclusion:
-				found_conclusion = True
-			continue
+		# this step is incorrect, but it may be a valid rule provable from axioms using more than one step
+		if type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen:
+			# make sure this step is still valid (provable) by searching `provability_graph` for a path from antecedent to consequent
+			if find_path_length(provability_graph, proof_step.operand.antecedent, proof_step.operand.consequent) != -1:
+				skip_steps.append(i)
+				# check if this step is actually useful for completing the proof
+				first_var_map = {}
+				second_var_map = {}
+				is_skip_useful = False
+				if last_step != None and fol.unify(last_step, proof_step.operand.antecedent, first_var_map, second_var_map):
+					next_step = fol.substitute(proof_step.operand.consequent, fol.FOLVariable(proof_step.variable), second_var_map[proof_step.variable])
+					if next_step in expected_proof:
+						is_skip_useful = True
+				if is_skip_useful:
+					useful_skip_steps.append(i)
+				else:
+					wrong_skip_steps.append(i)
+			else:
+				invalid_steps.append(i)
 
 		# we can't find a matching deduction rule, so label this step as incorrect
 		incorrect_steps.append(i)
-
-	# TODO: for debugging; delete this
-	if len(wrong_branch_steps) != 0 and found_conclusion:
-		print('DEBUG: delete this')
 
 	# evaluate the label
 	answer = expected_answer[(expected_label_index + 1):]
@@ -356,7 +460,7 @@ def evaluate_response(response, expected_answer, axioms):
 		label_correctness = 1.0
 	else:
 		label_correctness = 0.0
-	return (label_correctness, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, incorrect_steps, found_conclusion)
+	return (label_correctness, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps)
 
 def parse_log(log):
 	trial = 0
@@ -430,7 +534,7 @@ def parse_log(log):
 			last_question = last_question[:last_question.index('True or false:')]
 			result = evaluate_response(predicted_answer, expected_answer, parse_reasoning(last_question))
 			results.append(result)
-			(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, incorrect_steps, found_conclusion) = result
+			(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 			label_results.append(label)
 		expected_mean = np.sum(label_results) / (trial - too_long_responses)
 		if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
@@ -522,7 +626,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 				too_long_responses += 1
 			else:
 				result = evaluate_response(response, chain_of_thought + ' ' + answer, question_lfs)
-				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, incorrect_steps, found_conclusion) = result
+				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 				label_results.append(label)
 
 			# compute the posterior beta parameters

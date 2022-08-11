@@ -1,0 +1,5 @@
+*.log
+*.pdf
+*.png
+__pycache__
+.vs

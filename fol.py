@@ -26,6 +26,12 @@ class FOLAnd(FOLFormula):
 				return True
 		return False
 
+	def __hash__(self):
+		value = 0
+		for operand in self.operands:
+			value ^= hash(operand)
+		return hash((FOLAnd, value))
+
 	def apply(self, func):
 		operands = []
 		for operand in self.operands:
@@ -60,6 +66,12 @@ class FOLOr(FOLFormula):
 				return True
 		return False
 
+	def __hash__(self):
+		value = 0
+		for operand in self.operands:
+			value ^= hash(operand)
+		return hash((FOLOr, value))
+
 	def apply(self, func):
 		operands = []
 		for operand in self.operands:
@@ -84,6 +96,9 @@ class FOLNot(FOLFormula):
 			return True
 		return self.operand != other.operand
 
+	def __hash__(self):
+		return hash((FOLNot, self.operand))
+
 	def apply(self, func):
 		return FOLNot(func(self.operand))
 
@@ -104,6 +119,9 @@ class FOLIfThen(FOLFormula):
 		if type(other) != FOLIfThen:
 			return True
 		return self.antecedent != other.antecedent or self.consequent != other.consequent
+
+	def __hash__(self):
+		return hash((FOLIfThen, self.antecedent, self.consequent))
 
 	def apply(self, func):
 		return FOLIfThen(func(self.antecedent), func(self.consequent))
@@ -127,6 +145,9 @@ class FOLIff(FOLFormula):
 			return True
 		return self.antecedent != other.antecedent or self.consequent != other.consequent
 
+	def __hash__(self):
+		return hash((FOLIff, self.antecedent, self.consequent))
+
 	def apply(self, func):
 		return FOLIff(func(self.antecedent), func(self.consequent))
 
@@ -148,6 +169,9 @@ class FOLEquals(FOLFormula):
 		if type(other) != FOLEquals:
 			return True
 		return self.left != other.left or self.right != other.right
+
+	def __hash__(self):
+		return hash((FOLEquals, self.left, self.right))
 
 	def apply(self, func):
 		return FOLEquals(func(self.left), func(self.right))
@@ -171,6 +195,9 @@ class FOLForAll(FOLFormula):
 			return True
 		return self.variable != other.variable or self.operand != other.operand
 
+	def __hash__(self):
+		return hash((FOLForAll, self.variable, self.operand))
+
 	def apply(self, func):
 		return FOLForAll(self.variable, func(self.operand))
 
@@ -191,6 +218,9 @@ class FOLExists(FOLFormula):
 		if type(other) != FOLExists:
 			return True
 		return self.variable != other.variable or self.operand != other.operand
+
+	def __hash__(self):
+		return hash((FOLExists, self.variable, self.operand))
 
 	def apply(self, func):
 		return FOLExists(self.variable, func(self.operand))
@@ -227,6 +257,12 @@ class FOLFuncApplication(FOLFormula):
 				return True
 		return False
 
+	def __hash__(self):
+		value = 0
+		for operand in self.args:
+			value ^= hash(operand)
+		return hash((FOLFuncApplication, self.function, value))
+
 	def apply(self, func):
 		return FOLFuncApplication(self.function, [func(arg) for arg in self.args])
 
@@ -252,6 +288,9 @@ class FOLVariable(FOLTerm):
 			return True
 		return self.variable != other.variable
 
+	def __hash__(self):
+		return hash((FOLVariable, self.variable))
+
 	def apply(self, func):
 		return FOLVariable(self.variable)
 
@@ -272,6 +311,9 @@ class FOLConstant(FOLTerm):
 			return True
 		return self.constant != other.constant
 
+	def __hash__(self):
+		return hash((FOLConstant, self.constant))
+
 	def apply(self, func):
 		return FOLConstant(self.constant)
 
@@ -291,6 +333,9 @@ class FOLNumber(FOLTerm):
 		if type(other) != FOLNumber:
 			return True
 		return self.number != other.number
+
+	def __hash__(self):
+		return hash((FOLNumber, self.number))
 
 	def apply(self, func):
 		return FOLNumber(self.number)

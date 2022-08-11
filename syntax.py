@@ -250,7 +250,7 @@ def parse_np_prime(tokens, index, morphology):
 		index += 2
 	elif morphology.is_noun(tokens[index].lower()):
 		is_plural = (None if morphology.is_plural_noun(tokens[index].lower()) else False)
-		lf = fol.FOLFuncApplication(tokens[index], [fol.FOLVariable(1)])
+		lf = fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)])
 		index += 1
 	elif morphology.is_plural_noun(tokens[index].lower()):
 		is_plural = (None if morphology.is_noun(tokens[index].lower()) else True)
