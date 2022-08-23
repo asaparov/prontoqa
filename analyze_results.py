@@ -2,6 +2,17 @@ import numpy as np
 from main import parse_log
 from sys import argv
 
+# see https://www.mikulskibartosz.name/wilson-score-in-python-example/
+def wilson_conf_interval(p, n, z=1.96):
+	denominator = 1 + z*z/n
+	center_adjusted_probability = p + z*z / (2*n)
+	adjusted_standard_deviation = np.sqrt((p*(1 - p) + z*z / (4*n)) / n)
+
+	lower_bound = (center_adjusted_probability - z*adjusted_standard_deviation) / denominator
+	upper_bound = (center_adjusted_probability + z*adjusted_standard_deviation) / denominator
+	return (lower_bound, upper_bound)
+
+
 def analyze_log(logfile):
 	with open(logfile, "r") as log:
 		(_, _, results, _, _) = parse_log(log)
@@ -297,6 +308,7 @@ else:
 		incorrect_proofs_useful_skip_step = []
 		incorrect_proofs_wrong_skip_step = []
 		incorrect_proofs_invalid_step = []
+		example_count = []
 		offset = 6
 		for logfile in logfiles:
 			print('parsing "{}"'.format(logfile))
@@ -304,6 +316,7 @@ else:
 			experiment_names.append(logfile)
 
 			correct_proof_count = np.sum(contains_correct_proof) + contains_correct_proof_with_skip_step_or_non_atomic_step
+			example_count.append(num_examples)
 			correct_proofs.append(correct_proof_count / num_examples)
 			correct_proofs_wrong_branch.append(get_count(contains_any_wrong_branch, offset + 1) / num_examples)
 			correct_proofs_useful_non_atomic_step.append(get_count(contains_any_useful_non_atomic_step, offset + 1) / num_examples)
@@ -318,6 +331,7 @@ else:
 			incorrect_proofs_wrong_skip_step.append(get_count(contains_any_wrong_skip_step, offset + 0) / num_examples)
 			incorrect_proofs_invalid_step.append(get_count(contains_any_invalid_step, offset + 0) / num_examples)
 
+		example_count = np.array(example_count)
 		correct_proofs = np.array(correct_proofs)
 		correct_proofs_wrong_branch = np.array(correct_proofs_wrong_branch)
 		correct_proofs_useful_non_atomic_step = np.array(correct_proofs_useful_non_atomic_step)
@@ -375,6 +389,10 @@ else:
 		plt.bar(x6, incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
 		plt.bar(x6, 1.0 - correct_proofs - incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_invalid_step, color=lighten_color(colors[0], 0.8))
 
+		# draw the error bars
+		(lower_bound, upper_bound) = wilson_conf_interval(correct_proofs, example_count)
+		plt.errorbar(x1 + (1.0 - bar_spacing - bar_width) / 2, correct_proofs, yerr=np.array((correct_proofs - lower_bound, upper_bound - correct_proofs)), fmt='none', ecolor='#000', capsize=3.0)
+
 		ax = plt.gca()
 		if offset == 0:
 			plt.ylabel('strict proof accuracy')
@@ -401,6 +419,7 @@ else:
 
 
 	logfiles = glob.glob('gpt_*.log')
+	example_count = []
 	label_accuracy = []
 	proof_accuracy = []
 	proof_accuracy_with_skip_steps = []
@@ -427,11 +446,21 @@ else:
 		print(np.sum(contains_wrong_branch_or_useful_skip_step + contains_wrong_branch_or_wrong_skip_step + contains_useful_skip_or_wrong_skip_step + contains_useful_skip_or_useful_non_atomic_step + contains_useful_skip_or_wrong_non_atomic_step + contains_useful_skip_or_invalid_step + contains_wrong_skip_or_useful_non_atomic_step + contains_wrong_skip_or_wrong_non_atomic_step + contains_wrong_skip_or_invalid_step + contains_useful_non_atomic_or_wrong_non_atomic_step + contains_useful_non_atomic_or_invalid_step + contains_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_step + contains_wrong_branch_or_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_or_invalid_step))
 
 		correct_proof_count = np.sum(contains_correct_proof)
+		example_count.append(num_examples)
 		label_accuracy.append(correct_labels / num_examples)
 		proof_accuracy.append(correct_proof_count / num_examples)
 		proof_accuracy_with_skip_steps.append((correct_proof_count + contains_correct_proof_with_skip_step) / num_examples)
 		proof_accuracy_with_non_atomic_steps.append((correct_proof_count + contains_correct_proof_with_non_atomic_step) / num_examples)
 		proof_accuracy_with_skip_steps_and_non_atomic_steps.append((correct_proof_count + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples)
+
+	example_count = np.array(example_count)
+	label_accuracy = np.array(label_accuracy)
+	proof_accuracy = np.array(proof_accuracy)
+	proof_accuracy_with_skip_steps = np.array(proof_accuracy_with_skip_steps)
+	proof_accuracy_with_non_atomic_steps = np.array(proof_accuracy_with_non_atomic_steps)
+	proof_accuracy_with_skip_steps_and_non_atomic_steps = np.array(proof_accuracy_with_skip_steps_and_non_atomic_steps)
+
+	(label_lower_bound, label_upper_bound) = wilson_conf_interval(label_accuracy, example_count)
 
 	plt.style.use('ggplot')
 	colors = []
@@ -441,7 +470,9 @@ else:
 	fig = plt.gcf()
 	fig.set_size_inches(3.5, 3.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
-	plt.scatter(label_accuracy, proof_accuracy)
+	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy, example_count)
+	plt.errorbar(label_accuracy, proof_accuracy, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy - proof_lower_bound, proof_upper_bound - proof_accuracy)), fmt='none', ecolor='#888', elinewidth=0.8)
+	plt.scatter(label_accuracy, proof_accuracy, zorder=10)
 	plt.xlabel('label accuracy')
 	plt.ylabel('strict proof accuracy')
 	plt.xlim([0.0, 1.0])
@@ -452,7 +483,9 @@ else:
 	fig = plt.gcf()
 	fig.set_size_inches(3.5, 3.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
-	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, c=colors[1])
+	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps, example_count)
+	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps)), fmt='none', ecolor='#888', elinewidth=0.8)
+	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, zorder=10, c=colors[1])
 	plt.xlabel('label accuracy')
 	plt.ylabel('proof accuracy if \n ``skip steps\'\' are correct')
 	plt.xlim([0.0, 1.0])
@@ -463,7 +496,9 @@ else:
 	fig = plt.gcf()
 	fig.set_size_inches(3.5, 3.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
-	plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, c=colors[2])
+	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_non_atomic_steps, example_count)
+	plt.errorbar(label_accuracy, proof_accuracy_with_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_non_atomic_steps)), fmt='none', ecolor='#888', elinewidth=0.8)
+	plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, c=colors[2])
 	plt.xlabel('label accuracy')
 	plt.ylabel('proof accuracy if \n non-atomic steps are correct')
 	plt.xlim([0.0, 1.0])
@@ -474,7 +509,9 @@ else:
 	fig = plt.gcf()
 	fig.set_size_inches(3.5, 3.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
-	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, c=colors[5])
+	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps_and_non_atomic_steps, example_count)
+	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps_and_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps_and_non_atomic_steps)), fmt='none', ecolor='#888', elinewidth=0.8)
+	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, zorder=10, c=colors[5])
 	plt.xlabel('label accuracy')
 	plt.ylabel('proof accuracy if \n both ``skip steps\'\' and \n non-atomic steps are correct')
 	plt.xlim([0.0, 1.0])
