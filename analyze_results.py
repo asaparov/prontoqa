@@ -347,7 +347,7 @@ else:
 		incorrect_proofs_invalid_step = np.array(incorrect_proofs_invalid_step)
 
 		bar_group_size = 6
-		bar_spacing = 0.4
+		bar_spacing = 0.2
 		bar_width = (1.0 - bar_spacing) / bar_group_size
 
 		x1 = np.arange(len(experiment_names))
@@ -402,6 +402,7 @@ else:
 			plt.ylabel('proof accuracy if \n non-atomic steps are correct')
 		elif offset == 6:
 			plt.ylabel('proof accuracy if \n both ``skip steps\'\' and \n non-atomic steps are correct')
+		plt.xlim([-bar_spacing, len(experiment_names) - 0.12])
 		plt.ylim([0.0, 1.0])
 		plt.title(chart_title)
 		delta = (1.0 - bar_spacing) / (3 * bar_group_size)
