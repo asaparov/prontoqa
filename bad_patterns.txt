@@ -5,7 +5,10 @@
 .*\ssour\s.*
 .*\sinvertree\s.*
 ^Tumpus\sis\s.*
+^True\sor\strue.*
 ^True\sor\sfalse.*
+^False\sor\sfalse.*
+^True\sA\s:.*
 ^False\sA\s:.*
 ^A\s:.*
 ^Fompus.*
@@ -20,6 +23,7 @@
 ^Feline\sis.*
 ^Spider\sis.*
 ^Fally\s.*
+^Spruce\s.*
 ^Shy(?!\s).*
 ^Lepidopteran\sis.*
 .*\sare\slepidopteran.*

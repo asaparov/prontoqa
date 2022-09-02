@@ -120,6 +120,8 @@ morphology.add_noun("figure", "figures")
 morphology.add_noun("cricket", "crickets")
 morphology.add_noun("crow", "crows")
 morphology.add_noun("fruit", "fruits")
+morphology.add_noun("spruce", "spruces")
+morphology.add_noun("tree", "trees")
 
 available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 for name in available_entity_names:
