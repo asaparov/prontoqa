@@ -490,7 +490,7 @@ else:
 				plt.ylabel('proof accuracy if both \n ``skip steps\'\' and non-\n atomic steps are correct')
 		plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
 		plt.ylim([0.0, 1.0])
-		plt.title(chart_title)
+		plt.title(chart_title, fontsize=13)
 		delta = (1.0 - bar_spacing) / (3 * bar_group_size)
 		plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels)
 		plt.tick_params(axis='x', which='both', length=0)
@@ -562,9 +562,9 @@ else:
 			plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
 			plt.ylim([0.0, 1.0])
 			if first_error_title == None:
-				plt.title(chart_title)
+				plt.title(chart_title, fontsize=13)
 			else:
-				plt.title(first_error_title)
+				plt.title(first_error_title, fontsize=13)
 			delta = (1.0 - bar_spacing) / (3 * bar_group_size)
 			plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels)
 			plt.tick_params(axis='x', which='both', length=0)
