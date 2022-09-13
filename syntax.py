@@ -340,6 +340,8 @@ def parse_clause(tokens, index, morphology):
 	(left_lf, index, np_is_plural, np_is_negated, is_quantified) = parse_np(tokens, index, morphology)
 	if left_lf == None:
 		return (None, None, None)
+	if index == len(tokens):
+		return (None, None, None) # clause is incomplete
 	if is_plural != None and is_plural != np_is_plural:
 		return (None, None, None) # grammatical number does not agree
 

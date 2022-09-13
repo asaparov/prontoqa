@@ -122,6 +122,11 @@ morphology.add_noun("crow", "crows")
 morphology.add_noun("fruit", "fruits")
 morphology.add_noun("spruce", "spruces")
 morphology.add_noun("tree", "trees")
+morphology.add_noun("color", "colors")
+morphology.add_noun("herbivore", "herbivores")
+morphology.add_noun("shepherd", "shepherds")
+morphology.add_noun("icon", "icons")
+morphology.add_noun("bumblebee", "bumblebees")
 
 available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 for name in available_entity_names:
@@ -440,8 +445,13 @@ def evaluate_response(response, expected_answer, axioms):
 				# check if this step is actually useful for completing the proof
 				first_var_map = {}
 				second_var_map = {}
+				is_antecedent_provable = False
+				for step_index in correct_steps + skip_steps:
+					if fol.unify(proof[step_index], proof_step.operand.antecedent, first_var_map, second_var_map):
+						is_antecedent_provable = True
+						break
 				is_skip_useful = False
-				if last_step != None and fol.unify(last_step, proof_step.operand.antecedent, first_var_map, second_var_map):
+				if is_antecedent_provable:
 					next_step = fol.substitute(proof_step.operand.consequent, fol.FOLVariable(proof_step.variable), second_var_map[proof_step.variable])
 					if next_step in expected_proof:
 						is_skip_useful = True

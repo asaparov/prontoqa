@@ -73,6 +73,8 @@ def analyze_log(logfile):
 	wrong_non_atomic_step_first = [0] * 8
 	invalid_step_first = [0] * 8
 
+	wrong_branch_lengths = []
+
 	question_id = 0
 	for result in results:
 		question_id += 1
@@ -187,12 +189,22 @@ def analyze_log(logfile):
 			proof_lengths.append(0)
 		else:
 			proof_lengths.append(max(correct_steps + redundant_steps + incorrect_steps) + 1)
+
+		# count the number of steps after a wrong branch step before a correct step
+		if found_conclusion_with_skip_or_non_atomic_steps and len(wrong_branch_steps) > 0:
+			# find the first useful step after the wrong branch
+			index = wrong_branch_steps[0]
+			corrected_indices = [step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]
+			if len(corrected_indices) != 0:
+				wrong_branch_lengths.append(min([step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]))
 		correct_labels += label
 
-	return (len(results), proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step)
+	#if len(results) != 400:
+	#	raise ValueError("{} does not have 400 examples.".format(logfile))
+	return (len(results), proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths)
 
 if len(argv) > 1:
-	(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step) = analyze_log(argv[1])
+	(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(argv[1])
 
 	max_proof_length = max(proof_lengths)
 	total_steps = np.sum(proof_lengths)
@@ -298,7 +310,7 @@ else:
 		c = colorsys.rgb_to_hls(*mc.to_rgb(c))
 		return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
-	def make_step_type_plot(chart_title, filename_glob, group_labels, chart_filename, first_error_chart_filename, add_bar_legend=False, figure_height=2.4, first_error_figure_height=2.4, show_ylabel=True, show_first_error_ylabel=True, first_error_title=None):
+	def make_step_type_plot(chart_title, filename_glob, group_labels, chart_filename, first_error_chart_filename, wrong_branch_lengths_filename, add_bar_legend=False, figure_height=2.4, first_error_figure_height=2.4, show_ylabel=True, show_first_error_ylabel=True, first_error_title=None):
 		if type(filename_glob) == str:
 			logfiles = glob.glob(filename_glob)
 		elif type(filename_glob) == list:
@@ -340,11 +352,13 @@ else:
 		incorrect_proofs_useful_non_atomic_step_first = []
 		incorrect_proofs_wrong_non_atomic_step_first = []
 		incorrect_proofs_invalid_step_first = []
+		wrong_branch_lengths_array = []
+
 		example_count = []
 		offset = 6
 		for logfile in logfiles:
 			print('parsing "{}"'.format(logfile))
-			(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step) = analyze_log(logfile)
+			(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(logfile)
 
 			correct_proof_count = np.sum(contains_correct_proof) + contains_correct_proof_with_skip_step_or_non_atomic_step
 			example_count.append(num_examples)
@@ -374,6 +388,14 @@ else:
 			incorrect_proofs_useful_non_atomic_step_first.append(get_count(useful_non_atomic_step_first, offset + 0) / num_examples)
 			incorrect_proofs_wrong_non_atomic_step_first.append(get_count(wrong_non_atomic_step_first, offset + 0) / num_examples)
 			incorrect_proofs_invalid_step_first.append(get_count(invalid_step_first, offset + 0) / num_examples)
+
+			counter = {}
+			for length in wrong_branch_lengths:
+				if length not in counter:
+					counter[length] = 1
+				else:
+					counter[length] += 1
+			wrong_branch_lengths_array.append((np.array(list(counter.keys())), np.array(list(counter.values()))))
 
 		example_count = np.array(example_count)
 		correct_proofs = np.array(correct_proofs)
@@ -491,8 +513,8 @@ else:
 		plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
 		plt.ylim([0.0, 1.0])
 		plt.title(chart_title, fontsize=13)
-		delta = (1.0 - bar_spacing) / (3 * bar_group_size)
-		plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels)
+		delta = (1.0 - bar_spacing) / (2 * bar_group_size)
+		plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=9)
 		plt.tick_params(axis='x', which='both', length=0)
 		if add_bar_legend:
 			plt.text(0.0 + 0*bar_width - delta, 1.0, "misleading branches", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
@@ -503,6 +525,31 @@ else:
 			plt.text(0.0 + 5*bar_width - delta, 1.0, "invalid steps", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
 		fig.savefig(chart_filename, dpi=128, bbox_inches=Bbox([[0.3, -0.1], [10.0 - 0.3, figure_height]]))
 		plt.clf()
+
+		if wrong_branch_lengths_filename != None:
+			fig = plt.gcf()
+			for i in range(len(correct_proofs)):
+				max_length = 20
+				ax = plt.subplot(1, len(correct_proofs), i + 1)
+				(wrong_branch_lengths, wrong_branch_lengths_counts) = wrong_branch_lengths_array[i]
+				if len(wrong_branch_lengths) != 0:
+					total_count = np.sum(wrong_branch_lengths_counts)
+					(lower_bound, upper_bound) = wilson_conf_interval(wrong_branch_lengths_counts/total_count, total_count)
+					err = np.array((wrong_branch_lengths_counts/total_count - lower_bound, upper_bound - wrong_branch_lengths_counts/total_count))
+					ax.bar(wrong_branch_lengths, wrong_branch_lengths_counts/total_count, width=1.0, yerr=err, error_kw=dict(elinewidth=0.7, capthick=0.7, capsize=1.5), color=colors[1])
+					max_length = max(max_length, np.max(wrong_branch_lengths_array[i][0]) + 2)
+				ax.set_xlabel(group_labels[i], fontsize=9)
+				if show_first_error_ylabel and i == 0:
+					ax.set_ylabel('proportion of \n correct proofs')
+				ax.set_xlim(0, max_length)
+				ax.set_ylim(0.0, 1.0)
+				ax.tick_params(axis='x', which='both', length=0)
+				if i != 0:
+					ax.axes.yaxis.set_ticklabels([])
+					plt.tick_params(axis='y', which='both', length=0)
+			plt.suptitle(chart_title, fontsize=13)
+			fig.savefig(wrong_branch_lengths_filename, dpi=128, bbox_inches=Bbox([[0.3, -0.1], [10.0 - 0.3, figure_height]]))
+			plt.clf()
 
 		if first_error_chart_filename != None:
 			fig = plt.gcf()
@@ -566,7 +613,7 @@ else:
 			else:
 				plt.title(first_error_title, fontsize=13)
 			delta = (1.0 - bar_spacing) / (3 * bar_group_size)
-			plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels)
+			plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=9)
 			plt.tick_params(axis='x', which='both', length=0)
 			xlabel_line_count = np.max([label.count('\n') for label in group_labels])
 			if "1hop" in logfiles[0]:
@@ -603,7 +650,7 @@ else:
 		if "seed" in logfile:
 			continue
 		print('parsing "{}"'.format(logfile))
-		(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step) = analyze_log(logfile)
+		(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(logfile)
 		print(np.sum(contains_wrong_branch_or_useful_skip_step + contains_wrong_branch_or_wrong_skip_step + contains_useful_skip_or_wrong_skip_step + contains_useful_skip_or_useful_non_atomic_step + contains_useful_skip_or_wrong_non_atomic_step + contains_useful_skip_or_invalid_step + contains_wrong_skip_or_useful_non_atomic_step + contains_wrong_skip_or_wrong_non_atomic_step + contains_wrong_skip_or_invalid_step + contains_useful_non_atomic_or_wrong_non_atomic_step + contains_useful_non_atomic_or_invalid_step + contains_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_step + contains_wrong_branch_or_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_or_invalid_step))
 
 		correct_proof_count = np.sum(contains_correct_proof)
@@ -683,44 +730,44 @@ else:
 	make_step_type_plot('Fictional ontology',
 		['gpt_textdavinci002_1hop.log', 'gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop.log', 'gpt_textdavinci002_5hop_preorder.log'],
 		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
-		'textdavinci002_fictional_ontology_proof_accuracy.pdf', 'textdavinci002_fictional_ontology_first_error.pdf', first_error_figure_height=1.8)
+		'textdavinci002_fictional_ontology_proof_accuracy.pdf', 'textdavinci002_fictional_ontology_first_error.pdf', 'textdavinci002_fictional_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8)
 
 	make_step_type_plot('False ontology',
 		['gpt_textdavinci002_1hop_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log', 'gpt_textdavinci002_5hop_falseontology.log', 'gpt_textdavinci002_5hop_preorder_falseontology.log'],
 		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
-		'textdavinci002_false_ontology_proof_accuracy.pdf', 'textdavinci002_false_ontology_first_error.pdf', first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_false_ontology_proof_accuracy.pdf', 'textdavinci002_false_ontology_first_error.pdf', 'textdavinci002_false_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('True ontology',
 		['gpt_textdavinci002_1hop_trueontology.log', 'gpt_textdavinci002_1hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log', 'gpt_textdavinci002_5hop_trueontology.log', 'gpt_textdavinci002_5hop_preorder_trueontology.log'],
 		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
-		'textdavinci002_true_ontology_proof_accuracy.pdf', 'textdavinci002_true_ontology_first_error.pdf', first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_true_ontology_proof_accuracy.pdf', 'textdavinci002_true_ontology_first_error.pdf', 'textdavinci002_true_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('Fictional ontology, 3 hops',
 		['gpt_textada001_3hop_preorder.log', 'gpt_textbabbage001_3hop_preorder.log', 'gpt_textcurie001_3hop_preorder.log', 'gpt_davinci_3hop_preorder.log', 'gpt_textdavinci001_3hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_first_error_ylabel=False, first_error_title='Fictional ontology, 3 hops, top-down sentence ordering')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_first_error_ylabel=False, first_error_title='Fictional ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('False ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_falseontology.log', 'gpt_textbabbage001_3hop_preorder_falseontology.log', 'gpt_textcurie001_3hop_preorder_falseontology.log', 'gpt_davinci_3hop_preorder_falseontology.log', 'gpt_textdavinci001_3hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down sentence ordering')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('True ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_trueontology.log', 'gpt_textbabbage001_3hop_preorder_trueontology.log', 'gpt_textcurie001_3hop_preorder_trueontology.log', 'gpt_davinci_3hop_preorder_trueontology.log', 'gpt_textdavinci001_3hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down sentence ordering')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('Fictional ontology, 1 hop',
 		['gpt_textada001_1hop_preorder.log', 'gpt_textbabbage001_1hop_preorder.log', 'gpt_textcurie001_1hop_preorder.log', 'gpt_davinci_1hop_preorder.log', 'gpt_textdavinci001_1hop_preorder.log', 'gpt_textdavinci002_1hop_preorder.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down sentence ordering')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down sentence ordering')
 
 	make_step_type_plot('False ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_falseontology.log', 'gpt_textbabbage001_1hop_preorder_falseontology.log', 'gpt_textcurie001_1hop_preorder_falseontology.log', 'gpt_davinci_1hop_preorder_falseontology.log', 'gpt_textdavinci001_1hop_preorder_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down sentence ordering')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down sentence ordering')
 
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_trueontology.log', 'gpt_textbabbage001_1hop_trueontology.log', 'gpt_textcurie001_1hop_trueontology.log', 'gpt_davinci_1hop_trueontology.log', 'gpt_textdavinci001_1hop_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
-		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop')
+		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop')
