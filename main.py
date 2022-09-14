@@ -284,13 +284,14 @@ def parse_reasoning(response):
 def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 	# check if this is an axiom
 	if formula in axioms:
-		return (1, True)
+		return (1, True, [formula])
 
 	# check if this is an instance of UNIVERSAL_INSTANTIATION
 	is_valid = False
 	is_valid_with_skip_steps = False
 	smallest_subproof_size = None
 	missing_axiom = False
+	proof_axioms = []
 	for prev_step_index in (correct_steps + skip_steps + axioms):
 		if type(prev_step_index) == int:
 			prev_step = proof[prev_step_index]
@@ -304,31 +305,37 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 			try:
 				if proof.index(other_premise) in correct_steps:
 					if prev_step_index in correct_steps:
+						proof_axioms = [other_premise, prev_step]
 						is_valid = True
 						break
 					elif prev_step_index in skip_steps:
+						proof_axioms = [other_premise, prev_step]
 						is_valid_with_skip_steps = True
 					elif missing_axiom:
 						smallest_subproof_size = 2
 				if proof.index(other_premise) in skip_steps:
 					if missing_axiom:
 						smallest_subproof_size = 2
+					proof_axioms = [other_premise, prev_step]
 					is_valid_with_skip_steps = True
 			except ValueError:
 				pass
 
 			# this could be provable with additional steps of universal instantiation
-			(num_steps, valid_subproof) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
+			(num_steps, valid_subproof, subproof_axioms) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
 			if valid_subproof and num_steps != None:
 				if smallest_subproof_size == None:
 					smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
+					proof_axioms = subproof_axioms + [prev_step]
 				else:
-					smallest_subproof_size = min(smallest_subproof_size, num_steps + 1 + (1 if missing_axiom else 0))
+					if num_steps + 1 + (1 if missing_axiom else 0) < smallest_subproof_size:
+						smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
+						proof_axioms = subproof_axioms + [prev_step]
 	if is_valid:
-		return (1, True)
+		return (1, True, proof_axioms)
 	if is_valid_with_skip_steps:
-		return (1, False)
-	return (smallest_subproof_size, True)
+		return (1, False, proof_axioms)
+	return (smallest_subproof_size, True, proof_axioms)
 
 def find_path_length(provability_graph, src, dst):
 	queue = [(src, 0)]
@@ -405,16 +412,16 @@ def evaluate_response(response, expected_answer, axioms):
 		is_useful = (proof_step in expected_proof)
 		is_conclusion = (proof_step == expected_proof[-1])
 
-		# check if we've gone down the wrong branch
+		# check if we've gone down the wrong branch (i.e. whether this step is "misleading")
 		last_step = (proof[correct_steps[-1]] if len(correct_steps) > 0 else None)
-		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen and type(proof_step.operand.antecedent) == fol.FOLFuncApplication and last_step != None and type(last_step) == fol.FOLFuncApplication and proof_step.operand.antecedent.function == last_step.function:
+		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen and type(proof_step.operand.antecedent) == fol.FOLFuncApplication and last_step != None and last_step in expected_proof and type(last_step) == fol.FOLFuncApplication and proof_step.operand.antecedent.function == last_step.function:
 			wrong_branch_steps.append(i)
 
 		if proof_step in proof[:i]:
 			redundant_steps.append(i)
 			continue
 
-		(num_steps, is_valid) = is_provable(proof_step, axioms, proof, correct_steps, skip_steps)
+		(num_steps, is_valid, premises) = is_provable(proof_step, axioms, proof, correct_steps, skip_steps)
 		if num_steps == 1:
 			if is_valid:
 				correct_steps.append(i)
@@ -429,10 +436,15 @@ def evaluate_response(response, expected_answer, axioms):
 					found_conclusion_with_skip_steps = True
 				continue
 		elif num_steps != None:
-			if is_useful:
-				useful_non_atomic_steps.append(i)
-			else:
+			are_premises_useful = True
+			for premise in premises:
+				if premise not in expected_proof:
+					are_premises_useful = False
+					break
+			if are_premises_useful and not is_useful:
 				wrong_non_atomic_steps.append(i)
+			else:
+				useful_non_atomic_steps.append(i)
 			if is_conclusion:
 				found_conclusion_with_non_atomic_steps = True
 			continue
@@ -446,19 +458,21 @@ def evaluate_response(response, expected_answer, axioms):
 				first_var_map = {}
 				second_var_map = {}
 				is_antecedent_provable = False
+				is_antecedent_useful = False
 				for step_index in correct_steps + skip_steps:
 					if fol.unify(proof[step_index], proof_step.operand.antecedent, first_var_map, second_var_map):
 						is_antecedent_provable = True
+						is_antecedent_useful = proof[step_index] in expected_proof
 						break
-				is_skip_useful = False
+				is_consequent_useful = False
 				if is_antecedent_provable:
 					next_step = fol.substitute(proof_step.operand.consequent, fol.FOLVariable(proof_step.variable), second_var_map[proof_step.variable])
 					if next_step in expected_proof:
-						is_skip_useful = True
-				if is_skip_useful:
-					useful_skip_steps.append(i)
-				else:
+						is_consequent_useful = True
+				if is_antecedent_useful and not is_consequent_useful:
 					wrong_skip_steps.append(i)
+				else:
+					useful_skip_steps.append(i)
 			else:
 				invalid_steps.append(i)
 

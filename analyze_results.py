@@ -505,11 +505,11 @@ else:
 			if offset == 0:
 				plt.ylabel('strict proof accuracy')
 			elif offset == 2:
-				plt.ylabel('proof accuracy if \n ``skip steps\'\' are correct')
+				plt.ylabel('proof accuracy if \n broadly-valid steps are correct')
 			elif offset == 4:
-				plt.ylabel('proof accuracy if \n non-atomic steps are correct')
+				plt.ylabel('proof accuracy if \n strictly-correct non-atomic \n steps are correct')
 			elif offset == 6:
-				plt.ylabel('proof accuracy if both \n ``skip steps\'\' and non-\n atomic steps are correct')
+				plt.ylabel('proof accuracy if any \n valid step is correct')
 		plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
 		plt.ylim([0.0, 1.0])
 		plt.title(chart_title, fontsize=13)
@@ -610,7 +610,7 @@ else:
 
 			show_legend = False
 			if show_legend:
-				labels = ['misleading branches', 'correct non-atomic steps', 'misleading non-atomic steps', 'correct ``skip steps\'\'', 'misleading ``skip steps\'\'', 'invalid steps']
+				labels = ['strictly-valid atomic misleading steps', 'strictly-valid non-atomic correct steps', 'strictly-valid non-atomic misleading steps', 'broadly-valid correct steps', 'broadly-valid misleading steps', 'invalid steps']
 				plt.legend(labels, loc='center left', bbox_to_anchor=(1.04, 0.5))
 
 			ax = plt.gca()
@@ -715,7 +715,7 @@ else:
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
 	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, zorder=10, c=colors[1])
 	plt.xlabel('label accuracy')
-	plt.ylabel('proof accuracy if \n ``skip steps\'\' are correct')
+	plt.ylabel('proof accuracy if \n broadly-valid steps are correct')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
 	fig.savefig('label_vs_proof_accuracy_with_skip_steps.pdf', dpi=128, bbox_inches='tight')
@@ -728,7 +728,7 @@ else:
 	plt.errorbar(label_accuracy, proof_accuracy_with_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
 	plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, c=colors[2])
 	plt.xlabel('label accuracy')
-	plt.ylabel('proof accuracy if \n non-atomic steps are correct')
+	plt.ylabel('proof accuracy if \n strictly-correct non-atomic\n steps are correct')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
 	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
@@ -741,7 +741,7 @@ else:
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps_and_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps_and_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
 	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, zorder=10, c=colors[5])
 	plt.xlabel('label accuracy')
-	plt.ylabel('proof accuracy if both \n ``skip steps\'\' and non-\n atomic steps are correct')
+	plt.ylabel('proof accuracy if any \n valid steps are correct')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
 	fig.savefig('label_vs_proof_accuracy_with_skip_steps_and_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
