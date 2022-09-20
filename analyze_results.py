@@ -507,7 +507,7 @@ else:
 			elif offset == 2:
 				plt.ylabel('proof accuracy if \n broadly-valid steps are correct')
 			elif offset == 4:
-				plt.ylabel('proof accuracy if \n strictly-correct non-atomic \n steps are correct')
+				plt.ylabel('proof accuracy if \n strictly-valid non-atomic \n steps are correct')
 			elif offset == 6:
 				plt.ylabel('proof accuracy if any \n valid step is correct')
 		plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
@@ -554,7 +554,10 @@ else:
 				if i != proof_range.start:
 					ax.axes.yaxis.set_ticklabels([])
 					plt.tick_params(axis='y', which='both', length=0)
-			plt.suptitle(chart_title, fontsize=13)
+			if first_error_title != None:
+				plt.suptitle(first_error_title, fontsize=13)
+			else:
+				plt.suptitle(chart_title, fontsize=13)
 			if "1hop" in logfiles[0]:
 				fig.savefig(wrong_branch_lengths_filename, dpi=128, bbox_inches=Bbox([[0.0, -0.4], [7.0 - 0.3, wrong_branch_lengths_figure_height]]))
 			else:
@@ -728,7 +731,7 @@ else:
 	plt.errorbar(label_accuracy, proof_accuracy_with_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
 	plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, c=colors[2])
 	plt.xlabel('label accuracy')
-	plt.ylabel('proof accuracy if \n strictly-correct non-atomic\n steps are correct')
+	plt.ylabel('proof accuracy if \n strictly-valid non-atomic\n steps are correct')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
 	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
@@ -790,4 +793,4 @@ else:
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_trueontology.log', 'gpt_textbabbage001_1hop_preorder_trueontology.log', 'gpt_textcurie001_1hop_preorder_trueontology.log', 'gpt_davinci_1hop_preorder_trueontology.log', 'gpt_textdavinci001_1hop_preorder_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
 		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
-		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop')
+		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down sentence ordering')
