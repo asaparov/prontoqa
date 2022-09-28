@@ -699,7 +699,7 @@ else:
 		colors.append(c['color'])
 
 	fig = plt.gcf()
-	fig.set_size_inches(3.5, 3.5, forward=True)
+	fig.set_size_inches(2.5, 2.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy - proof_lower_bound, proof_upper_bound - proof_accuracy)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
@@ -712,7 +712,7 @@ else:
 	plt.clf()
 
 	fig = plt.gcf()
-	fig.set_size_inches(3.5, 3.5, forward=True)
+	fig.set_size_inches(2.5, 2.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
@@ -725,7 +725,7 @@ else:
 	plt.clf()
 
 	fig = plt.gcf()
-	fig.set_size_inches(3.5, 3.5, forward=True)
+	fig.set_size_inches(2.5, 2.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_non_atomic_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
@@ -738,7 +738,7 @@ else:
 	plt.clf()
 
 	fig = plt.gcf()
-	fig.set_size_inches(3.5, 3.5, forward=True)
+	fig.set_size_inches(2.5, 2.5, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps_and_non_atomic_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps_and_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps_and_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
