@@ -1,5 +1,5 @@
 import numpy as np
-from main import parse_log
+from run_experiment import parse_log
 from sys import argv
 
 # see https://www.mikulskibartosz.name/wilson-score-in-python-example/
