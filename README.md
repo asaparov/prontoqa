@@ -1,7 +1,19 @@
 # PrOntoQA
-This repo contains PrOntoQA, which generates question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models such as GPT-3.
+This repo contains PrOntoQA, as described in our paper, [Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought](https://arxiv.org/pdf/2210.01240.pdf). PrOntoQA generates question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models such as GPT-3.
 
-TODO: add link and citation to our paper
+If you use our code in your work, please cite our paper:
+```
+@article{SaparovHe22,
+  author    = {Abulhair Saparov and He He},
+  title     = {Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought},
+  journal   = {CoRR},
+  volume    = {abs/2210.01240},
+  year      = {2022},
+  url       = {https://arxiv.org/abs/2210.01240},
+  eprinttype = {arXiv},
+  eprint    = {2210.01240},
+}
+```
 
 ## Running experiments
 To generate the examples and evaluate models, use [`run_experiment.py`](run_experiment.py). There are a number of command-line flags:
