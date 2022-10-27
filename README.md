@@ -28,5 +28,7 @@ To generate the examples and evaluate models, use [`run_experiment.py`](run_expe
 The output of the experiments are written to a file whose name is automatically determined based on the above flag configuration.
  - `--resume` is another very useful flag that prevents the program from restarting the experiment at trial 0 if partial results already exist. Rather, the program will continue the experiment where it left off.
 
+The model outputs from our experiments are provided in `model_outputs.zip`.
+
 ## Analyzing output
 Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in our paper.
