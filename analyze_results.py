@@ -199,8 +199,6 @@ def analyze_log(logfile):
 				wrong_branch_lengths.append(min([step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]))
 		correct_labels += label
 
-	if len(results) != 400 and len(results) != 396:
-		raise ValueError("{} does not have 400 or 396 examples. it has {}".format(logfile, len(results)))
 	return (len(results), proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths)
 
 if len(argv) > 1:
@@ -514,7 +512,10 @@ else:
 		plt.ylim([0.0, 1.0])
 		plt.title(chart_title, fontsize=13)
 		delta = (1.0 - bar_spacing) / (2 * bar_group_size)
-		plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=9)
+		xticks_fontsize = 9
+		if 'text-ada-001' in group_labels[0]:
+			xticks_fontsize = 10
+		plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=xticks_fontsize)
 		plt.tick_params(axis='x', which='both', length=0)
 		if add_bar_legend:
 			plt.text(0.0 + 0*bar_width - delta, 1.0, "misleading branches", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
@@ -626,7 +627,7 @@ else:
 			else:
 				plt.title(first_error_title, fontsize=13)
 			delta = (1.0 - bar_spacing) / (3 * bar_group_size)
-			plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=9)
+			plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=xticks_fontsize)
 			plt.tick_params(axis='x', which='both', length=0)
 			xlabel_line_count = np.max([label.count('\n') for label in group_labels])
 			if "1hop" in logfiles[0]:
@@ -767,30 +768,30 @@ else:
 
 	make_step_type_plot('Fictional ontology, 3 hops',
 		['gpt_textada001_3hop_preorder.log', 'gpt_textbabbage001_3hop_preorder.log', 'gpt_textcurie001_3hop_preorder.log', 'gpt_davinci_3hop_preorder.log', 'gpt_textdavinci001_3hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
-		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=False, first_error_title='Fictional ontology, 3 hops, top-down sentence ordering')
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
+		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('False ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_falseontology.log', 'gpt_textbabbage001_3hop_preorder_falseontology.log', 'gpt_textcurie001_3hop_preorder_falseontology.log', 'gpt_davinci_3hop_preorder_falseontology.log', 'gpt_textdavinci001_3hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
 		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('True ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_trueontology.log', 'gpt_textbabbage001_3hop_preorder_trueontology.log', 'gpt_textcurie001_3hop_preorder_trueontology.log', 'gpt_davinci_3hop_preorder_trueontology.log', 'gpt_textdavinci001_3hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
 		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down sentence ordering')
 
 	make_step_type_plot('Fictional ontology, 1 hop',
 		['gpt_textada001_1hop_preorder.log', 'gpt_textbabbage001_1hop_preorder.log', 'gpt_textcurie001_1hop_preorder.log', 'gpt_davinci_1hop_preorder.log', 'gpt_textdavinci001_1hop_preorder.log', 'gpt_textdavinci002_1hop_preorder.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
 		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down sentence ordering')
 
 	make_step_type_plot('False ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_falseontology.log', 'gpt_textbabbage001_1hop_preorder_falseontology.log', 'gpt_textcurie001_1hop_preorder_falseontology.log', 'gpt_davinci_1hop_preorder_falseontology.log', 'gpt_textdavinci001_1hop_preorder_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
 		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down sentence ordering')
 
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_trueontology.log', 'gpt_textbabbage001_1hop_preorder_trueontology.log', 'gpt_textcurie001_1hop_preorder_trueontology.log', 'gpt_davinci_1hop_preorder_trueontology.log', 'gpt_textdavinci001_1hop_preorder_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
-		['\\textsc{InstructGPT} 350M', '\\textsc{InstructGPT} 1.3B', '\\textsc{InstructGPT} 6.7B', 'Original \\textsc{GPT-3} 175B', '\\textsc{InstructGPT} 175B\n(version \\texttt{001})', '\\textsc{InstructGPT} 175B\n(version \\texttt{002})'],
+		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
 		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down sentence ordering')

@@ -91,12 +91,12 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 
 	return (start_formula, current_step.conclusion, current_step, current_num_steps)
 
-def get_proof_intermediate_formulas(last_step):
+def linearize_proof_steps(last_step):
 	if last_step.step_type == ProofStepType.AXIOM:
-		return [last_step.conclusion]
+		return [last_step]
 	elif last_step.step_type == ProofStepType.CONJUNCTION_ELIMINATION:
-		return get_proof_intermediate_formulas(last_step.premises[0]) + [last_step.conclusion]
+		return linearize_proof_steps(last_step.premises[0]) + [last_step]
 	elif last_step.step_type == ProofStepType.UNIVERSAL_INSTANTIATION:
-		return get_proof_intermediate_formulas(last_step.premises[1]) + get_proof_intermediate_formulas(last_step.premises[0]) + [last_step.conclusion]
+		return linearize_proof_steps(last_step.premises[1]) + linearize_proof_steps(last_step.premises[0]) + [last_step]
 	else:
-		raise Exception("get_proof_intermediate_formulas ERROR: Unsupported proof step type.")
+		raise Exception("linearize_proof_steps ERROR: Unsupported proof step type.")

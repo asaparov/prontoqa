@@ -1,6 +1,7 @@
 from theory import *
 from syntax import *
 from proof import *
+from prompt import *
 from random import choice, randrange, shuffle, seed
 import numpy as np
 from scipy.special import betaincinv
@@ -185,8 +186,9 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", ontolog
 
 	(premise, conclusion, proof, num_steps) = generate_membership_question(theory, selected_entity, num_deduction_steps, False, True)
 	if proof == None or num_steps != num_deduction_steps:
-		return (None, None, None, None)
-	proof_formulas = get_proof_intermediate_formulas(proof)
+		return (None, None, None, None, None, None)
+	linearized_proof = linearize_proof_steps(proof)
+	proof_formulas = [step.conclusion for step in linearized_proof]
 
 	distractor_lf = None
 	if type(conclusion) == fol.FOLFuncApplication:
@@ -225,26 +227,22 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", ontolog
 			question = fol.FOLNot(question)
 
 	question_text =  ' '.join(sentences)
-	question_text += ' ' + inflect(yield_tokens(formula_to_clause(premise, morphology)), end_punctuation='.')
-	question_text += ' True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
+	query = inflect(yield_tokens(formula_to_clause(premise, morphology)), end_punctuation='.')
+	query += ' True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
 
 	# print the chain-of-thought and answer
-	chain_of_thought = ''
+	chain_of_thought = []
 	for proof_formula in proof_formulas:
 		# find the sentence corresponding to this formula
 		found_formula = False
 		for i in range(len(formulas)):
 			if formulas[i] == proof_formula:
-				if len(chain_of_thought) != 0:
-					chain_of_thought += ' '
-				chain_of_thought += sentences[i]
+				chain_of_thought.append(sentences[i])
 				found_formula = True
 				break
 		if not found_formula:
-			if len(chain_of_thought) != 0:
-				chain_of_thought += ' '
-			chain_of_thought += inflect(yield_tokens(formula_to_clause(proof_formula, morphology)), end_punctuation='.')
-	return (question_text, formulas + [premise], chain_of_thought, str(expected_answer))
+			chain_of_thought.append(inflect(yield_tokens(formula_to_clause(proof_formula, morphology)), end_punctuation='.'))
+	return (question_text, query, formulas + [premise], chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):
 	log.write(str + '\n')
@@ -257,29 +255,6 @@ bad_patterns = []
 with open('bad_patterns.txt', 'r') as reader:
 	for line in reader:
 		bad_patterns.append(re.compile(line.strip()))
-
-def parse_reasoning(response):
-	# first tokenize the response
-	tokens = re.findall(r"[\w\-]+|[^\w\s]", response)
-
-	start = 0
-	lfs = []
-	for end in range(len(tokens)):
-		if tokens[end] == '.':
-			# parse this sentence
-			lf = parse_sentence(tokens[start:end], morphology, False)
-			if lf == None:
-				# check that this sentence is in the list of expected bad patterns
-				has_bad_pattern = False
-				for bad_pattern in bad_patterns:
-					if bad_pattern.match(' '.join(tokens[start:end])) != None:
-						has_bad_pattern = True
-						break
-				if not has_bad_pattern:
-					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
-			lfs.append(lf)
-			start = end + 1
-	return lfs
 
 def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 	# check if this is an axiom
@@ -354,12 +329,38 @@ def find_path_length(provability_graph, src, dst):
 			visited.add(next_consequent)
 	return -1
 
-def evaluate_response(response, expected_answer, axioms):
-	acceptable_answers = {
-		'True':{'true', 't', 'yes', 'y', 'correct', 'right'},
-		'False':{'false', 'f', 'no', 'n', 'incorrect', 'wrong'}
-	}
+def parse_reasoning(response, keep_sentences=False):
+	# first tokenize the response
+	tokens = re.findall(r"[\w\-]+|[^\w\s]", response)
 
+	start = 0
+	lfs = []
+	for end in range(len(tokens)):
+		if tokens[end] == '.':
+			# parse this sentence
+			lf = parse_sentence(tokens[start:end], morphology, False)
+			if lf == None:
+				# check that this sentence is in the list of expected bad patterns
+				has_bad_pattern = False
+				for bad_pattern in bad_patterns:
+					if bad_pattern.match(' '.join(tokens[start:end])) != None:
+						has_bad_pattern = True
+						break
+				if not has_bad_pattern:
+					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
+			if keep_sentences:
+				lfs.append((lf, ' '.join(tokens[start:end])))
+			else:
+				lfs.append(lf)
+			start = end + 1
+	return lfs
+
+acceptable_answers = {
+	'True':{'true', 't', 'yes', 'y', 'correct', 'right'},
+	'False':{'false', 'f', 'no', 'n', 'incorrect', 'wrong'}
+}
+
+def parse_response(response):
 	index = response.find('Q:')
 	if index != -1:
 		response = response[:index]
@@ -373,6 +374,17 @@ def evaluate_response(response, expected_answer, axioms):
 		if possible_label not in acceptable_answers['True'] and possible_label not in acceptable_answers['False']:
 			label_index = last_period_index + 1
 
+	proof = parse_reasoning(response[:label_index])
+	label = response[(label_index + 1):].lower()
+	return (proof, label)
+
+def decapitalize(sentence):
+	if morphology.is_proper_noun(sentence[:sentence.find(' ')]):
+		return sentence
+	else:
+		return sentence[0].lower() + sentence[1:]
+
+def evaluate_response(response_proof, response_label, expected_answer, axioms):
 	expected_label_index = expected_answer.rfind(' ')
 	expected_proof = parse_reasoning(expected_answer[:expected_label_index])
 
@@ -386,7 +398,7 @@ def evaluate_response(response, expected_answer, axioms):
 				provability_graph[step.operand.antecedent].append(step.operand.consequent)
 
 	# evaluate the proof
-	proof = parse_reasoning(response[:label_index])
+	proof = response_proof
 	correct_steps = []
 	correct_and_useful_steps = []
 	redundant_steps = []
@@ -482,7 +494,7 @@ def evaluate_response(response, expected_answer, axioms):
 	# evaluate the label
 	answer = expected_answer[(expected_label_index + 1):]
 
-	if (response[(label_index + 1):].lower() in acceptable_answers[answer]):
+	if (response_label in acceptable_answers[answer]):
 		label_correctness = 1.0
 	else:
 		label_correctness = 0.0
@@ -558,7 +570,8 @@ def parse_log(log):
 			too_long_responses += 1
 		else:
 			last_question = last_question[:last_question.index('True or false:')]
-			result = evaluate_response(predicted_answer, expected_answer, parse_reasoning(last_question))
+			(predicted_proof, predicted_label) = parse_response(predicted_answer)
+			result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question))
 			results.append(result)
 			(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 			label_results.append(label)
@@ -567,7 +580,7 @@ def parse_log(log):
 			raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	return (trial, too_long_responses, results, label_results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893):
+def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT"):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		import gpt3
@@ -599,59 +612,62 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 
 	while trial < num_trials * repetitions_per_test:
 		for t in range(repetitions_per_test):
-			prompt = ''
+			questions = []
+			queries = []
+			chains_of_thought = []
+			answers = []
+			proofs = []
 			for i in range(num_fewshot_examples):
 				while True:
-					(question, _, chain_of_thought, answer) = generate_question(num_proof_steps, formula_ordering, ontology, add_distractor)
+					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, formula_ordering, ontology, add_distractor)
 					if question != None:
 						break
-				prompt += 'Q: ' + question + '\nA: ' + chain_of_thought + ' ' + answer + '\n\n'
+				questions.append(question)
+				queries.append(query)
+				chains_of_thought.append(chain_of_thought)
+				answers.append(answer)
+				proofs.append(proof)
 
 			if t == 0:
 				while True:
 					test_question = generate_question(test_num_proof_steps, formula_ordering, ontology, add_distractor)
-					(question, question_lfs, chain_of_thought, answer) = test_question
+					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 					if question != None:
 						break
 			else:
 				# re-use the same test question from the first sub-iteration
-				(question, question_lfs, chain_of_thought, answer) = test_question
+				(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 
 			trial += 1
 			if trial <= resume_trial:
 				continue
+			
+			if model_name == 'gpt3':
+				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, model_size, x, **kwargs)
+			elif model_name == 'opt':
+				predict_func = lambda x, **kwargs : opt.predict(model_size, x, opt_server, **kwargs)
+			elif model_name == 'unifiedqa':
+				predict_func = lambda x, **kwargs : unifiedqa.predict(model_size, x, **kwargs)
+			elif model_name == 'dummy':
+				predict_func = lambda x, **kwargs : ''
 
-			prompt += 'Q: ' + question + '\nA:'
-			print_output(prompt, log)
-			try_num = 0
-			while True:
-				try:
-					if model_name == 'gpt3':
-						response = gpt3.predict(gpt_api_key, model_size, prompt)
-					elif model_name == 'opt':
-						response = opt.predict(model_size, prompt, opt_server)
-					elif model_name == 'unifiedqa':
-						response = unifiedqa.predict(model_size, prompt)
-					elif model_name == 'dummy':
-						response = ''
-					break
-				except RuntimeError:
-					try_num += 1
-					if try_num == 5:
-						raise
-					print("Encountered runtime error. This may be due to CUDA instability. Trying again (try \#{})...".format(try_num + 1))
-					continue
+			if prompting == "COT":
+				response = do_chain_of_thought(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof)
+			elif prompting == "selfconsistency":
+				response = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, parse_response)
+			elif prompting == "selectioninference":
+				response = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, parse_response, decapitalize)
+
 			if response == None:
-				print('WARNING: Context has too many tokens for this model. Skipping question...')
+				print_output('WARNING: Context has too many tokens for this model. Skipping question...', log)
 				print_output('\nPredicted answer: CONTEXT_TOO_LONG_ERROR', log)
-			else:
-				print_output('\nPredicted answer:' + response, log)
-			print_output('\nExpected answer: ' + chain_of_thought + ' ' + answer, log)
-
-			if response == None:
+				print_output('\nExpected answer: ' + ' '.join(chain_of_thought) + ' ' + answer, log)
 				too_long_responses += 1
 			else:
-				result = evaluate_response(response, chain_of_thought + ' ' + answer, question_lfs)
+				print_output('\nPredicted answer:' + response, log)
+				print_output('\nExpected answer: ' + ' '.join(chain_of_thought) + ' ' + answer, log)
+				(predicted_proof, predicted_label) = parse_response(response)
+				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs)
 				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 				label_results.append(label)
 
@@ -683,6 +699,7 @@ if __name__ == "__main__":
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
+	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference"])
 	parser.add_argument("--seed", type=int, default=62471893)
 	args = parser.parse_args()
 
@@ -691,6 +708,8 @@ if __name__ == "__main__":
 
 	for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 		log_suffix = '_' + str(hops) + 'hop'
+		if args.prompting != "COT":
+			log_suffix += '_' + args.prompting
 		if args.test_hops_diff != 0:
 			log_suffix += '_' + str(hops + args.test_hops_diff) + 'testhops'
 		if args.ordering != 'postorder':
@@ -706,13 +725,13 @@ if __name__ == "__main__":
 		if args.seed != 62471893:
 			log_suffix += '_seed' + str(args.seed)
 		if args.model_name == 'gpt3':
-			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed)
+			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting)
 		elif args.model_name == 'opt':
-			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed)
+			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting)
 		elif args.model_name == 'unifiedqa':
-			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed)
+			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting)
 		elif args.model_name == 'dummy':
-			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed)
+			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting)
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break
