@@ -227,8 +227,8 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", ontolog
 			question = fol.FOLNot(question)
 
 	question_text =  ' '.join(sentences)
-	query = inflect(yield_tokens(formula_to_clause(premise, morphology)), end_punctuation='.')
-	query += ' True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
+	question_text += ' ' + inflect(yield_tokens(formula_to_clause(premise, morphology)), end_punctuation='.')
+	query = 'True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
 
 	# print the chain-of-thought and answer
 	chain_of_thought = []
@@ -508,6 +508,7 @@ def parse_log(log):
 	resume_position = 0
 	line_number = 0
 	last_question = None
+	sample_predictions = []
 	while True:
 		# look for the next line beginning with 'Predicted answer:'
 		line = log.readline()
@@ -516,6 +517,19 @@ def parse_log(log):
 			break # found the end of the file
 		elif line.startswith('Q: '):
 			last_question = line[len('Q: '):]
+			sample_predictions.clear()
+			continue
+		elif line.startswith('Sample predicted answer:'):
+			sampled_predicate_answer = line[len('Sample predicted answer:'):]
+			while True:
+				line = log.readline()
+				line_number += 1
+				if not line:
+					break # found the end of the file
+				elif line.startswith('Sample log probability: '):
+					sample_predictions.append((sampled_predicate_answer, float(line[len('Sample log probability: '):])))
+					break
+				sampled_predicate_answer += line
 			continue
 		elif not line.startswith('Predicted answer:'):
 			continue
@@ -560,6 +574,10 @@ def parse_log(log):
 
 		if not found_summary:
 			break
+
+		if len(sample_predictions) != 0:
+			# this question was answered using self-consistency, so compute the aggregated answer
+			predicted_answer = aggregate_sample_predictions(sample_predictions, parse_response)
 
 		# evaluate the correctness of this example
 		if predicted_answer[-1] == '\n':

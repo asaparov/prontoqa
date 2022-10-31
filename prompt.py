@@ -22,6 +22,27 @@ def do_chain_of_thought(predict, print_output, questions, queries, chains_of_tho
 			continue
 	return response
 
+def aggregate_sample_predictions(sample_predictions, parse_response):
+	response_map = {}
+	for (sample_prediction, logprob) in sample_predictions:
+		(predicted_proof, predicted_label) = parse_response(sample_prediction)
+		predicted_proof = tuple(predicted_proof)
+		if predicted_proof in response_map:
+			response_map[predicted_proof].append(logprob)
+		else:
+			response_map[predicted_proof] = [sample_prediction, logprob]
+
+	# find the response with the highest total probability
+	max_logprob = float('-inf')
+	best_response = None
+	for logprobs in response_map.values():
+		total_logprob = logsumexp(logprobs[1:])
+		#print('response "{}" has log probability {}'.format(logprobs[0], total_logprob))
+		if total_logprob > max_logprob:
+			max_logprob = total_logprob
+			best_response = logprobs[0]
+	return best_response
+
 def do_self_consistency(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, parse_response):
 	prompt = ''
 	for i in range(len(questions)):
@@ -44,29 +65,7 @@ def do_self_consistency(predict, print_output, questions, queries, chains_of_tho
 	if responses == None:
 		return None
 
-	response_map = {}
-	for (response, logprob) in responses:
-		logprob = mean(logprob)
-		print_output('\nSample predicted answer:' + response)
-		print_output('\nSample log probability: ' + str(logprob))
-		(proof, label) = parse_response(response)
-		proof = tuple(proof)
-		if proof in response_map:
-			response_map[proof].append(logprob)
-		else:
-			response_map[proof] = [response, logprob]
-
-	# find the response with the highest total probability
-	max_logprob = float('-inf')
-	best_response = None
-	for logprobs in response_map.values():
-		total_logprob = logsumexp(logprobs[1:])
-		print('response "{}" has log probability {}'.format(logprobs[0], total_logprob))
-		if total_logprob > max_logprob:
-			max_logprob = total_logprob
-			best_response = logprobs[0]
-
-	return best_response
+	return aggregate_sample_predictions(responses, parse_response)
 
 def do_selection_inference(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, parse_reasoning, decapitalize):
 	# first construct the prompts for the selection and inference modules
@@ -80,6 +79,7 @@ def do_selection_inference(predict, print_output, questions, queries, chains_of_
 		premise_indices = []
 		for premise in proofs[i][j].premises:
 			premise_indices.append(proofs[i].index(premise))
+		premise_indices.reverse()
 
 		sel_prompt += 'Q: ' + questions[i] + ' ' + ' '.join(chains_of_thought[i][:j]) + ' ' + queries[i] + '\n' + chains_of_thought[i][premise_indices[0]]
 		if len(premise_indices) > 1:
@@ -94,6 +94,7 @@ def do_selection_inference(predict, print_output, questions, queries, chains_of_
 
 	chain_of_thought = []
 	for iteration in range(5): # TODO: add halt condition
+		import pdb; pdb.set_trace()
 		response = predict(sel_prompt + 'Q: ' + test_question + ' ' + test_query)
 		if response == None:
 			return None
@@ -126,7 +127,7 @@ def do_selection_inference(predict, print_output, questions, queries, chains_of_
 		response = predict(inf_prompt + sel_response + ' Therefore,')
 		if response == None:
 			return None
-		conclusion = response[:(response.find('.') + 1)]
+		conclusion = response[:(response.find('.') + 1)].strip()
 		conclusion = conclusion[0].upper() + conclusion[1:]
 
 		# add the conclusion to the test question
