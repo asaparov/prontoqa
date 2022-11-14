@@ -3,10 +3,11 @@ from random import randrange, shuffle, random, choice
 import numpy as np
 
 class OntologyConfig(object):
-	def __init__(self, max_child_count, generate_negation, generate_properties, stop_probability):
+	def __init__(self, max_child_count, generate_negation, generate_properties, require_properties, stop_probability):
 		self.max_child_count = max_child_count
 		self.generate_negation = generate_negation
 		self.generate_properties = generate_properties
+		self.require_properties = require_properties
 		self.stop_probability = stop_probability
 
 class OntologyNode(object):
@@ -50,6 +51,10 @@ def generate_ontology(parent, level, available_concept_names, available_property
 			parent.are_children_disjoint = False
 
 	for i in range(num_children):
+		# if properties are required but none are available, then stop creating new nodes
+		if config.require_properties and len(available_properties) == 0:
+			break
+
 		# create a child node and choose its concept name
 		index = randrange(len(available_concept_names))
 		new_child = OntologyNode(available_concept_names[index], parent)
@@ -96,11 +101,54 @@ def print_ontology(tree, indent=0):
 		print_ontology(child, indent + 2)
 	print((' ' * indent) + ")")
 
-def get_subsumption_formula(node):
-	return fol.FOLForAll(1, fol.FOLIfThen(
-		fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
-		fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
-	))
+def get_subsumption_formula(node, deduction_rule):
+	if deduction_rule == "AndIntro":
+		if len(node.properties) == 1 and len(node.negated_properties) == 0:
+			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
+		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
+			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
+		else:
+			raise ValueError("Expected exactly one defining property.")
+		return fol.FOLForAll(1, fol.FOLIfThen(
+			fol.FOLAnd([
+				conjunct,
+				fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])
+			]),
+			fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
+		))
+	elif deduction_rule == "AndElim":
+		if len(node.properties) == 1 and len(node.negated_properties) == 0:
+			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
+		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
+			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
+		else:
+			raise ValueError("Expected exactly one defining property.")
+		return fol.FOLForAll(1, fol.FOLIfThen(
+			fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
+			fol.FOLAnd([
+				conjunct,
+				fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
+			])
+		))
+	elif deduction_rule == "OrIntro":
+		if len(node.properties) == 1 and len(node.negated_properties) == 0:
+			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
+		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
+			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
+		else:
+			raise ValueError("Expected exactly one defining property.")
+		return fol.FOLForAll(1, fol.FOLIfThen(
+			fol.FOLOr([
+				conjunct,
+				fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])
+			]),
+			fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
+		))
+	else:
+		return fol.FOLForAll(1, fol.FOLIfThen(
+			fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
+			fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
+		))
 
 def get_disjointness_formulas(formulas, node):
 	if not node.are_children_disjoint:
@@ -118,7 +166,9 @@ def get_disjointness_formulas(formulas, node):
 			])))
 			formulas.append(formula)
 
-def get_properties_formula(node):
+def get_properties_formula(formulas, node, deduction_rule):
+	if deduction_rule == "AndIntro" or deduction_rule == "AndElim" or deduction_rule == "OrIntro":
+		return
 	consequent_conjuncts = []
 	for property in node.properties:
 		conjunct = fol.FOLFuncApplication(property, [fol.FOLVariable(1)])
@@ -132,31 +182,31 @@ def get_properties_formula(node):
 		consequent = consequent_conjuncts[0]
 	else:
 		consequent = fol.FOLAnd(consequent_conjuncts)
-	return fol.FOLForAll(1, fol.FOLIfThen(
+	formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
 		fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
 		consequent
-	))
+	)))
 
-def get_formulas(theory, ordering="postorder"):
+def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 	formulas = []
 	if ordering == "postorder":
 		for child in theory.children:
-			formulas.extend(get_formulas(child, ordering))
+			formulas.extend(get_formulas(child, ordering, deduction_rule))
 
 	if ordering == "postorder":
 		get_disjointness_formulas(formulas, theory)
 		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
-			formulas.append(get_properties_formula(theory))
+			get_properties_formula(formulas, theory, deduction_rule)
 	if theory.parent != None:
-		formulas.append(get_subsumption_formula(theory))
+		formulas.append(get_subsumption_formula(theory, deduction_rule))
 	if ordering == "preorder":
 		if len(theory.properties) != 0 or len(theory.negated_properties) != 0:
-			formulas.append(get_properties_formula(theory))
+			get_properties_formula(formulas, theory, deduction_rule)
 		get_disjointness_formulas(formulas, theory)
 	
 	if ordering == "preorder":
 		for child in theory.children:
-			formulas.extend(get_formulas(child, ordering))
+			formulas.extend(get_formulas(child, ordering, deduction_rule))
 	return formulas
 
 def sample_real_ontology(available_entity_names, num_deduction_steps):

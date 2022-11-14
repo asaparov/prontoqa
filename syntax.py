@@ -12,6 +12,15 @@ def formula_to_np_prime(formula, morphology, quantified_variable, is_plural):
 		if is_plural:
 			noun = morphology.to_plural(noun)
 		return SyntaxNode("NP'", [SyntaxNode("N", [SyntaxNode(noun)])])
+	elif type(formula) == fol.FOLAnd and type(formula.operands[0]) == fol.FOLFuncApplication and not morphology.is_noun(formula.operands[0].function):
+		if len(formula.operands) == 2:
+			other = formula.operands[1]
+		else:
+			other = fol.FOLAnd(formula.operands[1:])
+		return SyntaxNode("NP'", [
+				formula_to_adjp(formula.operands[0], morphology, quantified_variable),
+				formula_to_np_prime(other, morphology, quantified_variable, is_plural)
+			])
 	else:
 		raise Exception("formula_to_np_prime ERROR: Unsupported formula type.")
 
@@ -184,6 +193,57 @@ def formula_to_clause(formula, morphology, invert=False):
 					])
 				])
 
+	elif type(formula) == fol.FOLAnd:
+		# first check if the conjunction can be expressed as a single noun phrase as in `A is a B`
+		entity = None
+		expressible_as_np = True
+		right_lf = []
+		for operand in formula.operands:
+			if type(operand) == fol.FOLFuncApplication and len(operand.args) == 1 and type(operand.args[0]) == fol.FOLConstant and (entity == None or entity == operand.args[0]):
+				entity = operand.args[0]
+				right_lf.append(fol.FOLFuncApplication(operand.function, [fol.FOLVariable(1)]))
+			else:
+				expressible_as_np = False
+				break
+
+		if expressible_as_np:
+			right = formula_to_vp_arg(fol.FOLAnd(right_lf), morphology, 1, False)
+			if invert:
+				return SyntaxNode("S", [
+						SyntaxNode("V", [SyntaxNode("is")]),
+						SyntaxNode("NP", [SyntaxNode("NP'", [SyntaxNode("NN", [SyntaxNode(entity.constant)])])]),
+						SyntaxNode("VP", [
+							right
+						])
+					])
+			else:
+				return SyntaxNode("S", [
+						SyntaxNode("NP", [SyntaxNode("NP'", [SyntaxNode("NN", [SyntaxNode(entity.constant)])])]),
+						SyntaxNode("VP", [
+							SyntaxNode("V", [SyntaxNode("is")]),
+							right
+						])
+					])
+
+		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
+		has_commas = choice([True, False])
+		if len(formula.operands) > 2 and has_commas:
+			result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+			result[0::2] = child_nodes
+			child_nodes = result
+		child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
+		return SyntaxNode("S", child_nodes)
+
+	elif type(formula) == fol.FOLOr:
+		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
+		has_commas = choice([True, False])
+		if len(formula.operands) > 2 and has_commas:
+			result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+			result[0::2] = child_nodes
+			child_nodes = result
+		child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+		return SyntaxNode("S", child_nodes)
+
 	else:
 		raise Exception("formula_to_clause ERROR: Unsupported formula type.")
 
@@ -266,7 +326,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	return (fol.FOLFuncApplication(tokens[index], [fol.FOLVariable(1)]), index + 1)
+	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
 def parse_np(tokens, index, morphology):
 	if tokens[index].lower() in {"each", "every"}:
