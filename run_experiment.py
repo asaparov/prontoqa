@@ -48,6 +48,86 @@ morphology.add_noun("tumpus", "tumpuses")
 morphology.add_noun("vumpus", "vumpuses")
 morphology.add_noun("impus", "impuses")
 morphology.add_noun("jompus", "jompuses")
+morphology.add_noun("timpus", "timpuses")
+morphology.add_noun("yimpus", "yimpuses")
+morphology.add_noun("carpus", "carpuses")
+morphology.add_noun("shumpus", "shumpuses")
+morphology.add_noun("zhompus", "zhompuses")
+morphology.add_noun("rempus", "rempuses")
+morphology.add_noun("fompus", "fompuses")
+morphology.add_noun("fimpus", "fimpuses")
+morphology.add_noun("worpus", "worpus")
+morphology.add_noun("sorpus", "sorpus")
+morphology.add_noun("terpus", "terpuses")
+morphology.add_noun("gerpus", "gerpuses")
+morphology.add_noun("sterpus", "sterpuses")
+morphology.add_noun("kerpus", "kerpuses")
+morphology.add_noun("sherpus", "sherpuses")
+morphology.add_noun("perpus", "perpuses")
+morphology.add_noun("bompus", "bompuses")
+morphology.add_noun("orpus", "orpuses")
+morphology.add_noun("welpus", "welpuses")
+morphology.add_noun("jelpus", "jelpuses")
+morphology.add_noun("felpus", "felpuses")
+morphology.add_noun("dolpus", "dolpuses")
+morphology.add_noun("sarpus", "sarpuses")
+morphology.add_noun("irpus", "irpuses")
+morphology.add_noun("chorpus", "chorpuses")
+morphology.add_noun("parpus", "parpuses")
+morphology.add_noun("arpus", "arpuses")
+morphology.add_noun("lempus", "lempuses")
+morphology.add_noun("hilpus", "hilpuses")
+morphology.add_noun("gompus", "gompuses")
+morphology.add_noun("dalpus", "dalpuses")
+morphology.add_noun("umpus", "umpuses")
+morphology.add_noun("rifpus", "rifpuses")
+morphology.add_noun("storpus", "storpuses")
+morphology.add_noun("shalpus", "shalpuses")
+morphology.add_noun("yerpus", "yerpuses")
+morphology.add_noun("ilpus", "ilpuses")
+morphology.add_noun("boompus", "boompuses")
+morphology.add_noun("scrompus", "scrompuses")
+morphology.add_noun("phorpus", "phorpuses")
+morphology.add_noun("prilpus", "prilpuses")
+morphology.add_noun("gwompus", "gwompuses")
+morphology.add_noun("urpus", "urpuses")
+morphology.add_noun("grimpus", "grimpuses")
+morphology.add_noun("shilpus", "shilpuses")
+morphology.add_noun("zhorpus", "zhorpuses")
+morphology.add_noun("rorpus", "rorpuses")
+morphology.add_noun("dropus", "dropuses")
+morphology.add_noun("lerpus", "lerpuses")
+morphology.add_noun("quimpus", "quimpuses")
+morphology.add_noun("zilpus", "zilpuses")
+morphology.add_noun("frompus", "frompuses")
+morphology.add_noun("stirpus", "stirpuses")
+morphology.add_noun("porpus", "porpuses")
+morphology.add_noun("kurpus", "kurpuses")
+morphology.add_noun("shampus", "shampuses")
+morphology.add_noun("werpus", "werpuses")
+morphology.add_noun("zhimpus", "zhimpuses")
+morphology.add_noun("yempus", "yempuses")
+morphology.add_noun("jempus", "jempuses")
+morphology.add_noun("folpus", "folpuses")
+morphology.add_noun("drompus", "drompuses")
+morphology.add_noun("delpus", "delpuses")
+morphology.add_noun("lompus", "lompuses")
+morphology.add_noun("wolpus", "wolpuses")
+morphology.add_noun("gorpus", "gorpuses")
+morphology.add_noun("shimpus", "shimpuses")
+morphology.add_noun("rimpus", "rimpuses")
+morphology.add_noun("twimpus", "twimpuses")
+morphology.add_noun("serpus", "serpuses")
+morphology.add_noun("daumpus", "daumpuses")
+morphology.add_noun("thorpus", "thorpuses")
+morphology.add_noun("borpus", "borpuses")
+morphology.add_noun("rofpus", "rofpuses")
+morphology.add_noun("bempus", "bempuses")
+morphology.add_noun("dulpus", "dulpuses")
+morphology.add_noun("harpus", "harpuses")
+morphology.add_noun("lirpus", "lirpuses")
+morphology.add_noun("yompus", "yompuses")
+morphology.add_noun("stopus", "stopuses")
 
 morphology.add_noun("animal", "animals")
 morphology.add_noun("bilaterian", "bilaterians")
@@ -135,7 +215,7 @@ for name in available_entity_names:
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, require_properties=False, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False):
+def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -150,8 +230,10 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", ontolog
 				available_concept_names = ["animal", "invertebrate", "arthropod", "insect", "lepidopteran", "butterfly", "moth", "ant", "spider", "crustacean"]
 			else:
 				available_concept_names = ["number", "real number", "integer", "natural number", "prime number", "Mersenne prime", "even number", "composite number", "negative number", "fraction"]
-		else:
+		elif available_concept_names == None:
 			available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
+		else:
+			available_concept_names = available_concept_names.copy()
 		index = randrange(len(available_concept_names))
 		distractor_concept = available_concept_names[index]
 		del available_concept_names[index]
@@ -191,10 +273,9 @@ def generate_question(num_deduction_steps, formula_ordering="postorder", ontolog
 	generate_questions_about_types = False
 	if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
 		generate_questions_about_types = True
-	(premises, conclusion, proof, num_steps) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule)
+	(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs)
 	if proof == None or num_steps != num_deduction_steps:
 		return (None, None, None, None, None, None)
-	linearized_proof = linearize_proof_steps(proof)
 	proof_formulas = [step.conclusion for step in linearized_proof]
 
 	distractor_lf = None
@@ -608,7 +689,7 @@ def parse_log(log):
 			raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	return (trial, too_long_responses, results, label_results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False):
+def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, disjoint_concept_names=False):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		import gpt3
@@ -638,6 +719,23 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 		resume_trial = 0
 		label_results = []
 
+	available_concept_names = None		
+	if disjoint_concept_names:
+		if ontology == "fictional":
+			available_concept_names = [
+					["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"],
+					["timpus", "yimpus", "carpus", "shumpus", "zhompus", "rempus", "fompus", "fimpus", "worpus", "sorpus"],
+					["terpus", "gerpus", "sterpus", "kerpus", "sherpus", "perpus", "bompus", "orpus", "welpus", "jelpus"],
+					["felpus", "dolpus", "sarpus", "irpus", "chorpus", "parpus", "arpus", "lempus", "hilpus", "gompus"],
+					["dalpus", "umpus", "rifpus", "storpus", "shalpus", "yerpus", "ilpus", "boompus", "scrompus", "phorpus"],
+					["prilpus", "gwompus", "urpus", "grimpus", "shilpus", "zhorpus", "rorpus", "dropus", "lerpus", "quimpus"],
+					["zilpus", "frompus", "stirpus", "porpus", "kurpus", "shampus", "werpus", "zhimpus", "yempus", "jempus"],
+					["folpus", "drompus", "delpus", "lompus", "wolpus", "gorpus", "shimpus", "rimpus", "twimpus", "serpus"],
+					["daumpus", "thorpus", "borpus", "rofpus", "bempus", "dulpus", "harpus", "lirpus", "yompus", "stopus"]
+				]
+			shuffle(available_concept_names)
+		else:
+			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
 	while trial < num_trials * repetitions_per_test:
 		for t in range(repetitions_per_test):
 			questions = []
@@ -647,7 +745,8 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			proofs = []
 			for i in range(num_fewshot_examples):
 				while True:
-					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only)
+					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
+					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, use_dfs)
 					if question != None:
 						break
 				questions.append(question)
@@ -658,7 +757,8 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 
 			if t == 0:
 				while True:
-					test_question = generate_question(test_num_proof_steps, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only)
+					next_concept_names = (None if available_concept_names == None else available_concept_names[num_fewshot_examples])
+					test_question = generate_question(test_num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, False)
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 					if question != None:
 						break
@@ -726,6 +826,8 @@ if __name__ == "__main__":
 	parser.add_argument("--opt-server", type=str, default=None)
 	parser.add_argument("--no-distractor", action='store_true')
 	parser.add_argument("--proofs-only", action='store_true')
+	parser.add_argument("--use-dfs", action='store_true')
+	parser.add_argument("--disjoint-concept-names", action='store_true')
 	parser.add_argument("--api-key", type=str, default=None)
 	parser.add_argument("--min-hops", type=int, default=1)
 	parser.add_argument("--max-hops", type=int, default=8)
@@ -746,6 +848,10 @@ if __name__ == "__main__":
 			log_suffix += '_' + args.deduction_rule
 		if args.prompting != "COT":
 			log_suffix += '_' + args.prompting
+		if args.use_dfs:
+			log_suffix += '_DFS'
+		if args.disjoint_concept_names:
+			log_suffix += '_disjointconcepts'
 		if args.test_hops_diff != 0:
 			log_suffix += '_' + str(hops + args.test_hops_diff) + 'testhops'
 		if args.ordering != 'postorder':
@@ -761,13 +867,13 @@ if __name__ == "__main__":
 		if args.seed != 62471893:
 			log_suffix += '_seed' + str(args.seed)
 		if args.model_name == 'gpt3':
-			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only)
+			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		elif args.model_name == 'opt':
-			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only)
+			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		elif args.model_name == 'unifiedqa':
-			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only)
+			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		elif args.model_name == 'dummy':
-			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only)
+			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break
