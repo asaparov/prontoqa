@@ -589,27 +589,27 @@ else:
 			incorrect_proofs = 1.0 - correct_proofs
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_wrong_branch_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_wrong_branch_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_branch_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_wrong_branch_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_branch_first/incorrect_proofs)))
 			plt.bar(x1, incorrect_proofs_wrong_branch_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=colors[5])
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs)))
 			plt.bar(x2, incorrect_proofs_useful_non_atomic_step_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=lighten_color(colors[1], 0.8))
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs)))
 			plt.bar(x3, incorrect_proofs_wrong_non_atomic_step_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=lighten_color(colors[1], 1.2))
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_useful_skip_step_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_useful_skip_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_useful_skip_step_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_useful_skip_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_useful_skip_step_first/incorrect_proofs)))
 			plt.bar(x4, incorrect_proofs_useful_skip_step_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=lighten_color(colors[2], 0.8))
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_wrong_skip_step_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_wrong_skip_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_skip_step_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_wrong_skip_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_skip_step_first/incorrect_proofs)))
 			plt.bar(x5, incorrect_proofs_wrong_skip_step_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=lighten_color(colors[2], 1.2))
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_invalid_step_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-			err = np.array((incorrect_proofs_invalid_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_invalid_step_first/incorrect_proofs))
+			err = np.maximum(0, np.array((incorrect_proofs_invalid_step_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_invalid_step_first/incorrect_proofs)))
 			plt.bar(x6, incorrect_proofs_invalid_step_first/incorrect_proofs, width=bar_width, yerr=err, capsize=3.0, color=colors[0])
 
 			show_legend = False
@@ -753,45 +753,45 @@ else:
 
 	make_step_type_plot('Fictional ontology',
 		['gpt_textdavinci002_1hop.log', 'gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop.log', 'gpt_textdavinci002_5hop_preorder.log'],
-		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
+		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
 		'textdavinci002_fictional_ontology_proof_accuracy.pdf', 'textdavinci002_fictional_ontology_first_error.pdf', 'textdavinci002_fictional_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
 
 	make_step_type_plot('False ontology',
 		['gpt_textdavinci002_1hop_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log', 'gpt_textdavinci002_5hop_falseontology.log', 'gpt_textdavinci002_5hop_preorder_falseontology.log'],
-		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
+		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
 		'textdavinci002_false_ontology_proof_accuracy.pdf', 'textdavinci002_false_ontology_first_error.pdf', 'textdavinci002_false_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('True ontology',
 		['gpt_textdavinci002_1hop_trueontology.log', 'gpt_textdavinci002_1hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log', 'gpt_textdavinci002_5hop_trueontology.log', 'gpt_textdavinci002_5hop_preorder_trueontology.log'],
-		['1 hop, bottom-up \n sentence ordering', '1 hop, top-down \n sentence ordering', '3 hops, bottom-up \n sentence ordering', '3 hops, top-down \n sentence ordering', '5 hops, bottom-up \n sentence ordering', '5 hops, top-down \n sentence ordering'],
+		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
 		'textdavinci002_true_ontology_proof_accuracy.pdf', 'textdavinci002_true_ontology_first_error.pdf', 'textdavinci002_true_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('Fictional ontology, 3 hops',
 		['gpt_textada001_3hop_preorder.log', 'gpt_textbabbage001_3hop_preorder.log', 'gpt_textcurie001_3hop_preorder.log', 'gpt_davinci_3hop_preorder.log', 'gpt_textdavinci001_3hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down sentence ordering')
+		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_falseontology.log', 'gpt_textbabbage001_3hop_preorder_falseontology.log', 'gpt_textcurie001_3hop_preorder_falseontology.log', 'gpt_davinci_3hop_preorder_falseontology.log', 'gpt_textdavinci001_3hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down sentence ordering')
+		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_trueontology.log', 'gpt_textbabbage001_3hop_preorder_trueontology.log', 'gpt_textcurie001_3hop_preorder_trueontology.log', 'gpt_davinci_3hop_preorder_trueontology.log', 'gpt_textdavinci001_3hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down sentence ordering')
+		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('Fictional ontology, 1 hop',
 		['gpt_textada001_1hop_preorder.log', 'gpt_textbabbage001_1hop_preorder.log', 'gpt_textcurie001_1hop_preorder.log', 'gpt_davinci_1hop_preorder.log', 'gpt_textdavinci001_1hop_preorder.log', 'gpt_textdavinci002_1hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down sentence ordering')
+		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_falseontology.log', 'gpt_textbabbage001_1hop_preorder_falseontology.log', 'gpt_textcurie001_1hop_preorder_falseontology.log', 'gpt_davinci_1hop_preorder_falseontology.log', 'gpt_textdavinci001_1hop_preorder_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down sentence ordering')
+		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_trueontology.log', 'gpt_textbabbage001_1hop_preorder_trueontology.log', 'gpt_textcurie001_1hop_preorder_trueontology.log', 'gpt_davinci_1hop_preorder_trueontology.log', 'gpt_textdavinci001_1hop_preorder_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down sentence ordering')
+		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down traversal direction')

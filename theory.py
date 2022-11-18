@@ -20,6 +20,16 @@ class OntologyNode(object):
 		if parent is not None:
 			parent.children.append(self)
 
+	def count_concepts(self):
+		num_concepts = 1
+		num_properties = len(self.properties) + len(self.negated_properties)
+		for child in self.children:
+			(child_num_concepts, child_num_properties) = child.count_concepts()
+			num_concepts += child_num_concepts
+			num_properties += child_num_properties
+		return (num_concepts, num_properties)
+
+
 def generate_ontology(parent, level, available_concept_names, available_property_families, config):
 	# choose a family of properties for the children at this node
 	if len(available_property_families) == 0:
