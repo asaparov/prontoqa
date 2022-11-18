@@ -3,10 +3,13 @@ from scipy.special import logsumexp
 from random import randrange
 from time import sleep
 
-def do_chain_of_thought(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof):
+def do_chain_of_thought(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only):
 	prompt = ''
 	for i in range(len(questions)):
-		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i]) + ' ' + answers[i] + '\n\n'
+		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i])
+		if not proofs_only:
+			prompt += ' ' + answers[i]
+		prompt += '\n\n'
 	prompt += 'Q: ' + test_question + ' ' + test_query + '\nA:'
 	print_output(prompt)
 	try_num = 0
@@ -43,10 +46,13 @@ def aggregate_sample_predictions(sample_predictions, parse_response):
 			best_response = logprobs[0]
 	return best_response
 
-def do_self_consistency(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, parse_response):
+def do_self_consistency(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only, parse_response):
 	prompt = ''
 	for i in range(len(questions)):
-		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i]) + ' ' + answers[i] + '\n\n'
+		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i])
+		if not proofs_only:
+			prompt += ' ' + answers[i]
+		prompt += '\n\n'
 	prompt += 'Q: ' + test_question + ' ' + test_query + '\nA:'
 	print_output(prompt)
 
@@ -67,7 +73,7 @@ def do_self_consistency(predict, print_output, questions, queries, chains_of_tho
 
 	return aggregate_sample_predictions(responses, parse_response)
 
-def do_selection_inference(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, parse_reasoning, decapitalize):
+def do_selection_inference(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only, parse_reasoning, decapitalize):
 	# first construct the prompts for the selection and inference modules
 	sel_prompt = ''
 	inf_prompt = ''

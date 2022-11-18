@@ -75,11 +75,25 @@ def analyze_log(logfile):
 
 	wrong_branch_lengths = []
 
+	labels = []
+	correct_proofs = []
+	correct_proofs_with_skip_steps = []
+	correct_proofs_with_non_atomic_steps = []
+	correct_proofs_with_skip_or_non_atomic_steps = []
+
 	question_id = 0
+	correct_step_count = 0
+	non_atomic_step_count = 0
+	skip_step_count = 0
+	invalid_step_count = 0
 	for result in results:
 		question_id += 1
 		(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 		all_correct_steps.extend(correct_steps)
+		correct_step_count += len(correct_steps)
+		non_atomic_step_count += len(useful_non_atomic_steps) + len(wrong_non_atomic_steps)
+		skip_step_count += len(useful_skip_steps) + len(wrong_skip_steps)
+		invalid_step_count += len(incorrect_steps)
 		all_correct_and_useful_steps.extend(correct_and_useful_steps)
 		all_redundant_steps.extend(redundant_steps)
 		all_unparseable_steps.extend(unparseable_steps)
@@ -96,6 +110,12 @@ def analyze_log(logfile):
 			contains_correct_proof_with_non_atomic_step += 1
 		if found_conclusion_with_skip_or_non_atomic_steps:
 			contains_correct_proof_with_skip_step_or_non_atomic_step += 1
+
+		labels.append(int(label))
+		correct_proofs.append(int(found_conclusion))
+		correct_proofs_with_skip_steps.append(int(found_conclusion_with_skip_steps))
+		correct_proofs_with_non_atomic_steps.append(int(found_conclusion_with_non_atomic_steps))
+		correct_proofs_with_skip_or_non_atomic_steps.append(int(found_conclusion_with_skip_or_non_atomic_steps))
 
 		def increment_count(result_array):
 			result_array[int(found_conclusion)] += 1
@@ -199,13 +219,17 @@ def analyze_log(logfile):
 				wrong_branch_lengths.append(min([step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]))
 		correct_labels += label
 
-	return (len(results), proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths)
+	return (len(results), proof_lengths, correct_labels, correct_step_count, non_atomic_step_count, skip_step_count, invalid_step_count, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths, labels, correct_proofs, correct_proofs_with_skip_steps, correct_proofs_with_non_atomic_steps, correct_proofs_with_skip_or_non_atomic_steps)
 
 if len(argv) > 1:
-	(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(argv[1])
+	(num_examples, proof_lengths, correct_labels, correct_step_count, non_atomic_step_count, skip_step_count, invalid_step_count, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths, labels, correct_proofs, correct_proofs_with_skip_steps, correct_proofs_with_non_atomic_steps, correct_proofs_with_skip_or_non_atomic_steps) = analyze_log(argv[1])
 
 	max_proof_length = max(proof_lengths)
 	total_steps = np.sum(proof_lengths)
+	print("Correct steps: {}".format(correct_step_count / total_steps))
+	print("Non-atomic steps: {}".format(non_atomic_step_count / total_steps))
+	print("Skip steps: {}".format(skip_step_count / total_steps))
+	print("Invalid steps: {}".format(invalid_step_count / total_steps))
 	print("Correct and useful steps: {}".format(len(all_correct_and_useful_steps) / total_steps))
 	print("Redundant steps: {}".format(len(all_redundant_steps) / total_steps))
 	print("Unparseable steps: {}".format(len(all_unparseable_steps) / total_steps))
@@ -356,7 +380,7 @@ else:
 		offset = 6
 		for logfile in logfiles:
 			print('parsing "{}"'.format(logfile))
-			(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(logfile)
+			(num_examples, proof_lengths, correct_labels, correct_step_count, non_atomic_step_count, skip_step_count, invalid_step_count, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths, labels, correct_proofs, correct_proofs_with_skip_steps, correct_proofs_with_non_atomic_steps, correct_proofs_with_skip_or_non_atomic_steps) = analyze_log(logfile)
 
 			correct_proof_count = np.sum(contains_correct_proof) + contains_correct_proof_with_skip_step_or_non_atomic_step
 			example_count.append(num_examples)
@@ -670,11 +694,25 @@ else:
 	incorrect_proofs_wrong_branch_and_invalid_step = []
 	incorrect_proofs_wrong_branch_and_useful_non_atomic_step_and_invalid_step = []
 	incorrect_proofs_other = []
+
+	confusion_matrix = np.zeros((2, 2))
+	confusion_matrix_with_skip_steps = np.zeros((2, 2))
+	confusion_matrix_with_non_atomic_steps = np.zeros((2, 2))
+	confusion_matrix_with_skip_and_non_atomic_steps = np.zeros((2, 2))
+
+	plt.style.use('ggplot')
+	colors = []
+	for c in rcParams["axes.prop_cycle"]:
+		colors.append(c['color'])
+	# colors are red, blue, purple, grey, yellow, green, pink
+
+	point_colors = []
+	color_code = "model_size"
 	for logfile in logfiles:
 		if "seed" in logfile:
 			continue
 		print('parsing "{}"'.format(logfile))
-		(num_examples, proof_lengths, correct_labels, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths) = analyze_log(logfile)
+		(num_examples, proof_lengths, correct_labels, correct_step_count, non_atomic_step_count, skip_step_count, invalid_step_count, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths, labels, correct_proofs, correct_proofs_with_skip_steps, correct_proofs_with_non_atomic_steps, correct_proofs_with_skip_or_non_atomic_steps) = analyze_log(logfile)
 		print(np.sum(contains_wrong_branch_or_useful_skip_step + contains_wrong_branch_or_wrong_skip_step + contains_useful_skip_or_wrong_skip_step + contains_useful_skip_or_useful_non_atomic_step + contains_useful_skip_or_wrong_non_atomic_step + contains_useful_skip_or_invalid_step + contains_wrong_skip_or_useful_non_atomic_step + contains_wrong_skip_or_wrong_non_atomic_step + contains_wrong_skip_or_invalid_step + contains_useful_non_atomic_or_wrong_non_atomic_step + contains_useful_non_atomic_or_invalid_step + contains_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_step + contains_wrong_branch_or_wrong_non_atomic_or_invalid_step + contains_wrong_branch_or_non_atomic_or_invalid_step))
 
 		correct_proof_count = np.sum(contains_correct_proof)
@@ -685,6 +723,54 @@ else:
 		proof_accuracy_with_non_atomic_steps.append((correct_proof_count + contains_correct_proof_with_non_atomic_step) / num_examples)
 		proof_accuracy_with_skip_steps_and_non_atomic_steps.append((correct_proof_count + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples)
 
+		labels = np.array(labels)
+		correct_proofs = np.array(correct_proofs)
+		correct_proofs_with_skip_steps = np.logical_or(np.array(correct_proofs_with_skip_steps), correct_proofs)
+		correct_proofs_with_non_atomic_steps = np.logical_or(np.array(correct_proofs_with_non_atomic_steps), correct_proofs)
+		correct_proofs_with_skip_or_non_atomic_steps = np.logical_or(np.array(correct_proofs_with_skip_or_non_atomic_steps), correct_proofs)
+		confusion_matrix[0, 0] += np.sum(np.logical_and(labels == 0, correct_proofs == 0))
+		confusion_matrix[0, 1] += np.sum(np.logical_and(labels == 0, correct_proofs == 1))
+		confusion_matrix[1, 0] += np.sum(np.logical_and(labels == 1, correct_proofs == 0))
+		confusion_matrix[1, 1] += np.sum(np.logical_and(labels == 1, correct_proofs == 1))
+		confusion_matrix_with_skip_steps[0, 0] += np.sum(np.logical_and(labels == 0, correct_proofs_with_skip_steps == 0))
+		confusion_matrix_with_skip_steps[0, 1] += np.sum(np.logical_and(labels == 0, correct_proofs_with_skip_steps == 1))
+		confusion_matrix_with_skip_steps[1, 0] += np.sum(np.logical_and(labels == 1, correct_proofs_with_skip_steps == 0))
+		confusion_matrix_with_skip_steps[1, 1] += np.sum(np.logical_and(labels == 1, correct_proofs_with_skip_steps == 1))
+		confusion_matrix_with_non_atomic_steps[0, 0] += np.sum(np.logical_and(labels == 0, correct_proofs_with_non_atomic_steps == 0))
+		confusion_matrix_with_non_atomic_steps[0, 1] += np.sum(np.logical_and(labels == 0, correct_proofs_with_non_atomic_steps == 1))
+		confusion_matrix_with_non_atomic_steps[1, 0] += np.sum(np.logical_and(labels == 1, correct_proofs_with_non_atomic_steps == 0))
+		confusion_matrix_with_non_atomic_steps[1, 1] += np.sum(np.logical_and(labels == 1, correct_proofs_with_non_atomic_steps == 1))
+		confusion_matrix_with_skip_and_non_atomic_steps[0, 0] += np.sum(np.logical_and(labels == 0, correct_proofs_with_skip_or_non_atomic_steps == 0))
+		confusion_matrix_with_skip_and_non_atomic_steps[0, 1] += np.sum(np.logical_and(labels == 0, correct_proofs_with_skip_or_non_atomic_steps == 1))
+		confusion_matrix_with_skip_and_non_atomic_steps[1, 0] += np.sum(np.logical_and(labels == 1, correct_proofs_with_skip_or_non_atomic_steps == 0))
+		confusion_matrix_with_skip_and_non_atomic_steps[1, 1] += np.sum(np.logical_and(labels == 1, correct_proofs_with_skip_or_non_atomic_steps == 1))
+
+		if color_code == "hop_count":
+			if "1hop" in logfile:
+				point_colors.append(colors[0])
+			elif "3hop" in logfile:
+				point_colors.append(colors[1])
+			elif "5hop" in logfile:
+				point_colors.append(colors[2])
+			else:
+				raise Exception("Unable to determine hop count.")
+		elif color_code == "model_size":
+			if "_textada001_" in logfile:
+				point_colors.append(colors[0])
+			elif "_textbabbage001_" in logfile:
+				point_colors.append(colors[1])
+			elif "_textcurie001_" in logfile:
+				point_colors.append(colors[2])
+			elif "_davinci_" in logfile:
+				point_colors.append(colors[3])
+			elif "_textdavinci001_" in logfile:
+				point_colors.append(colors[4])
+			elif "_textdavinci002_" in logfile:
+				point_colors.append(colors[5])
+			else:
+				raise Exception("Unable to determine model size.")
+
+
 	example_count = np.array(example_count)
 	label_accuracy = np.array(label_accuracy)
 	proof_accuracy = np.array(proof_accuracy)
@@ -692,19 +778,28 @@ else:
 	proof_accuracy_with_non_atomic_steps = np.array(proof_accuracy_with_non_atomic_steps)
 	proof_accuracy_with_skip_steps_and_non_atomic_steps = np.array(proof_accuracy_with_skip_steps_and_non_atomic_steps)
 
-	(label_lower_bound, label_upper_bound) = wilson_conf_interval(label_accuracy, example_count)
+	confusion_matrix /= np.sum(example_count)
+	confusion_matrix_with_skip_steps /= np.sum(example_count)
+	confusion_matrix_with_non_atomic_steps /= np.sum(example_count)
+	confusion_matrix_with_skip_and_non_atomic_steps /= np.sum(example_count)
 
-	plt.style.use('ggplot')
-	colors = []
-	for c in rcParams["axes.prop_cycle"]:
-		colors.append(c['color'])
+	print("Confusion matrices:")
+	print(confusion_matrix)
+	print(confusion_matrix_with_skip_steps)
+	print(confusion_matrix_with_non_atomic_steps)
+	print(confusion_matrix_with_skip_and_non_atomic_steps)
+
+	(label_lower_bound, label_upper_bound) = wilson_conf_interval(label_accuracy, example_count)
 
 	fig = plt.gcf()
 	fig.set_size_inches(2.2, 2.2, forward=True)
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy - proof_lower_bound, proof_upper_bound - proof_accuracy)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
-	plt.scatter(label_accuracy, proof_accuracy, zorder=10)
+	if len(point_colors) != 0:
+		plt.scatter(label_accuracy, proof_accuracy, zorder=10, s=20.0, c=point_colors)
+	else:
+		plt.scatter(label_accuracy, proof_accuracy, zorder=10, s=20.0)
 	plt.xlabel('label accuracy')
 	plt.ylabel('strict proof accuracy')
 	plt.xlim([0.0, 1.0])
@@ -717,7 +812,10 @@ else:
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
-	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, zorder=10, c=colors[1])
+	if len(point_colors) != 0:
+		plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, zorder=10, s=20.0, c=point_colors)
+	else:
+		plt.scatter(label_accuracy, proof_accuracy_with_skip_steps, zorder=10, s=20.0, c=colors[1])
 	plt.xlabel('label accuracy')
 	plt.ylabel('broad proof accuracy')
 	plt.xlim([0.0, 1.0])
@@ -730,7 +828,10 @@ else:
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_non_atomic_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
-	plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, c=colors[2])
+	if len(point_colors) != 0:
+		plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, s=20.0, c=point_colors)
+	else:
+		plt.scatter(label_accuracy, proof_accuracy_with_non_atomic_steps, zorder=10, s=20.0, c=colors[2])
 	plt.xlabel('label accuracy')
 	plt.ylabel('``skip\'\' proof accuracy')
 	plt.xlim([0.0, 1.0])
@@ -743,7 +844,10 @@ else:
 	plt.plot([0, 1], [0, 1], color='black')
 	(proof_lower_bound, proof_upper_bound) = wilson_conf_interval(proof_accuracy_with_skip_steps_and_non_atomic_steps, example_count)
 	plt.errorbar(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, xerr=np.array((label_accuracy - label_lower_bound, label_upper_bound - label_accuracy)), yerr=np.array((proof_accuracy_with_skip_steps_and_non_atomic_steps - proof_lower_bound, proof_upper_bound - proof_accuracy_with_skip_steps_and_non_atomic_steps)), fmt='none', ecolor=(0.53,0.53,0.53), elinewidth=0.8)
-	plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, zorder=10, c=colors[5])
+	if len(point_colors) != 0:
+		plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, zorder=10, s=20.0, c=point_colors)
+	else:
+		plt.scatter(label_accuracy, proof_accuracy_with_skip_steps_and_non_atomic_steps, zorder=10, s=20.0, c=colors[5])
 	plt.xlabel('label accuracy')
 	plt.ylabel('valid proof accuracy')
 	plt.xlim([0.0, 1.0])
