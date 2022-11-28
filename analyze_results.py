@@ -98,10 +98,11 @@ def analyze_log(logfile):
 		all_redundant_steps.extend(redundant_steps)
 		all_unparseable_steps.extend(unparseable_steps)
 		all_incorrect_steps.extend(incorrect_steps)
+		safe_label = int(label) if label != None else 0
 		if found_conclusion:
-			contains_correct_proof[int(label)] += 1
+			contains_correct_proof[safe_label] += 1
 		else:
-			does_not_contain_correct_proof[int(label)] += 1
+			does_not_contain_correct_proof[safe_label] += 1
 
 		found_conclusion_with_skip_or_non_atomic_steps = (found_conclusion_with_skip_steps or found_conclusion_with_non_atomic_steps)
 		if found_conclusion_with_skip_steps:
@@ -111,7 +112,7 @@ def analyze_log(logfile):
 		if found_conclusion_with_skip_or_non_atomic_steps:
 			contains_correct_proof_with_skip_step_or_non_atomic_step += 1
 
-		labels.append(int(label))
+		labels.append(label)
 		correct_proofs.append(int(found_conclusion))
 		correct_proofs_with_skip_steps.append(int(found_conclusion_with_skip_steps))
 		correct_proofs_with_non_atomic_steps.append(int(found_conclusion_with_non_atomic_steps))
@@ -217,7 +218,10 @@ def analyze_log(logfile):
 			corrected_indices = [step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]
 			if len(corrected_indices) != 0:
 				wrong_branch_lengths.append(min([step - index for step in (useful_skip_steps + useful_non_atomic_steps + correct_and_useful_steps) if step > index]))
-		correct_labels += label
+		if label == None:
+			correct_labels = None
+		else:
+			correct_labels += label
 
 	return (len(results), proof_lengths, correct_labels, correct_step_count, non_atomic_step_count, skip_step_count, invalid_step_count, all_correct_and_useful_steps, all_redundant_steps, all_unparseable_steps, all_incorrect_steps, contains_correct_proof, does_not_contain_correct_proof, contains_wrong_branch, contains_useful_skip_step, contains_wrong_skip_step, contains_useful_non_atomic_step, contains_wrong_non_atomic_step, contains_invalid_step, contains_wrong_branch_or_useful_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_step, contains_wrong_branch_or_invalid_step, contains_wrong_branch_or_useful_non_atomic_or_invalid_step, contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, contains_wrong_branch_or_useful_skip_step, contains_wrong_branch_or_wrong_skip_step, contains_useful_skip_or_wrong_skip_step, contains_useful_skip_or_useful_non_atomic_step, contains_useful_skip_or_wrong_non_atomic_step, contains_useful_skip_or_invalid_step, contains_wrong_skip_or_useful_non_atomic_step, contains_wrong_skip_or_wrong_non_atomic_step, contains_wrong_skip_or_invalid_step, contains_useful_non_atomic_or_wrong_non_atomic_step, contains_useful_non_atomic_or_invalid_step, contains_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_step, contains_wrong_branch_or_wrong_non_atomic_or_invalid_step, contains_wrong_branch_or_non_atomic_or_invalid_step, contains_correct_proof_with_skip_step, contains_correct_proof_with_non_atomic_step, contains_correct_proof_with_skip_step_or_non_atomic_step, wrong_branch_first, useful_skip_step_first, wrong_skip_step_first, useful_non_atomic_step_first, wrong_non_atomic_step_first, invalid_step_first, contains_any_wrong_branch, contains_any_useful_skip_step, contains_any_wrong_skip_step, contains_any_useful_non_atomic_step, contains_any_wrong_non_atomic_step, contains_any_invalid_step, wrong_branch_lengths, labels, correct_proofs, correct_proofs_with_skip_steps, correct_proofs_with_non_atomic_steps, correct_proofs_with_skip_or_non_atomic_steps)
 
@@ -239,10 +243,11 @@ if len(argv) > 1:
 	print("Proportion of proofs that contain the correct proof: {}".format(correct_proofs / num_examples))
 
 	offset = 6
-	print("Proportion of proofs with the correct label that contain the correct proof:   {}".format(contains_correct_proof[offset + 1] / correct_labels))
-	print("Proportion of proofs with the incorrect label that contain the correct proof: {}".format(contains_correct_proof[offset + 0] / (num_examples - correct_labels)))
-	print("Proportion of proofs with the correct label that do NOT contain the correct proof:   {}".format(does_not_contain_correct_proof[offset + 1] / correct_labels))
-	print("Proportion of proofs with the incorrect label that do NOT contain the correct proof: {}".format(does_not_contain_correct_proof[offset + 0] / (num_examples - correct_labels)))
+	if correct_labels != None:
+		print("Proportion of proofs with the correct label that contain the correct proof:   {}".format(contains_correct_proof[offset + 1] / correct_labels))
+		print("Proportion of proofs with the incorrect label that contain the correct proof: {}".format(contains_correct_proof[offset + 0] / (num_examples - correct_labels)))
+		print("Proportion of proofs with the correct label that do NOT contain the correct proof:   {}".format(does_not_contain_correct_proof[offset + 1] / correct_labels))
+		print("Proportion of proofs with the incorrect label that do NOT contain the correct proof: {}".format(does_not_contain_correct_proof[offset + 0] / (num_examples - correct_labels)))
 
 	print("Proportion of correct proofs that contain a \"useless branch\":          {}".format(contains_wrong_branch[offset + 1] / correct_proofs))
 	print("Proportion of correct proofs that contain a \"useful skip step\":        {}".format(contains_useful_skip_step[offset + 1] / correct_proofs))
@@ -308,7 +313,8 @@ if len(argv) > 1:
 	print(contains_wrong_branch_or_wrong_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
 	print(contains_wrong_branch_or_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
 
-	print("Proportion of correct labels: {}".format(correct_labels / num_examples))
+	if correct_labels != None:
+		print("Proportion of correct labels: {}".format(correct_labels / num_examples))
 
 else:
 	import glob
