@@ -355,7 +355,7 @@ else:
 				else:
 					return result_array[1] + result_array[index]
 
-		correct_proofs = []
+		correct_proof_fraction = []
 		correct_proofs_wrong_branch = []
 		correct_proofs_useful_non_atomic_step = []
 		correct_proofs_wrong_non_atomic_step = []
@@ -390,7 +390,7 @@ else:
 
 			correct_proof_count = np.sum(contains_correct_proof) + contains_correct_proof_with_skip_step_or_non_atomic_step
 			example_count.append(num_examples)
-			correct_proofs.append(correct_proof_count / num_examples)
+			correct_proof_fraction.append(correct_proof_count / num_examples)
 			correct_proofs_wrong_branch.append(get_count(contains_any_wrong_branch, offset + 1) / num_examples)
 			correct_proofs_useful_non_atomic_step.append(get_count(contains_any_useful_non_atomic_step, offset + 1) / num_examples)
 			correct_proofs_wrong_non_atomic_step.append(get_count(contains_any_wrong_non_atomic_step, offset + 1) / num_examples)
@@ -426,7 +426,7 @@ else:
 			wrong_branch_lengths_array.append((np.array(list(counter.keys())), np.array(list(counter.values()))))
 
 		example_count = np.array(example_count)
-		correct_proofs = np.array(correct_proofs)
+		correct_proof_fraction = np.array(correct_proof_fraction)
 		correct_proofs_wrong_branch = np.array(correct_proofs_wrong_branch)
 		correct_proofs_useful_non_atomic_step = np.array(correct_proofs_useful_non_atomic_step)
 		correct_proofs_wrong_non_atomic_step = np.array(correct_proofs_wrong_non_atomic_step)
@@ -485,7 +485,7 @@ else:
 		bar_spacing = 0.2
 		bar_width = (1.0 - bar_spacing) / bar_group_size
 
-		x1 = np.arange(len(correct_proofs))
+		x1 = np.arange(len(correct_proof_fraction))
 		x2 = [x + bar_width for x in x1]
 		x3 = [x + bar_width for x in x2]
 		x4 = [x + bar_width for x in x3]
@@ -495,38 +495,38 @@ else:
 		fig = plt.gcf()
 		fig.set_size_inches(10.0, figure_height, forward=True)
 		plt.bar(x1, correct_proofs_wrong_branch, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x1, correct_proofs - correct_proofs_wrong_branch, width=bar_width, bottom=correct_proofs_wrong_branch, color=lighten_color(colors[1], 0.8))
-		plt.bar(x1, incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x1, 1.0 - correct_proofs - incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proofs+incorrect_proofs_wrong_branch, color=lighten_color(colors[0], 0.8))
+		plt.bar(x1, correct_proof_fraction - correct_proofs_wrong_branch, width=bar_width, bottom=correct_proofs_wrong_branch, color=lighten_color(colors[1], 0.8))
+		plt.bar(x1, incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x1, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_branch, color=lighten_color(colors[0], 0.8))
 
 		plt.bar(x2, correct_proofs_useful_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x2, correct_proofs - correct_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs_useful_non_atomic_step, color=lighten_color(colors[1], 0.8))
-		plt.bar(x2, incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x2, 1.0 - correct_proofs - incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_useful_non_atomic_step, color=lighten_color(colors[0], 0.8))
+		plt.bar(x2, correct_proof_fraction - correct_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs_useful_non_atomic_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x2, incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x2, 1.0 - correct_proof_fraction - incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_non_atomic_step, color=lighten_color(colors[0], 0.8))
 
 		plt.bar(x3, correct_proofs_wrong_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x3, correct_proofs - correct_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs_wrong_non_atomic_step, color=lighten_color(colors[1], 0.8))
-		plt.bar(x3, incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x3, 1.0 - correct_proofs - incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_wrong_non_atomic_step, color=lighten_color(colors[0], 0.8))
+		plt.bar(x3, correct_proof_fraction - correct_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs_wrong_non_atomic_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x3, incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x3, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_non_atomic_step, color=lighten_color(colors[0], 0.8))
 
 		plt.bar(x4, correct_proofs_useful_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x4, correct_proofs - correct_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs_useful_skip_step, color=lighten_color(colors[1], 0.8))
-		plt.bar(x4, incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x4, 1.0 - correct_proofs - incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_useful_skip_step, color=lighten_color(colors[0], 0.8))
+		plt.bar(x4, correct_proof_fraction - correct_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs_useful_skip_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x4, incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x4, 1.0 - correct_proof_fraction - incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_skip_step, color=lighten_color(colors[0], 0.8))
 
 		plt.bar(x5, correct_proofs_wrong_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x5, correct_proofs - correct_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs_wrong_skip_step, color=lighten_color(colors[1], 0.8))
-		plt.bar(x5, incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x5, 1.0 - correct_proofs - incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_wrong_skip_step, color=lighten_color(colors[0], 0.8))
+		plt.bar(x5, correct_proof_fraction - correct_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs_wrong_skip_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x5, incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x5, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_skip_step, color=lighten_color(colors[0], 0.8))
 
 		plt.bar(x6, correct_proofs_invalid_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x6, correct_proofs - correct_proofs_invalid_step, width=bar_width, bottom=correct_proofs_invalid_step, color=lighten_color(colors[1], 0.8))
-		plt.bar(x6, incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proofs, color=lighten_color(colors[0], 1.3))
-		plt.bar(x6, 1.0 - correct_proofs - incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proofs+incorrect_proofs_invalid_step, color=lighten_color(colors[0], 0.8))
+		plt.bar(x6, correct_proof_fraction - correct_proofs_invalid_step, width=bar_width, bottom=correct_proofs_invalid_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x6, incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
+		plt.bar(x6, 1.0 - correct_proof_fraction - incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_invalid_step, color=lighten_color(colors[0], 0.8))
 
 		# draw the error bars
-		(lower_bound, upper_bound) = wilson_conf_interval(correct_proofs, example_count)
-		plt.errorbar(x1 + (1.0 - bar_spacing - bar_width) / 2, correct_proofs, yerr=np.array((correct_proofs - lower_bound, upper_bound - correct_proofs)), fmt='none', ecolor=(0.0,0.0,0.0), capsize=3.0)
+		(lower_bound, upper_bound) = wilson_conf_interval(correct_proof_fraction, example_count)
+		plt.errorbar(x1 + (1.0 - bar_spacing - bar_width) / 2, correct_proof_fraction, yerr=np.array((correct_proof_fraction - lower_bound, upper_bound - correct_proof_fraction)), fmt='none', ecolor=(0.0,0.0,0.0), capsize=3.0)
 
 		ax = plt.gca()
 		if show_ylabel:
@@ -538,7 +538,7 @@ else:
 				plt.ylabel('``skip\'\' proof accuracy')
 			elif offset == 6:
 				plt.ylabel('valid proof accuracy')
-		plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
+		plt.xlim([-bar_spacing, len(correct_proof_fraction) - 0.12])
 		plt.ylim([0.0, 1.0])
 		plt.title(chart_title, fontsize=13)
 		delta = (1.0 - bar_spacing) / (2 * bar_group_size)
@@ -561,10 +561,10 @@ else:
 			fig = plt.gcf()
 			if "1hop" in logfiles[0]:
 				fig.set_size_inches(7.0, wrong_branch_lengths_figure_height, forward=True)
-				proof_range = range(2, len(correct_proofs))
+				proof_range = range(2, len(correct_proof_fraction))
 			else:
 				fig.set_size_inches(10.0, wrong_branch_lengths_figure_height, forward=True)
-				proof_range = range(len(correct_proofs))
+				proof_range = range(len(correct_proof_fraction))
 			for i in proof_range:
 				max_length = 15
 				ax = plt.subplot(1, len(proof_range), i - proof_range.start + 1)
@@ -607,7 +607,7 @@ else:
 				x6 = [x - 2 for x in x6[2:]]
 				group_labels = group_labels[2:]
 				example_count = example_count[2:]
-				correct_proofs = correct_proofs[2:]
+				correct_proof_fraction = correct_proof_fraction[2:]
 				incorrect_proofs_wrong_branch_first = incorrect_proofs_wrong_branch_first[2:]
 				incorrect_proofs_useful_non_atomic_step_first = incorrect_proofs_useful_non_atomic_step_first[2:]
 				incorrect_proofs_wrong_non_atomic_step_first = incorrect_proofs_wrong_non_atomic_step_first[2:]
@@ -616,7 +616,7 @@ else:
 				incorrect_proofs_invalid_step_first = incorrect_proofs_invalid_step_first[2:]
 			else:
 				fig.set_size_inches(10.0, first_error_figure_height, forward=True)
-			incorrect_proofs = 1.0 - correct_proofs
+			incorrect_proofs = 1.0 - correct_proof_fraction
 			(lower_bound, upper_bound) = wilson_conf_interval(incorrect_proofs_wrong_branch_first/incorrect_proofs, example_count * incorrect_proofs)
 			lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
 			err = np.maximum(0, np.array((incorrect_proofs_wrong_branch_first/incorrect_proofs - lower_bound, upper_bound - incorrect_proofs_wrong_branch_first/incorrect_proofs)))
@@ -650,7 +650,7 @@ else:
 			ax = plt.gca()
 			if show_first_error_ylabel:
 				plt.ylabel('proportion of \n incorrect proofs')
-			plt.xlim([-bar_spacing, len(correct_proofs) - 0.12])
+			plt.xlim([-bar_spacing, len(correct_proof_fraction) - 0.12])
 			plt.ylim([0.0, 1.0])
 			if first_error_title == None:
 				plt.title(chart_title, fontsize=13)
@@ -687,7 +687,6 @@ else:
 	proof_accuracy_with_non_atomic_steps = []
 	proof_accuracy_with_skip_steps_and_non_atomic_steps = []
 
-	correct_proofs = []
 	correct_proofs_wrong_branch = []
 	incorrect_proofs_wrong_branch = []
 	incorrect_proofs_useful_non_atomic_step = []
@@ -810,7 +809,7 @@ else:
 	plt.ylabel('strict proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy.pdf', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy.png', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -826,7 +825,7 @@ else:
 	plt.ylabel('broad proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_skip_steps.pdf', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_skip_steps.png', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -842,7 +841,7 @@ else:
 	plt.ylabel('``skip\'\' proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.png', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -858,50 +857,50 @@ else:
 	plt.ylabel('valid proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_skip_steps_and_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_skip_steps_and_non_atomic_steps.png', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	make_step_type_plot('Fictional ontology',
 		['gpt_textdavinci002_1hop.log', 'gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop.log', 'gpt_textdavinci002_5hop_preorder.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_fictional_ontology_proof_accuracy.pdf', 'textdavinci002_fictional_ontology_first_error.pdf', 'textdavinci002_fictional_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
+		'textdavinci002_fictional_ontology_proof_accuracy.png', 'textdavinci002_fictional_ontology_first_error.png', 'textdavinci002_fictional_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
 
 	make_step_type_plot('False ontology',
 		['gpt_textdavinci002_1hop_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log', 'gpt_textdavinci002_5hop_falseontology.log', 'gpt_textdavinci002_5hop_preorder_falseontology.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_false_ontology_proof_accuracy.pdf', 'textdavinci002_false_ontology_first_error.pdf', 'textdavinci002_false_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_false_ontology_proof_accuracy.png', 'textdavinci002_false_ontology_first_error.png', 'textdavinci002_false_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('True ontology',
 		['gpt_textdavinci002_1hop_trueontology.log', 'gpt_textdavinci002_1hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log', 'gpt_textdavinci002_5hop_trueontology.log', 'gpt_textdavinci002_5hop_preorder_trueontology.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_true_ontology_proof_accuracy.pdf', 'textdavinci002_true_ontology_first_error.pdf', 'textdavinci002_true_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_true_ontology_proof_accuracy.png', 'textdavinci002_true_ontology_first_error.png', 'textdavinci002_true_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('Fictional ontology, 3 hops',
 		['gpt_textada001_3hop_preorder.log', 'gpt_textbabbage001_3hop_preorder.log', 'gpt_textcurie001_3hop_preorder.log', 'gpt_davinci_3hop_preorder.log', 'gpt_textdavinci001_3hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down traversal direction')
+		'fictional_ontology_3hop_model_size.png', 'fictional_ontology_3hop_model_size_first_error.png', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_falseontology.log', 'gpt_textbabbage001_3hop_preorder_falseontology.log', 'gpt_textcurie001_3hop_preorder_falseontology.log', 'gpt_davinci_3hop_preorder_falseontology.log', 'gpt_textdavinci001_3hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down traversal direction')
+		'false_ontology_3hop_model_size.png', 'false_ontology_3hop_model_size_first_error.png', 'false_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_trueontology.log', 'gpt_textbabbage001_3hop_preorder_trueontology.log', 'gpt_textcurie001_3hop_preorder_trueontology.log', 'gpt_davinci_3hop_preorder_trueontology.log', 'gpt_textdavinci001_3hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down traversal direction')
+		'true_ontology_3hop_model_size.png', 'true_ontology_3hop_model_size_first_error.png', 'true_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('Fictional ontology, 1 hop',
 		['gpt_textada001_1hop_preorder.log', 'gpt_textbabbage001_1hop_preorder.log', 'gpt_textcurie001_1hop_preorder.log', 'gpt_davinci_1hop_preorder.log', 'gpt_textdavinci001_1hop_preorder.log', 'gpt_textdavinci002_1hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down traversal direction')
+		'fictional_ontology_1hop_model_size.png', 'fictional_ontology_1hop_model_size_first_error.png', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_falseontology.log', 'gpt_textbabbage001_1hop_preorder_falseontology.log', 'gpt_textcurie001_1hop_preorder_falseontology.log', 'gpt_davinci_1hop_preorder_falseontology.log', 'gpt_textdavinci001_1hop_preorder_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down traversal direction')
+		'false_ontology_1hop_model_size.png', 'false_ontology_1hop_model_size_first_error.png', 'false_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_trueontology.log', 'gpt_textbabbage001_1hop_preorder_trueontology.log', 'gpt_textcurie001_1hop_preorder_trueontology.log', 'gpt_davinci_1hop_preorder_trueontology.log', 'gpt_textdavinci001_1hop_preorder_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down traversal direction')
+		'true_ontology_1hop_model_size.png', 'true_ontology_1hop_model_size_first_error.png', 'true_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down traversal direction')
