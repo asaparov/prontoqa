@@ -909,7 +909,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 				if not proofs_only:
 					print_output(' ' + answer, log)
 				(predicted_proof, predicted_label) = parse_response(response)
-				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs)
+				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, proofs_only)
 				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 				label_results.append(label)
 

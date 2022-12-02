@@ -12,6 +12,14 @@ def wilson_conf_interval(p, n, z=1.96):
 	upper_bound = (center_adjusted_probability + z*adjusted_standard_deviation) / denominator
 	return (lower_bound, upper_bound)
 
+def get_count(result_array, index):
+	if index < 2:
+		return result_array[index]
+	else:
+		if index % 2 == 0:
+			return result_array[index] #- result_array[index + 1]
+		else:
+			return result_array[1] + result_array[index]
 
 def analyze_log(logfile):
 	with open(logfile, "r") as log:
@@ -105,49 +113,49 @@ def analyze_log(logfile):
 			does_not_contain_correct_proof[safe_label] += 1
 
 		found_conclusion_with_skip_or_non_atomic_steps = (found_conclusion_with_skip_steps or found_conclusion_with_non_atomic_steps)
-		if found_conclusion_with_skip_steps:
+		if found_conclusion_with_skip_steps and not found_conclusion:
 			contains_correct_proof_with_skip_step += 1
-		if found_conclusion_with_non_atomic_steps:
+		if found_conclusion_with_non_atomic_steps and not found_conclusion:
 			contains_correct_proof_with_non_atomic_step += 1
-		if found_conclusion_with_skip_or_non_atomic_steps:
+		if found_conclusion_with_skip_or_non_atomic_steps and not found_conclusion:
 			contains_correct_proof_with_skip_step_or_non_atomic_step += 1
 
 		labels.append(label)
 		correct_proofs.append(int(found_conclusion))
-		correct_proofs_with_skip_steps.append(int(found_conclusion_with_skip_steps))
-		correct_proofs_with_non_atomic_steps.append(int(found_conclusion_with_non_atomic_steps))
-		correct_proofs_with_skip_or_non_atomic_steps.append(int(found_conclusion_with_skip_or_non_atomic_steps))
+		correct_proofs_with_skip_steps.append(int(found_conclusion_with_skip_steps and not found_conclusion))
+		correct_proofs_with_non_atomic_steps.append(int(found_conclusion_with_non_atomic_steps and not found_conclusion))
+		correct_proofs_with_skip_or_non_atomic_steps.append(int(found_conclusion_with_skip_or_non_atomic_steps and not found_conclusion))
 
 		def increment_count(result_array):
 			result_array[int(found_conclusion)] += 1
-			result_array[2 + int(found_conclusion_with_skip_steps)] += 1
-			result_array[4 + int(found_conclusion_with_non_atomic_steps)] += 1
-			result_array[6 + int(found_conclusion_with_skip_or_non_atomic_steps)] += 1
+			result_array[2 + int(found_conclusion_with_skip_steps and not found_conclusion)] += 1
+			result_array[4 + int(found_conclusion_with_non_atomic_steps and not found_conclusion)] += 1
+			result_array[6 + int(found_conclusion_with_skip_or_non_atomic_steps and not found_conclusion)] += 1
 
-		if len(wrong_branch_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(wrong_branch_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(wrong_branch_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(wrong_branch_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(wrong_branch_first)
-		if len(useful_skip_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(useful_skip_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(useful_skip_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(useful_skip_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(useful_skip_step_first)
-		if len(wrong_skip_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(wrong_skip_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(wrong_skip_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(wrong_skip_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(wrong_skip_step_first)
-		if len(useful_non_atomic_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(useful_non_atomic_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(useful_non_atomic_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(useful_non_atomic_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(useful_non_atomic_step_first)
-		if len(wrong_non_atomic_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(wrong_non_atomic_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(wrong_non_atomic_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(wrong_non_atomic_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(wrong_non_atomic_step_first)
-		if len(invalid_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps) == 0 or min(invalid_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + invalid_steps)):
+		if len(incorrect_steps) != 0 and (len(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps) == 0 or min(incorrect_steps) <= min(wrong_branch_steps + useful_skip_steps + wrong_skip_steps + useful_non_atomic_steps + wrong_non_atomic_steps + incorrect_steps)):
 			increment_count(invalid_step_first)
 
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_skip_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_skip_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_invalid_step)
 
 		if len(wrong_branch_steps) != 0:
@@ -160,51 +168,51 @@ def analyze_log(logfile):
 			increment_count(contains_any_useful_non_atomic_step)
 		if len(wrong_non_atomic_steps) != 0:
 			increment_count(contains_any_wrong_non_atomic_step)
-		if len(invalid_steps) != 0:
+		if len(incorrect_steps) != 0:
 			increment_count(contains_any_invalid_step)
 
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch_or_useful_skip_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch_or_wrong_skip_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch_or_useful_non_atomic_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch_or_wrong_non_atomic_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_branch_or_invalid_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_skip_or_wrong_skip_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_skip_or_useful_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_skip_or_wrong_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) != 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_useful_skip_or_invalid_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_skip_or_useful_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_skip_or_wrong_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) != 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_skip_or_invalid_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_useful_non_atomic_or_wrong_non_atomic_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_useful_non_atomic_or_invalid_step)
-		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_non_atomic_or_invalid_step)
 
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) == 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_branch_or_non_atomic_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step)
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_branch_or_wrong_non_atomic_or_invalid_step)
 
-		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(invalid_steps) != 0:
+		if len(wrong_branch_steps) != 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) != 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) != 0:
 			increment_count(contains_wrong_branch_or_non_atomic_or_invalid_step)
 
-		if len(wrong_branch_steps) != 0 or len(useful_skip_steps) != 0 or len(wrong_skip_steps) != 0 or len(useful_non_atomic_steps) != 0 or len(wrong_non_atomic_steps) != 0 or len(invalid_steps) != 0:
+		if len(wrong_branch_steps) != 0 or len(useful_skip_steps) != 0 or len(wrong_skip_steps) != 0 or len(useful_non_atomic_steps) != 0 or len(wrong_non_atomic_steps) != 0 or len(incorrect_steps) != 0:
 			increment_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step)
 		if len(correct_steps + redundant_steps + incorrect_steps) == 0:
 			proof_lengths.append(0)
@@ -239,79 +247,68 @@ if len(argv) > 1:
 	print("Unparseable steps: {}".format(len(all_unparseable_steps) / total_steps))
 	print("Incorrect steps: {}".format(len(all_incorrect_steps) / total_steps))
 
-	correct_proofs = np.sum(contains_correct_proof)
-	print("Proportion of proofs that contain the correct proof: {}".format(correct_proofs / num_examples))
-
 	offset = 6
+	strictly_correct_proofs = np.sum(contains_correct_proof)
+	if offset == 0:
+		num_correct_proofs = strictly_correct_proofs
+	elif offset == 2:
+		num_correct_proofs = strictly_correct_proofs + contains_correct_proof_with_skip_step
+	elif offset == 4:
+		num_correct_proofs = strictly_correct_proofs + contains_correct_proof_with_non_atomic_step
+	elif offset == 6:
+		num_correct_proofs = strictly_correct_proofs + contains_correct_proof_with_skip_step_or_non_atomic_step
+	print("Proportion of proofs that contain the correct proof: {}".format(num_correct_proofs / num_examples))
+
 	if correct_labels != None:
-		print("Proportion of proofs with the correct label that contain the correct proof:   {}".format(contains_correct_proof[offset + 1] / correct_labels))
-		print("Proportion of proofs with the incorrect label that contain the correct proof: {}".format(contains_correct_proof[offset + 0] / (num_examples - correct_labels)))
-		print("Proportion of proofs with the correct label that do NOT contain the correct proof:   {}".format(does_not_contain_correct_proof[offset + 1] / correct_labels))
-		print("Proportion of proofs with the incorrect label that do NOT contain the correct proof: {}".format(does_not_contain_correct_proof[offset + 0] / (num_examples - correct_labels)))
+		print("Proportion of proofs with the correct label that contain the correct proof:   {}".format(get_count(contains_correct_proof, offset + 1) / correct_labels))
+		print("Proportion of proofs with the incorrect label that contain the correct proof: {}".format(get_count(contains_correct_proof, offset + 0) / (num_examples - correct_labels)))
+		print("Proportion of proofs with the correct label that do NOT contain the correct proof:   {}".format(get_count(does_not_contain_correct_proof, offset + 1) / correct_labels))
+		print("Proportion of proofs with the incorrect label that do NOT contain the correct proof: {}".format(get_count(does_not_contain_correct_proof, offset + 0) / (num_examples - correct_labels)))
 
-	print("Proportion of correct proofs that contain a \"useless branch\":          {}".format(contains_wrong_branch[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useful skip step\":        {}".format(contains_useful_skip_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless skip step\":       {}".format(contains_wrong_skip_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useful non-atomic step\":  {}".format(contains_useful_non_atomic_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless non-atomic step\": {}".format(contains_wrong_non_atomic_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain an \"invalid step\":           {}".format(contains_invalid_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(contains_wrong_branch_or_useful_non_atomic_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(contains_wrong_branch_or_wrong_non_atomic_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(contains_wrong_branch_or_invalid_step[offset + 1] / (num_examples - correct_proofs)))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(contains_wrong_branch_or_useful_non_atomic_or_invalid_step[offset + 1] / correct_proofs))
-	print("Proportion of correct proofs with ANY OF THE ABOVE:                    {}".format(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step[offset + 1] / correct_proofs))
-	print("Proportion of incorrect proofs that contain a \"useless branch\":          {}".format(contains_wrong_branch[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useful skip step\":        {}".format(contains_useful_skip_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless skip step\":       {}".format(contains_wrong_skip_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useful non-atomic step\":  {}".format(contains_useful_non_atomic_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless non-atomic step\": {}".format(contains_wrong_non_atomic_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain an \"invalid step\":           {}".format(contains_invalid_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(contains_wrong_branch_or_useful_non_atomic_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(contains_wrong_branch_or_wrong_non_atomic_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(contains_wrong_branch_or_invalid_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(contains_wrong_branch_or_useful_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
-	print("Proportion of ALL proofs that would be correct if \"non-atomic steps\" are considered correct: {}".format((correct_proofs + contains_correct_proof_with_non_atomic_step) / num_examples))
-	print("Proportion of ALL proofs that would be correct if both \"skip steps\" and \"non-atomic steps\" are considered correct: {}".format((correct_proofs + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples))
-	print("Proportion of correct proofs where the \"useless branch\" is the first mistake: {}".format(wrong_branch_first[offset + 1] / correct_proofs))
-	print("Proportion of incorrect proofs where the \"useless branch\" is the first mistake: {}".format(wrong_branch_first[offset + 0] / (num_examples - correct_proofs)))
-	print("Proportion of correct proofs where the \"invalid step\" is the first mistake: {}".format(invalid_step_first[offset + 1] / correct_proofs))
-	print("Proportion of incorrect proofs where the \"invalid step\" is the first mistake: {}".format(invalid_step_first[offset + 0] / (num_examples - correct_proofs)))
-	print("wrong_branch_first: {}".format(wrong_branch_first))
-	print("invalid_step_first: {}".format(invalid_step_first))
+	print("Proportion of correct proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 1) / (num_examples - num_correct_proofs)))
+	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 1) / num_correct_proofs))
+	print("Proportion of incorrect proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
+	print("Proportion of ALL proofs that would be correct if \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_non_atomic_step) / num_examples))
+	print("Proportion of ALL proofs that would be correct if both \"skip steps\" and \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples))
 
-	print(contains_wrong_branch_or_useful_skip_step[offset + 1] / correct_proofs)
-	print(contains_wrong_branch_or_wrong_skip_step[offset + 1] / correct_proofs)
-	print(contains_useful_skip_or_wrong_skip_step[offset + 1] / correct_proofs)
-	print(contains_useful_skip_or_useful_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_useful_skip_or_wrong_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_useful_skip_or_invalid_step[offset + 1] / correct_proofs)
-	print(contains_wrong_skip_or_useful_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_wrong_skip_or_wrong_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_wrong_skip_or_invalid_step[offset + 1] / correct_proofs)
-	print(contains_useful_non_atomic_or_wrong_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_useful_non_atomic_or_invalid_step[offset + 1] / correct_proofs)
-	print(contains_wrong_non_atomic_or_invalid_step[offset + 1] / correct_proofs)
-	print(contains_wrong_branch_or_non_atomic_step[offset + 1] / correct_proofs)
-	print(contains_wrong_branch_or_wrong_non_atomic_or_invalid_step[offset + 1] / correct_proofs)
-	print(contains_wrong_branch_or_non_atomic_or_invalid_step[offset + 1] / correct_proofs)
+	print("\nProportion of correct proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 1) / num_correct_proofs))
+	print("Proportion of correct proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 1) / num_correct_proofs))
+	print("Proportion of incorrect proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+	print("Proportion of incorrect proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 0) / (num_examples - num_correct_proofs)))
 
-	print(contains_wrong_branch_or_useful_skip_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_branch_or_wrong_skip_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_skip_or_wrong_skip_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_skip_or_useful_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_skip_or_wrong_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_skip_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_skip_or_useful_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_skip_or_wrong_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_skip_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_non_atomic_or_wrong_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_useful_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_branch_or_non_atomic_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_branch_or_wrong_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
-	print(contains_wrong_branch_or_non_atomic_or_invalid_step[offset + 0] / (num_examples - correct_proofs))
+	incorrect_proof_ids_with_skip_or_non_atomic_steps = []
+	for i in range(len(proof_lengths)):
+		if correct_proofs[i] == 0 and correct_proofs_with_skip_or_non_atomic_steps[i] == 0:
+			incorrect_proof_ids_with_skip_or_non_atomic_steps.append(i)
+	print("incorrect_proof_ids_with_skip_or_non_atomic_steps: {}".format(incorrect_proof_ids_with_skip_or_non_atomic_steps))
 
 	if correct_labels != None:
 		print("Proportion of correct labels: {}".format(correct_labels / num_examples))
@@ -345,15 +342,6 @@ else:
 			logfiles = filename_glob
 		else:
 			raise TypeError("'filename_glob' must be either a string or list of strings (i.e. filenames).")
-
-		def get_count(result_array, index):
-			if index < 2:
-				return result_array[index]
-			else:
-				if index % 2 == 0:
-					return result_array[0] - result_array[index + 1]
-				else:
-					return result_array[1] + result_array[index]
 
 		correct_proof_fraction = []
 		correct_proofs_wrong_branch = []
@@ -809,7 +797,7 @@ else:
 	plt.ylabel('strict proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy.png', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy.pdf', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -825,7 +813,7 @@ else:
 	plt.ylabel('broad proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_skip_steps.png', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_skip_steps.pdf', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -841,7 +829,7 @@ else:
 	plt.ylabel('``skip\'\' proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.png', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	fig = plt.gcf()
@@ -857,50 +845,50 @@ else:
 	plt.ylabel('valid proof accuracy')
 	plt.xlim([0.0, 1.0])
 	plt.ylim([0.0, 1.0])
-	fig.savefig('label_vs_proof_accuracy_with_skip_steps_and_non_atomic_steps.png', dpi=128, bbox_inches='tight')
+	fig.savefig('label_vs_proof_accuracy_with_skip_steps_and_non_atomic_steps.pdf', dpi=128, bbox_inches='tight')
 	plt.clf()
 
 	make_step_type_plot('Fictional ontology',
 		['gpt_textdavinci002_1hop.log', 'gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop.log', 'gpt_textdavinci002_5hop_preorder.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_fictional_ontology_proof_accuracy.png', 'textdavinci002_fictional_ontology_first_error.png', 'textdavinci002_fictional_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
+		'textdavinci002_fictional_ontology_proof_accuracy.pdf', 'textdavinci002_fictional_ontology_first_error.pdf', 'textdavinci002_fictional_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
 
 	make_step_type_plot('False ontology',
 		['gpt_textdavinci002_1hop_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log', 'gpt_textdavinci002_5hop_falseontology.log', 'gpt_textdavinci002_5hop_preorder_falseontology.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_false_ontology_proof_accuracy.png', 'textdavinci002_false_ontology_first_error.png', 'textdavinci002_false_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_false_ontology_proof_accuracy.pdf', 'textdavinci002_false_ontology_first_error.pdf', 'textdavinci002_false_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('True ontology',
 		['gpt_textdavinci002_1hop_trueontology.log', 'gpt_textdavinci002_1hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log', 'gpt_textdavinci002_5hop_trueontology.log', 'gpt_textdavinci002_5hop_preorder_trueontology.log'],
 		['1 hop, bottom-up \n traversal direction', '1 hop, top-down \n traversal direction', '3 hops, bottom-up \n traversal direction', '3 hops, top-down \n traversal direction', '5 hops, bottom-up \n traversal direction', '5 hops, top-down \n traversal direction'],
-		'textdavinci002_true_ontology_proof_accuracy.png', 'textdavinci002_true_ontology_first_error.png', 'textdavinci002_true_ontology_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
+		'textdavinci002_true_ontology_proof_accuracy.pdf', 'textdavinci002_true_ontology_first_error.pdf', 'textdavinci002_true_ontology_wrong_branch_lengths.pdf', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False)
 
 	make_step_type_plot('Fictional ontology, 3 hops',
 		['gpt_textada001_3hop_preorder.log', 'gpt_textbabbage001_3hop_preorder.log', 'gpt_textcurie001_3hop_preorder.log', 'gpt_davinci_3hop_preorder.log', 'gpt_textdavinci001_3hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_3hop_model_size.png', 'fictional_ontology_3hop_model_size_first_error.png', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down traversal direction')
+		'fictional_ontology_3hop_model_size.pdf', 'fictional_ontology_3hop_model_size_first_error.pdf', 'fictional_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_first_error_ylabel=True, first_error_title='Fictional ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_falseontology.log', 'gpt_textbabbage001_3hop_preorder_falseontology.log', 'gpt_textcurie001_3hop_preorder_falseontology.log', 'gpt_davinci_3hop_preorder_falseontology.log', 'gpt_textdavinci001_3hop_preorder_falseontology.log', 'gpt_textdavinci002_3hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_3hop_model_size.png', 'false_ontology_3hop_model_size_first_error.png', 'false_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down traversal direction')
+		'false_ontology_3hop_model_size.pdf', 'false_ontology_3hop_model_size_first_error.pdf', 'false_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 3 hops',
 		['gpt_textada001_3hop_preorder_trueontology.log', 'gpt_textbabbage001_3hop_preorder_trueontology.log', 'gpt_textcurie001_3hop_preorder_trueontology.log', 'gpt_davinci_3hop_preorder_trueontology.log', 'gpt_textdavinci001_3hop_preorder_trueontology.log', 'gpt_textdavinci002_3hop_preorder_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_3hop_model_size.png', 'true_ontology_3hop_model_size_first_error.png', 'true_ontology_3hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down traversal direction')
+		'true_ontology_3hop_model_size.pdf', 'true_ontology_3hop_model_size_first_error.pdf', 'true_ontology_3hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 3 hops, top-down traversal direction')
 
 	make_step_type_plot('Fictional ontology, 1 hop',
 		['gpt_textada001_1hop_preorder.log', 'gpt_textbabbage001_1hop_preorder.log', 'gpt_textcurie001_1hop_preorder.log', 'gpt_davinci_1hop_preorder.log', 'gpt_textdavinci001_1hop_preorder.log', 'gpt_textdavinci002_1hop_preorder.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'fictional_ontology_1hop_model_size.png', 'fictional_ontology_1hop_model_size_first_error.png', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down traversal direction')
+		'fictional_ontology_1hop_model_size.pdf', 'fictional_ontology_1hop_model_size_first_error.pdf', 'fictional_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='Fictional ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('False ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_falseontology.log', 'gpt_textbabbage001_1hop_preorder_falseontology.log', 'gpt_textcurie001_1hop_preorder_falseontology.log', 'gpt_davinci_1hop_preorder_falseontology.log', 'gpt_textdavinci001_1hop_preorder_falseontology.log', 'gpt_textdavinci002_1hop_preorder_falseontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'false_ontology_1hop_model_size.png', 'false_ontology_1hop_model_size_first_error.png', 'false_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down traversal direction')
+		'false_ontology_1hop_model_size.pdf', 'false_ontology_1hop_model_size_first_error.pdf', 'false_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='False ontology, 1 hop, top-down traversal direction')
 
 	make_step_type_plot('True ontology, 1 hop',
 		['gpt_textada001_1hop_preorder_trueontology.log', 'gpt_textbabbage001_1hop_preorder_trueontology.log', 'gpt_textcurie001_1hop_preorder_trueontology.log', 'gpt_davinci_1hop_preorder_trueontology.log', 'gpt_textdavinci001_1hop_preorder_trueontology.log', 'gpt_textdavinci002_1hop_trueontology.log'],
 		['\\texttt{text-ada-001}', '\\texttt{text-babbage-001}', '\\texttt{text-curie-001}', '\\texttt{davinci}', '\\texttt{text-davinci-001}', '\\texttt{text-davinci-002}'],
-		'true_ontology_1hop_model_size.png', 'true_ontology_1hop_model_size_first_error.png', 'true_ontology_1hop_model_size_wrong_branch_lengths.png', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down traversal direction')
+		'true_ontology_1hop_model_size.pdf', 'true_ontology_1hop_model_size_first_error.pdf', 'true_ontology_1hop_model_size_wrong_branch_lengths.pdf', figure_height=1.8, first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, show_ylabel=False, show_first_error_ylabel=False, first_error_title='True ontology, 1 hop, top-down traversal direction')
