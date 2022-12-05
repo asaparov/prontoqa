@@ -351,6 +351,8 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 	for formula in formulas:
 		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology)), end_punctuation='.'))
 		parsed_lf = parse_sentence(sentences[-1][:-1], morphology, False)
+		if parsed_lf == None:
+			raise Exception("Unable to parse generated sentence: '{}'".format(sentences[-1]))
 		if parsed_lf != formula:
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
 
@@ -431,17 +433,125 @@ with open('bad_patterns.txt', 'r') as reader:
 	for line in reader:
 		bad_patterns.append(re.compile(line.strip()))
 
+def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, correct_steps, skip_steps):
+	is_valid = False
+	is_valid_with_skip_steps = False
+	smallest_subproof_size = None
+	proof_axioms = []
+	other_premise = fol.substitute(universal_formula.operand.antecedent, fol.FOLVariable(universal_formula.variable), instantiated_constant)
+	try:
+		if proof.index(other_premise) in correct_steps:
+			if formula_index in correct_steps:
+				proof_axioms = [other_premise, universal_formula]
+				is_valid = True
+				return (1, True, False, proof_axioms)
+			elif formula_index in skip_steps:
+				proof_axioms = [other_premise, universal_formula]
+				is_valid_with_skip_steps = True
+			elif missing_axiom:
+				smallest_subproof_size = 2
+		if proof.index(other_premise) in skip_steps:
+			if missing_axiom:
+				smallest_subproof_size = 2
+			proof_axioms = [other_premise, universal_formula]
+			is_valid_with_skip_steps = True
+	except ValueError:
+		pass
+
+	# this could be provable with additional steps of universal instantiation
+	(num_steps, valid_subproof, subproof_axioms) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
+	if valid_subproof and num_steps != None:
+		if smallest_subproof_size == None:
+			smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
+			proof_axioms = subproof_axioms + [universal_formula]
+		else:
+			if num_steps + 1 + (1 if missing_axiom else 0) < smallest_subproof_size:
+				smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
+				proof_axioms = subproof_axioms + [universal_formula]
+	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, proof_axioms)
+
 def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 	# check if this is an axiom
 	if formula in axioms:
 		return (1, True, [formula])
 
-	# check if this is an instance of UNIVERSAL_INSTANTIATION
 	is_valid = False
 	is_valid_with_skip_steps = False
-	smallest_subproof_size = None
 	missing_axiom = False
 	proof_axioms = []
+	smallest_subproof_size = None
+
+	# check if this is an instance of CONJUNCTION_INTRODUCTION or DISJUNCTION_INTRODUCTION
+	if type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
+		smallest_subproof_size = (1 if type(formula) == fol.FOLAnd else None)
+		for conjunct in formula.operands:
+			is_premise = False
+			for prev_step_index in (correct_steps + skip_steps + axioms):
+				if type(prev_step_index) == int:
+					missing_axiom = False
+					prev_step = proof[prev_step_index]
+				else:
+					missing_axiom = True
+					prev_step = prev_step_index
+				if prev_step == conjunct:
+					if type(formula) == fol.FOLOr:
+						smallest_subproof_size = 1 + (1 if missing_axiom else 0)
+						proof_axioms = [prev_step]
+					else:
+						proof_axioms += [prev_step]
+					is_premise = True
+					break
+			if is_premise:
+				if type(formula) == fol.FOLOr:
+					break
+				else:
+					continue
+
+			(num_steps, valid_subproof, subproof_axioms) = is_provable(conjunct, axioms, proof, correct_steps, skip_steps)
+			if valid_subproof and num_steps != None:
+				if type(formula) == fol.FOLOr:
+					if smallest_subproof_size == None or num_steps + 1 < smallest_subproof_size:
+						proof_axioms = subproof_axioms
+						smallest_subproof_size = num_steps + 1
+				else:
+					proof_axioms += subproof_axioms
+					smallest_subproof_size += num_steps
+			else:
+				proof_axioms = []
+				smallest_subproof_size = None
+				if type(formula) == fol.FOLAnd:
+					break
+
+	# check if this is an instance of CONJUNCTION_ELIMINATION
+	for prev_step_index in (correct_steps + skip_steps + axioms):
+		if smallest_subproof_size == 1:
+			break
+		if type(prev_step_index) == int:
+			prev_step = proof[prev_step_index]
+		else:
+			missing_axiom = True
+			prev_step = prev_step_index
+		if type(prev_step) == fol.FOLAnd:
+			for conjunct in prev_step.operands:
+				if conjunct == formula:
+					proof_axioms = [prev_step]
+					smallest_subproof_size = 1
+					break
+		elif type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and type(prev_step.operand.consequent) == fol.FOLAnd:
+			first_var_map = {}
+			second_var_map = {}
+			for conjunct in prev_step.operand.consequent.operands:
+				if fol.unify(formula, conjunct, first_var_map, second_var_map):
+					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, correct_steps, skip_steps)
+					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):
+						smallest_subproof_size = antecedent_num_steps + 1
+						is_valid = antecedent_is_valid
+						is_valid_with_skip_steps = antecedent_is_valid_with_skip_steps
+						proof_axioms = antecedent_proof_axioms
+						if is_valid:
+							break
+
+	# check if this is an instance of UNIVERSAL_INSTANTIATION
 	for prev_step_index in (correct_steps + skip_steps + axioms):
 		if type(prev_step_index) == int:
 			prev_step = proof[prev_step_index]
@@ -451,36 +561,15 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 		first_var_map = {}
 		second_var_map = {}
 		if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(formula, prev_step.operand.consequent, first_var_map, second_var_map):
-			other_premise = fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable])
-			try:
-				if proof.index(other_premise) in correct_steps:
-					if prev_step_index in correct_steps:
-						proof_axioms = [other_premise, prev_step]
-						is_valid = True
-						break
-					elif prev_step_index in skip_steps:
-						proof_axioms = [other_premise, prev_step]
-						is_valid_with_skip_steps = True
-					elif missing_axiom:
-						smallest_subproof_size = 2
-				if proof.index(other_premise) in skip_steps:
-					if missing_axiom:
-						smallest_subproof_size = 2
-					proof_axioms = [other_premise, prev_step]
-					is_valid_with_skip_steps = True
-			except ValueError:
-				pass
+			(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, correct_steps, skip_steps)
+			if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps < smallest_subproof_size):
+				smallest_subproof_size = antecedent_num_steps
+				is_valid = antecedent_is_valid
+				is_valid_with_skip_steps = antecedent_is_valid_with_skip_steps
+				proof_axioms = antecedent_proof_axioms
+				if is_valid:
+					break
 
-			# this could be provable with additional steps of universal instantiation
-			(num_steps, valid_subproof, subproof_axioms) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
-			if valid_subproof and num_steps != None:
-				if smallest_subproof_size == None:
-					smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
-					proof_axioms = subproof_axioms + [prev_step]
-				else:
-					if num_steps + 1 + (1 if missing_axiom else 0) < smallest_subproof_size:
-						smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
-						proof_axioms = subproof_axioms + [prev_step]
 	if is_valid:
 		return (1, True, proof_axioms)
 	if is_valid_with_skip_steps:
@@ -784,8 +873,8 @@ def parse_log(log):
 			label_results.append(label)
 		if not proofs_only:
 			expected_mean = np.sum(label_results) / (trial - too_long_responses)
-			if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
-				raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
+			#if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
+				#raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	return (trial, too_long_responses, results, label_results, resume_position)
 
 def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, disjoint_concept_names=False):
@@ -911,13 +1000,19 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 				(predicted_proof, predicted_label) = parse_response(response)
 				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, proofs_only)
 				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
-				label_results.append(label)
 
 			# compute the posterior beta parameters
-			alpha = np.sum(label_results) + 1
-			beta = (trial - too_long_responses) - np.sum(label_results) + 1
+			if not proofs_only:
+				num_correct = np.sum(label_results)
+			else:
+				num_correct = 0
+			alpha = num_correct + 1
+			beta = (trial - too_long_responses) -num_correct + 1
 			print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
-			mu = np.sum(label_results) / (trial - too_long_responses)
+			if trial == too_long_responses:
+				mu = 0.0
+			else:
+				mu = num_correct / (trial - too_long_responses)
 			stddev = np.sqrt(mu*(1 - mu)/(trial - too_long_responses))
 			print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
 			log.flush()
@@ -956,6 +1051,10 @@ if __name__ == "__main__":
 		log_suffix = '_' + str(hops) + 'hop'
 		if args.deduction_rule != "ModusPonens":
 			log_suffix += '_' + args.deduction_rule
+		if args.deduction_rule == "ModusPonens" and args.proofs_only:
+			log_suffix += '_ProofsOnly'
+		elif args.deduction_rule != "ModusPonens" and not args.proofs_only:
+			log_suffix += '_NotProofsOnly'
 		if args.prompting != "COT":
 			log_suffix += '_' + args.prompting
 		if args.use_dfs:

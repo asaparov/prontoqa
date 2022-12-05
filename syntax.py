@@ -22,9 +22,42 @@ def formula_to_np_prime(formula, morphology, quantified_variable, is_plural):
 				formula_to_np_prime(other, morphology, quantified_variable, is_plural)
 			])
 	else:
-		raise Exception("formula_to_np_prime ERROR: Unsupported formula type.")
+		raise Exception("formula_to_np_prime ERROR: Unsupported formula type ({}).".format(type(formula)))
 
 def formula_to_np(formula, morphology, quantified_variable, is_plural, is_universally_quantified, is_negated):
+	if type(formula) == fol.FOLOr and is_universally_quantified and not is_plural:
+		child_nodes = []
+		for operand in formula.operands:
+			if type(operand) == fol.FOLFuncApplication and not morphology.is_noun(operand.function):
+				# this operand is predicative (adjectival phrase)
+				child_nodes.append(formula_to_adjp(operand, morphology, quantified_variable))
+			else:
+				# this operand is a noun phrase
+				child_nodes.append(formula_to_np(operand, morphology, quantified_variable, is_plural, False, is_negated))
+		has_commas = choice([True, False])
+		if len(formula.operands) > 2:
+			if has_commas:
+				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+			else:
+				result = [SyntaxNode("CC", [SyntaxNode("or")])] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+		else:
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+		return SyntaxNode("NP", [
+				SyntaxNode("NP", [SyntaxNode("NP'", [SyntaxNode("N", [SyntaxNode("everything")])])]),
+			    SyntaxNode("SBAR", [
+					SyntaxNode("WHNP", [SyntaxNode("that")]),
+					SyntaxNode("VP", [
+						SyntaxNode("V", [SyntaxNode("is")]),
+						SyntaxNode("NP", child_nodes)
+					]),
+				])
+			])
+
 	np_prime = formula_to_np_prime(formula, morphology, quantified_variable, is_plural)
 	if is_negated:
 		return SyntaxNode("NP", [
@@ -73,6 +106,8 @@ def formula_to_clause(formula, morphology, invert=False):
 		# determine if the clause will be singular or plural
 		is_plural = choice([True, False])
 		if invert:
+			is_plural = False
+		elif type(formula.operand.antecedent) == fol.FOLOr:
 			is_plural = False
 
 		# generate the subject and object phrases
@@ -227,21 +262,35 @@ def formula_to_clause(formula, morphology, invert=False):
 
 		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
 		has_commas = choice([True, False])
-		if len(formula.operands) > 2 and has_commas:
-			result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
-			result[0::2] = child_nodes
-			child_nodes = result
-		child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
+		if len(formula.operands) > 2:
+			if has_commas:
+				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
+			else:
+				result = [SyntaxNode("CC", [SyntaxNode("and")])] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+		else:
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
 		return SyntaxNode("S", child_nodes)
 
 	elif type(formula) == fol.FOLOr:
 		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
 		has_commas = choice([True, False])
-		if len(formula.operands) > 2 and has_commas:
-			result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
-			result[0::2] = child_nodes
-			child_nodes = result
-		child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+		if len(formula.operands) > 2:
+			if has_commas:
+				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+			else:
+				result = [SyntaxNode("CC", [SyntaxNode("or")])] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+		else:
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
 		return SyntaxNode("S", child_nodes)
 
 	else:
@@ -349,6 +398,44 @@ def parse_np(tokens, index, morphology):
 		is_negated = True
 		det_is_plural = None
 		index += 1
+	elif tokens[index].lower() == 'everything' and tokens[index + 1] == 'that' and tokens[index + 2] == 'is':
+		# parse universally quantified conjunction or disjunction
+		index += 3
+		operands = []
+		is_conjunction = False
+		is_disjunction = False
+		while True:
+			if len(operands) != 0:
+				if tokens[index] == 'and':
+					if is_disjunction:
+						return (None, None, None, None, None)
+					is_conjunction = True
+					index += 1
+				elif tokens[index] == 'or':
+					if is_conjunction:
+						return (None, None, None, None, None)
+					is_disjunction = True
+					index += 1
+				elif tokens[index] == ',':
+					index += 1
+				else:
+					break
+			(operand, new_index, operand_is_plural, operand_is_negated, operand_is_quantified) = parse_np(tokens, index, morphology)
+			if operand == None:
+				# try parsing as a predicative (ADJP)
+				(operand, index) = parse_adjp(tokens, index, morphology)
+				if operand == None:
+					return (None, None, None, None, None)
+			else:
+				index = new_index
+			operands.append(operand)
+		if is_conjunction:
+			lf = fol.FOLAnd(operands)
+		elif is_disjunction:
+			lf = fol.FOLOr(operands)
+		else:
+			return (None, None, None, None, None)
+		return (lf, index, False, False, True)
 	else:
 		is_quantified = False
 		is_negated = False
@@ -446,6 +533,37 @@ def parse_clause(tokens, index, morphology):
 				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
 	else:
 		return (None, None, None) # outside the coverage of the grammar
+
+	if index < len(tokens):
+		# this may be coordination
+		is_conjunction = False
+		is_disjunction = False
+		if tokens[index] == ',':
+			index += 1
+		if tokens[index] == 'and':
+			if is_disjunction:
+				return (None, None, None)
+			is_conjunction = True
+			index += 1
+		elif tokens[index] == 'or':
+			if is_conjunction:
+				return (None, None, None)
+			is_disjunction = True
+			index += 1
+		(remainder_lf, index, remainder_invert) = parse_clause(tokens, index, morphology)
+		if remainder_lf == None:
+			return (None, None, None)
+		if is_conjunction:
+			if type(remainder_lf) == fol.FOLAnd:
+				lf = fol.FOLAnd([lf] + remainder_lf.operands)
+			else:
+				lf = fol.FOLAnd([lf, remainder_lf])
+		if is_disjunction:
+			if type(remainder_lf) == fol.FOLOr:
+				lf = fol.FOLOr([lf] + remainder_lf.operands)
+			else:
+				lf = fol.FOLOr([lf, remainder_lf])
+
 	return (lf, index, invert)
 
 def parse_sentence(sentence, morphology, expect_invert=None):

@@ -17,7 +17,7 @@ def get_count(result_array, index):
 		return result_array[index]
 	else:
 		if index % 2 == 0:
-			return result_array[index] #- result_array[index + 1]
+			return result_array[index] - result_array[1]
 		else:
 			return result_array[1] + result_array[index]
 
@@ -264,45 +264,58 @@ if len(argv) > 1:
 		print("Proportion of proofs with the incorrect label that contain the correct proof: {}".format(get_count(contains_correct_proof, offset + 0) / (num_examples - correct_labels)))
 		print("Proportion of proofs with the correct label that do NOT contain the correct proof:   {}".format(get_count(does_not_contain_correct_proof, offset + 1) / correct_labels))
 		print("Proportion of proofs with the incorrect label that do NOT contain the correct proof: {}".format(get_count(does_not_contain_correct_proof, offset + 0) / (num_examples - correct_labels)))
+		
+	if num_correct_proofs == 0:
+		print("(there are no correct proofs)")
+	else:
+		print("Proportion of correct proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 1) / num_correct_proofs))
+	if num_examples - num_correct_proofs == 0:
+		print("(there are no incorrect proofs)")
+	else:
+		print("Proportion of incorrect proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
 
-	print("Proportion of correct proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 1) / (num_examples - num_correct_proofs)))
-	print("Proportion of correct proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 1) / num_correct_proofs))
-	print("Proportion of incorrect proofs that contain a \"useless branch\":          {}".format(get_count(contains_wrong_branch, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useful skip step\":        {}".format(get_count(contains_useful_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless skip step\":       {}".format(get_count(contains_wrong_skip_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useful non-atomic step\":  {}".format(get_count(contains_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless non-atomic step\": {}".format(get_count(contains_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain an \"invalid step\":           {}".format(get_count(contains_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useless non-atomic step\": {}".format(get_count(contains_wrong_branch_or_wrong_non_atomic_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
+	print("\nProportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
 	print("Proportion of ALL proofs that would be correct if \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_non_atomic_step) / num_examples))
 	print("Proportion of ALL proofs that would be correct if both \"skip steps\" and \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples))
 
-	print("\nProportion of correct proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 1) / num_correct_proofs))
-	print("Proportion of correct proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 1) / num_correct_proofs))
-	print("Proportion of incorrect proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
-	print("Proportion of incorrect proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+	if num_correct_proofs == 0:
+		print("(there are no correct proofs)")
+	else:
+		print("\nProportion of correct proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 1) / num_correct_proofs))
+		print("Proportion of correct proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 1) / num_correct_proofs))
+	if num_examples - num_correct_proofs == 0:
+		print("(there are no incorrect proofs)")
+	else:
+		print("Proportion of incorrect proofs where the \"useless branch\" is the first mistake: {}".format(get_count(wrong_branch_first, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs where the \"useful skip step\" is the first mistake: {}".format(get_count(useful_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs where the \"useless skip step\" is the first mistake: {}".format(get_count(wrong_skip_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs where the \"useful non-atomic step\" is the first mistake: {}".format(get_count(useful_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
+		print("Proportion of incorrect proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 0) / (num_examples - num_correct_proofs)))
 
 	incorrect_proof_ids_with_skip_or_non_atomic_steps = []
 	for i in range(len(proof_lengths)):

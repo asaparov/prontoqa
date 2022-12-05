@@ -105,7 +105,7 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 					return (None, None, None, None, None)
 				break
 			subsumption_formula = get_subsumption_formula(current_node, deduction_rule)
-			other_conjunct = fol.substitute(subsumption_formula.operand.antecedent.operands[0], fol.FOLVariable(1), fol.FOLConstant(entity_name))
+			other_axiom = fol.substitute(subsumption_formula.operand.antecedent.operands[0], fol.FOLVariable(1), fol.FOLConstant(entity_name))
 			intro_step_conclusion = fol.FOLOr([other_axiom, current_step.conclusion])
 			current_step = ProofStep(ProofStepType.DISJUNCTION_INTRODUCTION, [current_step], intro_step_conclusion)
 
