@@ -1,4 +1,5 @@
 import fol
+import re
 from random import randrange, choice
 
 class SyntaxNode(object):
@@ -310,7 +311,12 @@ def inflect(tokens, end_punctuation):
 		if tokens[i] == "a":
 			if i + 1 < len(tokens) and tokens[i + 1][0] in {'a', 'e', 'i', 'o', 'u'} and not tokens[i + 1].startswith('eu'):
 				tokens[i] = "an"
-	sentence = ' '.join(tokens)
+	sentence = tokens[0]
+	for token in tokens[1:]:
+		if token == ',':
+			sentence += token
+		else:
+			sentence += ' ' + token
 	return sentence[0].upper() + sentence[1:] + end_punctuation
 
 def is_int(text):
@@ -375,6 +381,8 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
+	if tokens[index].lower() in {"and", "or"}:
+		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
 def parse_np(tokens, index, morphology):
@@ -406,6 +414,10 @@ def parse_np(tokens, index, morphology):
 		is_disjunction = False
 		while True:
 			if len(operands) != 0:
+				has_comma = False
+				if tokens[index] == ',':
+					index += 1
+					has_comma = True
 				if tokens[index] == 'and':
 					if is_disjunction:
 						return (None, None, None, None, None)
@@ -416,9 +428,7 @@ def parse_np(tokens, index, morphology):
 						return (None, None, None, None, None)
 					is_disjunction = True
 					index += 1
-				elif tokens[index] == ',':
-					index += 1
-				else:
+				elif not has_comma:
 					break
 			(operand, new_index, operand_is_plural, operand_is_negated, operand_is_quantified) = parse_np(tokens, index, morphology)
 			if operand == None:
@@ -441,20 +451,27 @@ def parse_np(tokens, index, morphology):
 		is_negated = False
 		det_is_plural = None
 
-	(lf, new_index, is_plural) = parse_np_prime(tokens, index, morphology)
-	if lf == None and index + 1 < len(tokens):
-		# try parsing an ADJP before the noun
-		(adjp_lf, index) = parse_adjp(tokens, index, morphology)
-		if adjp_lf == None or index >= len(tokens):
-			return (None, None, None, None, None)
-		(lf, index, is_plural) = parse_np_prime(tokens, index, morphology)
-		if lf == None or not isinstance(lf, fol.FOLFormula):
-			return (None, None, None, None, None)
-		adjp_operands = adjp_lf.operands if type(adjp_lf) == fol.FOLAnd else [adjp_lf]
-		np_operands = lf.operands if type(lf) == fol.FOLAnd else [lf]
-		lf = fol.FOLAnd(adjp_operands + np_operands)
-	else:
-		index = new_index
+	adjp_operands = []
+	while True:
+		(lf, new_index, is_plural) = parse_np_prime(tokens, index, morphology)
+		if lf == None and index + 1 < len(tokens):
+			# try parsing an ADJP before the noun
+			(adjp_lf, index) = parse_adjp(tokens, index, morphology)
+			if adjp_lf == None or index >= len(tokens):
+				return (None, None, None, None, None)
+			if type(adjp_lf) == fol.FOLAnd:
+				adjp_operands.extend(adjp_lf)
+			else:
+				adjp_operands.append(adjp_lf)
+			(lf, new_index, is_plural) = parse_np_prime(tokens, index, morphology)
+			if isinstance(lf, fol.FOLFormula):
+				index = new_index
+				np_operands = lf.operands if type(lf) == fol.FOLAnd else [lf]
+				lf = fol.FOLAnd(adjp_operands + np_operands)
+				break
+		else:
+			index = new_index
+			break
 
 	if det_is_plural != None and is_plural != None and is_plural != det_is_plural:
 		return (None, None, None, None, None) # the grammatical number of the determiner and the noun don't agree
@@ -568,7 +585,7 @@ def parse_clause(tokens, index, morphology):
 
 def parse_sentence(sentence, morphology, expect_invert=None):
 	if type(sentence) == str:
-		sentence = sentence.split()
+		sentence = re.findall(r"[\w\-]+|[^\w\s]", sentence)
 	(lf, index, invert) = parse_clause(sentence, 0, morphology)
 	if expect_invert != None and invert != expect_invert:
 		return None # subject and auxiliary were either incorrectly inverted or incorrectly not inverted

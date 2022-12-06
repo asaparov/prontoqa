@@ -2,7 +2,7 @@ import fol
 from theory import *
 import numpy as np
 from enum import Enum
-from random import choice, random
+from random import choice, random, shuffle
 import itertools
 
 class ProofStepType(Enum):
@@ -25,27 +25,26 @@ def get_nodes(theory, level=0):
 		nodes.extend(get_nodes(child, level + 1))
 	return nodes
 
-def generate_membership_question(theory, entity_name, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True):
+def generate_membership_question(theory, entity_name, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True, proof_width=2):
 	nodes = get_nodes(theory)
 	max_level = 0
 	for _, level in nodes:
 		max_level = max(max_level, level)
 	sufficiently_deep_nodes = []
 	for node, level in nodes:
-		if level + 1 >= num_deduction_steps:
+		if level + 1 >= num_deduction_steps and (deduction_rule != "AndElim" or len(node.children) != 0):
 			sufficiently_deep_nodes.append(node)
 	if len(sufficiently_deep_nodes) == 0:
 		return (None, None, None, None, None)
 	start = choice(sufficiently_deep_nodes)
 
 	if deduction_rule == "AndElim":
-		if len(node.properties) == 1 and len(node.negated_properties) == 0:
-			other = fol.FOLFuncApplication(node.properties[0], [fol.FOLConstant(entity_name)])
-		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
-			other = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLConstant(entity_name)]))
-		else:
-			raise ValueError("Expected exactly one defining property.")
-		start_formula = fol.FOLAnd([other, fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])])
+		child = choice(start.children)
+		properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in child.properties]
+		properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in child.negated_properties]
+		if len(properties) != proof_width - 1:
+			raise ValueError("Expected exactly {} defining propert{}.".format(proof_width - 1, "y" if proof_width == 2 else "ies"))
+		start_formula = fol.FOLAnd(properties + [fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])])
 	else:
 		start_formula = fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])
 	premises = [start_formula]
@@ -62,11 +61,16 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 					return (None, None, None, None, None)
 				break
 			subsumption_formula = get_subsumption_formula(current_node, deduction_rule)
-			other_axiom = fol.substitute(subsumption_formula.operand.antecedent.operands[0], fol.FOLVariable(1), fol.FOLConstant(entity_name))
-			other_axiom_step = ProofStep(ProofStepType.AXIOM, [], other_axiom)
-			premises.append(other_axiom)
-			intro_step_conclusion = fol.FOLAnd([other_axiom, current_step.conclusion])
-			current_step = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, [other_axiom_step, current_step], intro_step_conclusion)
+			other_axioms = []
+			other_axiom_steps = []
+			for operand in subsumption_formula.operand.antecedent.operands[:-1]:
+				other_axiom = fol.substitute(operand, fol.FOLVariable(1), fol.FOLConstant(entity_name))
+				other_axiom_step = ProofStep(ProofStepType.AXIOM, [], other_axiom)
+				other_axioms.append(other_axiom)
+				other_axiom_steps.append(other_axiom_step)
+				premises.append(other_axiom)
+			intro_step_conclusion = fol.FOLAnd(other_axioms + [current_step.conclusion])
+			current_step = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, other_axiom_steps + [current_step], intro_step_conclusion)
 
 			current_num_steps += 1
 			if generate_questions_about_types and ((num_deduction_steps != None and current_num_steps == num_deduction_steps) or (num_deduction_steps == None and random() < 0.3)):
@@ -84,7 +88,7 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 				if not generate_questions_about_types:
 					return (None, None, None, None, None)
 				break
-			elim_step_conclusion = current_step.conclusion.operands[1]
+			elim_step_conclusion = current_step.conclusion.operands[-1]
 			current_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [current_step], elim_step_conclusion)
 
 			current_num_steps += 1
@@ -105,8 +109,11 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 					return (None, None, None, None, None)
 				break
 			subsumption_formula = get_subsumption_formula(current_node, deduction_rule)
-			other_axiom = fol.substitute(subsumption_formula.operand.antecedent.operands[0], fol.FOLVariable(1), fol.FOLConstant(entity_name))
-			intro_step_conclusion = fol.FOLOr([other_axiom, current_step.conclusion])
+			other_axioms = []
+			for operand in subsumption_formula.operand.antecedent.operands[:-1]:
+				other_axiom = fol.substitute(operand, fol.FOLVariable(1), fol.FOLConstant(entity_name))
+				other_axioms.append(other_axiom)
+			intro_step_conclusion = fol.FOLOr(other_axioms + [current_step.conclusion])
 			current_step = ProofStep(ProofStepType.DISJUNCTION_INTRODUCTION, [current_step], intro_step_conclusion)
 
 			current_num_steps += 1

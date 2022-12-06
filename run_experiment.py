@@ -299,7 +299,7 @@ for name in available_entity_names:
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, require_properties=False, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False):
+def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -325,6 +325,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		current_config = config
 		current_config.stop_probability = 1 / (num_deduction_steps + 1)
 		current_config.require_properties = (deduction_rule == "AndIntro" or deduction_rule == "AndElim" or deduction_rule == "OrIntro")
+		current_config.proof_width = proof_width
 		if current_config.require_properties:
 			current_config.generate_negation = False
 		theory = generate_theory(
@@ -359,7 +360,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 	generate_questions_about_types = False
 	if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
 		generate_questions_about_types = True
-	(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs)
+	(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width)
 	if proof == None or num_steps != num_deduction_steps:
 		return (None, None, None, None, None, None)
 	proof_formulas = [step.conclusion for step in linearized_proof]
@@ -659,10 +660,13 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	provability_graph = {}
 	for step in axioms:
 		if type(step) == fol.FOLForAll and type(step.operand) == fol.FOLIfThen:
-			if step.operand.antecedent not in provability_graph:
-				provability_graph[step.operand.antecedent] = [step.operand.consequent]
-			else:
-				provability_graph[step.operand.antecedent].append(step.operand.consequent)
+			antecedents = ([step.operand.antecedent] if type(step.operand.antecedent) != fol.FOLOr else step.operand.antecedent.operands)
+			consequents = ([step.operand.consequent] if type(step.operand.consequent) != fol.FOLAnd else step.operand.consequent.operands)
+			for antecedent in antecedents:
+				if antecedent not in provability_graph:
+					provability_graph[antecedent] = consequents
+				else:
+					provability_graph[antecedent].extend(consequents)
 
 	# evaluate the proof
 	proof = response_proof
@@ -731,7 +735,17 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		# this step is incorrect, but it may be a valid rule provable from axioms using more than one step
 		if type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen:
 			# make sure this step is still valid (provable) by searching `provability_graph` for a path from antecedent to consequent
-			if find_path_length(provability_graph, proof_step.operand.antecedent, proof_step.operand.consequent) != -1:
+			antecedents = ([proof_step.operand.antecedent] if type(proof_step.operand.antecedent) != fol.FOLOr else proof_step.operand.antecedent.operands)
+			consequents = ([proof_step.operand.consequent] if type(proof_step.operand.consequent) != fol.FOLAnd else proof_step.operand.consequent.operands)
+			path_exists = True
+			for antecedent in antecedents:
+				for consequent in consequents:
+					if find_path_length(provability_graph, antecedent, consequent) == -1:
+						path_exists = False
+						break
+				if not path_exists:
+					break
+			if path_exists:
 				skip_steps.append(i)
 				# check if this step is actually useful for completing the proof
 				first_var_map = {}
@@ -761,13 +775,15 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	# evaluate the label
 	if proofs_only:
 		label_correctness = None
+		expected_label = None
 	else:
 		answer = expected_answer[(expected_label_index + 1):]
+		expected_label = (answer == 'True')
 		if (response_label in acceptable_answers[answer]):
 			label_correctness = 1.0
 		else:
 			label_correctness = 0.0
-	return (label_correctness, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps)
+	return (label_correctness, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps)
 
 def parse_log(log):
 	trial = 0
@@ -869,7 +885,7 @@ def parse_log(log):
 			(predicted_proof, predicted_label) = parse_response(predicted_answer)
 			result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question), proofs_only)
 			results.append(result)
-			(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
+			(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 			label_results.append(label)
 		if not proofs_only:
 			expected_mean = np.sum(label_results) / (trial - too_long_responses)
@@ -877,7 +893,7 @@ def parse_log(log):
 				#raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	return (trial, too_long_responses, results, label_results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, disjoint_concept_names=False):
+def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, disjoint_concept_names=False, proof_width=2):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		import gpt3
@@ -945,7 +961,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			for i in range(num_fewshot_examples):
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, use_dfs)
+					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, use_dfs, proof_width)
 					if question != None:
 						break
 				questions.append(question)
@@ -957,7 +973,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			if t == 0:
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[num_fewshot_examples])
-					test_question = generate_question(test_num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, False)
+					test_question = generate_question(test_num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, False, proof_width)
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 					if question != None:
 						break
@@ -999,7 +1015,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 					print_output(' ' + answer, log)
 				(predicted_proof, predicted_label) = parse_response(response)
 				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, proofs_only)
-				(label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
+				(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 
 			# compute the posterior beta parameters
 			if not proofs_only:
@@ -1036,6 +1052,7 @@ if __name__ == "__main__":
 	parser.add_argument("--api-key", type=str, default=None)
 	parser.add_argument("--min-hops", type=int, default=1)
 	parser.add_argument("--max-hops", type=int, default=8)
+	parser.add_argument("--proof-width", type=int, default=2)
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
@@ -1061,6 +1078,8 @@ if __name__ == "__main__":
 			log_suffix += '_DFS'
 		if args.disjoint_concept_names:
 			log_suffix += '_disjointconcepts'
+		if args.proof_width != 2:
+			log_suffix += '_' + str(args.proof_width) + 'proofwidth'
 		if args.test_hops_diff != 0:
 			log_suffix += '_' + str(hops + args.test_hops_diff) + 'testhops'
 		if args.ordering != 'postorder':
@@ -1076,13 +1095,13 @@ if __name__ == "__main__":
 		if args.seed != 62471893:
 			log_suffix += '_seed' + str(args.seed)
 		if args.model_name == 'gpt3':
-			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
+			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
 		elif args.model_name == 'opt':
-			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
+			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
 		elif args.model_name == 'unifiedqa':
-			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
+			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
 		elif args.model_name == 'dummy':
-			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
+			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break

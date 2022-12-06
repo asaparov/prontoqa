@@ -62,7 +62,7 @@ def generate_ontology(parent, level, available_concept_names, available_property
 
 	for i in range(num_children):
 		# if properties are required but none are available, then stop creating new nodes
-		if config.require_properties and len(available_properties) == 0:
+		if config.require_properties and len(available_properties) < config.proof_width - 1:
 			break
 
 		# create a child node and choose its concept name
@@ -71,20 +71,23 @@ def generate_ontology(parent, level, available_concept_names, available_property
 		del available_concept_names[index]
 
 		# choose a property or negated property of this concept
-		if config.generate_properties and len(available_properties) + len(available_negative_properties) > 0:
-			index = randrange(len(available_properties) + len(available_negative_properties))
-			probabilities = [1]*len(available_properties) + [0.5 if config.generate_negation else 0]*len(available_negative_properties)
-			probabilities = np.array(probabilities) / np.sum(probabilities)
-			index = np.random.choice(len(available_properties) + len(available_negative_properties), p=probabilities)
-			if index < len(available_properties):
-				new_child.properties.append(available_properties[index])
-				if config.generate_negation:
-					available_negative_properties.append(available_properties[index])
-				del available_properties[index]
-			else:
-				index = index - len(available_properties)
-				new_child.negated_properties.append(available_negative_properties[index])
-				del available_negative_properties[index]
+		if config.generate_properties:
+			for num_properties in range(config.proof_width - 1):
+				if len(available_properties) + len(available_negative_properties) == 0:
+					break
+				index = randrange(len(available_properties) + len(available_negative_properties))
+				probabilities = [1]*len(available_properties) + [0.5 if config.generate_negation else 0]*len(available_negative_properties)
+				probabilities = np.array(probabilities) / np.sum(probabilities)
+				index = np.random.choice(len(available_properties) + len(available_negative_properties), p=probabilities)
+				if index < len(available_properties):
+					new_child.properties.append(available_properties[index])
+					if config.generate_negation:
+						available_negative_properties.append(available_properties[index])
+					del available_properties[index]
+				else:
+					index = index - len(available_properties)
+					new_child.negated_properties.append(available_negative_properties[index])
+					del available_negative_properties[index]
 
 	# recursively generate the descendants of this child node
 	for child in parent.children:
@@ -113,45 +116,24 @@ def print_ontology(tree, indent=0):
 
 def get_subsumption_formula(node, deduction_rule):
 	if deduction_rule == "AndIntro":
-		if len(node.properties) == 1 and len(node.negated_properties) == 0:
-			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
-		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
-			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
-		else:
-			raise ValueError("Expected exactly one defining property.")
+		conjuncts = [fol.FOLFuncApplication(property, [fol.FOLVariable(1)]) for property in node.properties]
+		conjuncts += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLVariable(1)])) for property in node.negated_properties]
 		return fol.FOLForAll(1, fol.FOLIfThen(
-			fol.FOLAnd([
-				conjunct,
-				fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])
-			]),
+			fol.FOLAnd(conjuncts + [fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])]),
 			fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
 		))
 	elif deduction_rule == "AndElim":
-		if len(node.properties) == 1 and len(node.negated_properties) == 0:
-			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
-		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
-			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
-		else:
-			raise ValueError("Expected exactly one defining property.")
+		conjuncts = [fol.FOLFuncApplication(property, [fol.FOLVariable(1)]) for property in node.properties]
+		conjuncts += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLVariable(1)])) for property in node.negated_properties]
 		return fol.FOLForAll(1, fol.FOLIfThen(
 			fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
-			fol.FOLAnd([
-				conjunct,
-				fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
-			])
+			fol.FOLAnd(conjuncts + [fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])])
 		))
 	elif deduction_rule == "OrIntro":
-		if len(node.properties) == 1 and len(node.negated_properties) == 0:
-			conjunct = fol.FOLFuncApplication(node.properties[0], [fol.FOLVariable(1)])
-		elif len(node.properties) == 0 and len(node.negated_properties) == 1:
-			conjunct = fol.FOLNot(fol.FOLFuncApplication(node.negated_properties[0], [fol.FOLVariable(1)]))
-		else:
-			raise ValueError("Expected exactly one defining property.")
+		conjuncts = [fol.FOLFuncApplication(property, [fol.FOLVariable(1)]) for property in node.properties]
+		conjuncts += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLVariable(1)])) for property in node.negated_properties]
 		return fol.FOLForAll(1, fol.FOLIfThen(
-			fol.FOLOr([
-				conjunct,
-				fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])
-			]),
+			fol.FOLOr(conjuncts + [fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)])]),
 			fol.FOLFuncApplication(node.parent.name, [fol.FOLVariable(1)])
 		))
 	else:
