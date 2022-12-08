@@ -1,3 +1,4 @@
+from math import remainder
 import fol
 import re
 from random import randrange, choice
@@ -7,13 +8,13 @@ class SyntaxNode(object):
 		self.label = label
 		self.children = children
 
-def formula_to_np_prime(formula, morphology, quantified_variable, is_plural):
+def formula_to_np_prime(formula, morphology, quantified_variable, is_plural, no_adjectives):
 	if type(formula) == fol.FOLFuncApplication and len(formula.args) == 1 and type(formula.args[0]) == fol.FOLVariable and formula.args[0].variable == quantified_variable:
 		noun = formula.function
 		if is_plural:
 			noun = morphology.to_plural(noun)
 		return SyntaxNode("NP'", [SyntaxNode("N", [SyntaxNode(noun)])])
-	elif type(formula) == fol.FOLAnd and type(formula.operands[0]) == fol.FOLFuncApplication and not morphology.is_noun(formula.operands[0].function):
+	elif type(formula) == fol.FOLAnd and type(formula.operands[0]) == fol.FOLFuncApplication and not morphology.is_noun(formula.operands[0].function) and not no_adjectives:
 		if len(formula.operands) == 2:
 			other = formula.operands[1]
 		else:
@@ -25,8 +26,8 @@ def formula_to_np_prime(formula, morphology, quantified_variable, is_plural):
 	else:
 		raise Exception("formula_to_np_prime ERROR: Unsupported formula type ({}).".format(type(formula)))
 
-def formula_to_np(formula, morphology, quantified_variable, is_plural, is_universally_quantified, is_negated):
-	if type(formula) == fol.FOLOr and is_universally_quantified and not is_plural:
+def formula_to_np(formula, morphology, quantified_variable, is_plural, is_universally_quantified, is_negated, no_adjectives):
+	if (type(formula) == fol.FOLOr and is_universally_quantified and not is_plural) or (no_adjectives and type(formula) == fol.FOLAnd and is_universally_quantified and not is_plural):
 		child_nodes = []
 		for operand in formula.operands:
 			if type(operand) == fol.FOLFuncApplication and not morphology.is_noun(operand.function):
@@ -34,20 +35,21 @@ def formula_to_np(formula, morphology, quantified_variable, is_plural, is_univer
 				child_nodes.append(formula_to_adjp(operand, morphology, quantified_variable))
 			else:
 				# this operand is a noun phrase
-				child_nodes.append(formula_to_np(operand, morphology, quantified_variable, is_plural, False, is_negated))
+				child_nodes.append(formula_to_np(operand, morphology, quantified_variable, is_plural, False, is_negated, no_adjectives))
 		has_commas = choice([True, False])
+		cnj = ("or" if type(formula) == fol.FOLOr else "and")
 		if len(formula.operands) > 2:
 			if has_commas:
 				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
 				result[0::2] = child_nodes
 				child_nodes = result
-				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(cnj)]))
 			else:
-				result = [SyntaxNode("CC", [SyntaxNode("or")])] * (len(child_nodes) * 2 - 1)
+				result = [SyntaxNode("CC", [SyntaxNode(cnj)])] * (len(child_nodes) * 2 - 1)
 				result[0::2] = child_nodes
 				child_nodes = result
 		else:
-			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(cnj)]))
 		return SyntaxNode("NP", [
 				SyntaxNode("NP", [SyntaxNode("NP'", [SyntaxNode("N", [SyntaxNode("everything")])])]),
 			    SyntaxNode("SBAR", [
@@ -59,7 +61,7 @@ def formula_to_np(formula, morphology, quantified_variable, is_plural, is_univer
 				])
 			])
 
-	np_prime = formula_to_np_prime(formula, morphology, quantified_variable, is_plural)
+	np_prime = formula_to_np_prime(formula, morphology, quantified_variable, is_plural, no_adjectives)
 	if is_negated:
 		return SyntaxNode("NP", [
 				SyntaxNode("DET", [SyntaxNode("no")]),
@@ -96,28 +98,52 @@ def formula_to_adjp(formula, morphology, quantified_variable):
 	else:
 		raise Exception("formula_to_adjp ERROR: Unsupported formula type.")
 
-def formula_to_vp_arg(formula, morphology, quantified_variable, is_plural):
+def formula_to_vp_arg(formula, morphology, quantified_variable, is_plural, no_adjectives):
 	if type(formula) == fol.FOLFuncApplication and not morphology.is_noun(formula.function):
 		return formula_to_adjp(formula, morphology, quantified_variable)
+	elif (type(formula) == fol.FOLOr or type(formula) == fol.FOLAnd) and no_adjectives:
+		child_nodes = []
+		for operand in formula.operands:
+			if type(operand) == fol.FOLFuncApplication and not morphology.is_noun(operand.function):
+				# this operand is predicative (adjectival phrase)
+				child_nodes.append(formula_to_adjp(operand, morphology, quantified_variable))
+			else:
+				# this operand is a noun phrase
+				child_nodes.append(formula_to_np(operand, morphology, quantified_variable, is_plural, False, False, no_adjectives))
+		has_commas = choice([True, False])
+		cnj = ("or" if type(formula) == fol.FOLOr else "and")
+		if len(formula.operands) > 2:
+			if has_commas:
+				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(cnj)]))
+			else:
+				result = [SyntaxNode("CC", [SyntaxNode(cnj)])] * (len(child_nodes) * 2 - 1)
+				result[0::2] = child_nodes
+				child_nodes = result
+		else:
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(cnj)]))
+		return SyntaxNode("NP", child_nodes)
 	else:
-		return formula_to_np(formula, morphology, quantified_variable, is_plural, False, False)
+		return formula_to_np(formula, morphology, quantified_variable, is_plural, False, False, no_adjectives)
 
-def formula_to_clause(formula, morphology, invert=False):
+def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 	if type(formula) == fol.FOLForAll and type(formula.operand) == fol.FOLIfThen:
 		# determine if the clause will be singular or plural
 		is_plural = choice([True, False])
 		if invert:
 			is_plural = False
-		elif type(formula.operand.antecedent) == fol.FOLOr:
+		elif type(formula.operand.antecedent) == fol.FOLOr or (type(formula.operand.antecedent) == fol.FOLAnd and no_adjectives):
 			is_plural = False
 
 		# generate the subject and object phrases
 		is_negated = (type(formula.operand.consequent) == fol.FOLNot)
-		left = formula_to_np(formula.operand.antecedent, morphology, formula.variable, is_plural, True, False)
+		left = formula_to_np(formula.operand.antecedent, morphology, formula.variable, is_plural, True, False, no_adjectives)
 		if is_negated:
-			right = formula_to_vp_arg(formula.operand.consequent.operand, morphology, formula.variable, is_plural)
+			right = formula_to_vp_arg(formula.operand.consequent.operand, morphology, formula.variable, is_plural, no_adjectives)
 		else:
-			right = formula_to_vp_arg(formula.operand.consequent, morphology, formula.variable, is_plural)
+			right = formula_to_vp_arg(formula.operand.consequent, morphology, formula.variable, is_plural, no_adjectives)
 
 		verb = ("are" if is_plural else "is")
 		if is_negated:
@@ -168,8 +194,8 @@ def formula_to_clause(formula, morphology, invert=False):
 			remaining_conjuncts = fol.FOLAnd(remaining_conjuncts)
 
 		# generate the subject and object phrases
-		left = formula_to_np(formula.operand.operand.operands[0], morphology, formula.operand.variable, is_plural, False, True)
-		right = formula_to_vp_arg(remaining_conjuncts, morphology, formula.operand.variable, is_plural)
+		left = formula_to_np(formula.operand.operand.operands[0], morphology, formula.operand.variable, is_plural, False, True, no_adjectives)
+		right = formula_to_vp_arg(remaining_conjuncts, morphology, formula.operand.variable, is_plural, no_adjectives)
 
 		verb = ("are" if is_plural else "is")
 		if invert:
@@ -190,7 +216,7 @@ def formula_to_clause(formula, morphology, invert=False):
 				])
 
 	elif type(formula) == fol.FOLFuncApplication and len(formula.args) == 1 and type(formula.args[0]) == fol.FOLConstant:
-		right = formula_to_vp_arg(fol.FOLFuncApplication(formula.function, [fol.FOLVariable(1)]), morphology, 1, False)
+		right = formula_to_vp_arg(fol.FOLFuncApplication(formula.function, [fol.FOLVariable(1)]), morphology, 1, False, no_adjectives)
 		if invert:
 			return SyntaxNode("S", [
 					SyntaxNode("V", [SyntaxNode("is")]),
@@ -209,7 +235,7 @@ def formula_to_clause(formula, morphology, invert=False):
 				])
 
 	elif type(formula) == fol.FOLNot and type(formula.operand) == fol.FOLFuncApplication and len(formula.operand.args) == 1:
-		right = formula_to_vp_arg(fol.FOLFuncApplication(formula.operand.function, [fol.FOLVariable(1)]), morphology, 1, False)
+		right = formula_to_vp_arg(fol.FOLFuncApplication(formula.operand.function, [fol.FOLVariable(1)]), morphology, 1, False, no_adjectives)
 		if invert:
 			return SyntaxNode("S", [
 					SyntaxNode("V", [SyntaxNode("is")]),
@@ -232,7 +258,7 @@ def formula_to_clause(formula, morphology, invert=False):
 	elif type(formula) == fol.FOLAnd:
 		# first check if the conjunction can be expressed as a single noun phrase as in `A is a B`
 		entity = None
-		expressible_as_np = True
+		expressible_as_np = not no_adjectives
 		right_lf = []
 		for operand in formula.operands:
 			if type(operand) == fol.FOLFuncApplication and len(operand.args) == 1 and type(operand.args[0]) == fol.FOLConstant and (entity == None or entity == operand.args[0]):
@@ -243,7 +269,7 @@ def formula_to_clause(formula, morphology, invert=False):
 				break
 
 		if expressible_as_np:
-			right = formula_to_vp_arg(fol.FOLAnd(right_lf), morphology, 1, False)
+			right = formula_to_vp_arg(fol.FOLAnd(right_lf), morphology, 1, False, no_adjectives)
 			if invert:
 				return SyntaxNode("S", [
 						SyntaxNode("V", [SyntaxNode("is")]),
@@ -381,7 +407,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or"}:
+	if tokens[index].lower() in {"and", "or", ","}:
 		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
@@ -479,13 +505,53 @@ def parse_np(tokens, index, morphology):
 	return (lf, index, is_plural, is_negated, is_quantified)
 
 def parse_vp_arg(tokens, index, morphology):
-	(lf, new_index, is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
-	if lf == None or is_quantified or is_negated:
-		# this cannot be parsed as an NP, so parse it as an ADJP
-		(lf, index) = parse_adjp(tokens, index, morphology)
-		is_plural = None
+	operands = []
+	is_conjunction = False
+	is_disjunction = False
+	is_plural = None
+	while index < len(tokens):
+		old_index = index
+		if len(operands) != 0:
+			has_comma = False
+			if tokens[index] == ',':
+				index += 1
+				has_comma = True
+			if tokens[index] == 'and':
+				if is_disjunction:
+					return (None, None, None)
+				is_conjunction = True
+				index += 1
+			elif tokens[index] == 'or':
+				if is_conjunction:
+					return (None, None, None)
+				is_disjunction = True
+				index += 1
+			elif not has_comma:
+				break
+		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
+		if type(operand) == fol.FOLConstant:
+			index = old_index
+			break
+		elif operand == None or is_quantified or is_negated:
+			# try parsing as a predicative (ADJP)
+			(operand, index) = parse_adjp(tokens, index, morphology)
+			if operand == None:
+				return (None, None, None)
+		else:
+			index = new_index
+			if is_plural == None:
+				is_plural = operand_is_plural
+			elif is_plural != operand_is_plural:
+				return (None, None, None)
+		operands.append(operand)
+	if len(operands) == 1:
+		lf = operands[0]
+	elif is_conjunction:
+		lf = fol.FOLAnd(operands)
+	elif is_disjunction:
+		lf = fol.FOLOr(operands)
 	else:
-		index = new_index
+		return (None, None, None)
 	return (lf, index, is_plural)
 
 def parse_clause(tokens, index, morphology):
@@ -525,7 +591,7 @@ def parse_clause(tokens, index, morphology):
 		index += 1
 	else:
 		is_negated = False
-
+		
 	(right_lf, index, vp_is_plural) = parse_vp_arg(tokens, index, morphology)
 	if vp_is_plural != None and vp_is_plural != is_plural:
 		return (None, None, None) # grammatical number does not agree
@@ -575,11 +641,15 @@ def parse_clause(tokens, index, morphology):
 				lf = fol.FOLAnd([lf] + remainder_lf.operands)
 			else:
 				lf = fol.FOLAnd([lf, remainder_lf])
-		if is_disjunction:
+		elif is_disjunction:
 			if type(remainder_lf) == fol.FOLOr:
 				lf = fol.FOLOr([lf] + remainder_lf.operands)
 			else:
 				lf = fol.FOLOr([lf, remainder_lf])
+		elif type(remainder_lf) == fol.FOLAnd:
+			lf = fol.FOLAnd([lf] + remainder_lf.operands)
+		elif type(remainder_lf) == fol.FOLOr:
+			lf = fol.FOLOr([lf] + remainder_lf.operands)
 
 	return (lf, index, invert)
 

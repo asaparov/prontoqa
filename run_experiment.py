@@ -299,7 +299,7 @@ for name in available_entity_names:
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, require_properties=False, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2):
+def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2, no_adjectives=False, generate_non_atomic_steps=False):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -350,7 +350,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		formulas = get_formulas(theory, ordering=formula_ordering, deduction_rule=deduction_rule)
 	sentences = []
 	for formula in formulas:
-		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology)), end_punctuation='.'))
+		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology, no_adjectives)), end_punctuation='.'))
 		parsed_lf = parse_sentence(sentences[-1][:-1], morphology, False)
 		if parsed_lf == None:
 			raise Exception("Unable to parse generated sentence: '{}'".format(sentences[-1]))
@@ -383,7 +383,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				fol.FOLFuncApplication(conclusion.operand.function, [fol.FOLVariable(1)])
 			))
 	if add_distractor and distractor_lf != None:
-		distractor_sentence = inflect(yield_tokens(formula_to_clause(distractor_lf, morphology)), end_punctuation='.')
+		distractor_sentence = inflect(yield_tokens(formula_to_clause(distractor_lf, morphology, no_adjectives)), end_punctuation='.')
 		index = randrange(len(formulas) + 1)
 		formulas.insert(index, distractor_lf)
 		sentences.insert(index, distractor_sentence)
@@ -402,11 +402,11 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			question = fol.FOLNot(question)
 
 	question_text =  ' '.join(sentences)
-	question_text += ' ' + ' '.join([inflect(yield_tokens(formula_to_clause(premise, morphology)), end_punctuation='.') for premise in premises])
+	question_text += ' ' + ' '.join([inflect(yield_tokens(formula_to_clause(premise, morphology, no_adjectives)), end_punctuation='.') for premise in premises])
 	if proofs_only:
-		query = 'Prove: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
+		query = 'Prove: ' + inflect(yield_tokens(formula_to_clause(question, morphology, no_adjectives)), end_punctuation='.')
 	else:
-		query = 'True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology)), end_punctuation='.')
+		query = 'True or false: ' + inflect(yield_tokens(formula_to_clause(question, morphology, no_adjectives)), end_punctuation='.')
 
 	# print the chain-of-thought and answer
 	chain_of_thought = []
@@ -419,7 +419,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				found_formula = True
 				break
 		if not found_formula:
-			chain_of_thought.append(inflect(yield_tokens(formula_to_clause(proof_formula, morphology)), end_punctuation='.'))
+			chain_of_thought.append(inflect(yield_tokens(formula_to_clause(proof_formula, morphology, no_adjectives)), end_punctuation='.'))
 	return (question_text, query, formulas + premises, chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):
@@ -893,7 +893,7 @@ def parse_log(log):
 				#raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
 	return (trial, too_long_responses, results, label_results, resume_position)
 
-def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps, num_fewshot_examples, num_trials, repetitions_per_test, log_file, formula_ordering="postorder", ontology="fictional", add_distractor=True, resume=False, random_seed=62471893, prompting="COT", deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, disjoint_concept_names=False, proof_width=2):
+def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_file):
 	global gpt_api_key
 	if model_name == 'gpt3':
 		import gpt3
@@ -907,12 +907,12 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
 	# set the random seed for reproducibility
-	seed(random_seed)
-	np.random.seed(random_seed)
+	seed(args.seed)
+	np.random.seed(args.seed)
 
 	trial = 0
 	too_long_responses = 0
-	if resume:
+	if args.resume:
 		log = open(log_file, "a+")
 		log.seek(0)
 		(resume_trial, too_long_responses, results, label_results, truncate_pos) = parse_log(log)
@@ -924,8 +924,8 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 		label_results = []
 
 	available_concept_names = None		
-	if disjoint_concept_names:
-		if ontology == "fictional":
+	if args.disjoint_concept_names:
+		if args.ontology == "fictional":
 			available_concept_names = [
 					["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"],
 					["timple", "yimple", "starple", "shumple", "zhomple", "remple", "fomple", "fimple", "worple", "sorple"],
@@ -951,17 +951,17 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			shuffle(available_concept_names)
 		else:
 			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
-	while trial < num_trials * repetitions_per_test:
-		for t in range(repetitions_per_test):
+	while trial < args.num_trials * args.repetitions_per_test:
+		for t in range(args.repetitions_per_test):
 			questions = []
 			queries = []
 			chains_of_thought = []
 			answers = []
 			proofs = []
-			for i in range(num_fewshot_examples):
+			for i in range(args.few_shot_examples):
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, use_dfs, proof_width)
+					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, args.use_dfs, args.proof_width, args.no_adjectives, args.generate_non_atomic_steps)
 					if question != None:
 						break
 				questions.append(question)
@@ -972,8 +972,8 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 
 			if t == 0:
 				while True:
-					next_concept_names = (None if available_concept_names == None else available_concept_names[num_fewshot_examples])
-					test_question = generate_question(test_num_proof_steps, next_concept_names, formula_ordering, ontology, add_distractor, deduction_rule, proofs_only, False, proof_width)
+					next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
+					test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width, args.no_adjectives, False)
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 					if question != None:
 						break
@@ -986,39 +986,39 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 				continue
 			
 			if model_name == 'gpt3':
-				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, model_size, x, **kwargs)
+				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, args.model_size, x, **kwargs)
 			elif model_name == 'opt':
-				predict_func = lambda x, **kwargs : opt.predict(model_size, x, opt_server, **kwargs)
+				predict_func = lambda x, **kwargs : opt.predict(args.model_size, x, opt_server, **kwargs)
 			elif model_name == 'unifiedqa':
-				predict_func = lambda x, **kwargs : unifiedqa.predict(model_size, x, **kwargs)
+				predict_func = lambda x, **kwargs : unifiedqa.predict(args.model_size.lower(), x, **kwargs)
 			elif model_name == 'dummy':
 				predict_func = lambda x, **kwargs : ''
 
-			if prompting == "COT":
-				response = do_chain_of_thought(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, proofs_only)
-			elif prompting == "selfconsistency":
-				response = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, proofs_only, parse_response)
-			elif prompting == "selectioninference":
-				response = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, proofs_only, parse_response, decapitalize)
+			if args.prompting == "COT":
+				response = do_chain_of_thought(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only)
+			elif args.prompting == "selfconsistency":
+				response = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response)
+			elif args.prompting == "selectioninference":
+				response = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response, decapitalize)
 
 			if response == None:
 				print_output('WARNING: Context has too many tokens for this model. Skipping question...', log)
 				print_output('\nPredicted answer: CONTEXT_TOO_LONG_ERROR', log)
 				print_output('\nExpected answer: ' + ' '.join(chain_of_thought), log)
-				if not proofs_only:
+				if not args.proofs_only:
 					print_output(' ' + answer, log)
 				too_long_responses += 1
 			else:
 				print_output('\nPredicted answer:' + response, log)
 				print_output('\nExpected answer: ' + ' '.join(chain_of_thought), log)
-				if not proofs_only:
+				if not args.proofs_only:
 					print_output(' ' + answer, log)
 				(predicted_proof, predicted_label) = parse_response(response)
-				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, proofs_only)
+				result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, args.proofs_only)
 				(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 
 			# compute the posterior beta parameters
-			if not proofs_only:
+			if not args.proofs_only:
 				num_correct = np.sum(label_results)
 			else:
 				num_correct = 0
@@ -1046,6 +1046,7 @@ if __name__ == "__main__":
 	parser.add_argument("--ontology", type=str, default="fictional", choices=["fictional", "true", "false"])
 	parser.add_argument("--opt-server", type=str, default=None)
 	parser.add_argument("--no-distractor", action='store_true')
+	parser.add_argument("--no-adjectives", action='store_true')
 	parser.add_argument("--proofs-only", action='store_true')
 	parser.add_argument("--use-dfs", action='store_true')
 	parser.add_argument("--disjoint-concept-names", action='store_true')
@@ -1058,6 +1059,7 @@ if __name__ == "__main__":
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference"])
 	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim"])
+	parser.add_argument("--generate-non-atomic-steps", action='store_true')
 	parser.add_argument("--seed", type=int, default=62471893)
 	args = parser.parse_args()
 
@@ -1090,18 +1092,22 @@ if __name__ == "__main__":
 			log_suffix += '_falseontology'
 		if args.no_distractor:
 			log_suffix += '_nodistractor'
+		if args.no_adjectives:
+			log_suffix += '_noadj'
+		if args.generate_non_atomic_steps:
+			log_suffix += '_nonatomic'
 		if args.repetitions_per_test != 1:
 			log_suffix += '_' + str(args.repetitions_per_test) + 'repetitions'
 		if args.seed != 62471893:
 			log_suffix += '_seed' + str(args.seed)
 		if args.model_name == 'gpt3':
-			run_experiment("gpt3", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
+			run_experiment("gpt3", args, 1 + hops, 1 + hops + args.test_hops_diff, "gpt_" + args.model_size.lower().replace('-', '') + log_suffix + ".log")
 		elif args.model_name == 'opt':
-			run_experiment("opt", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "opt" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
+			run_experiment("opt", args, 1 + hops, 1 + hops + args.test_hops_diff, "opt" + args.model_size.lower() + log_suffix + ".log")
 		elif args.model_name == 'unifiedqa':
-			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
+			run_experiment("unifiedqa", args, 1 + hops, 1 + hops + args.test_hops_diff, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log")
 		elif args.model_name == 'dummy':
-			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names, args.proof_width)
+			run_experiment("dummy", args, 1 + hops, 1 + hops + args.test_hops_diff, "dummy" + log_suffix + ".log")
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break
