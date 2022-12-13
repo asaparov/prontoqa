@@ -21,7 +21,7 @@ def formula_to_np_prime(formula, morphology, quantified_variable, is_plural, no_
 			other = fol.FOLAnd(formula.operands[1:])
 		return SyntaxNode("NP'", [
 				formula_to_adjp(formula.operands[0], morphology, quantified_variable),
-				formula_to_np_prime(other, morphology, quantified_variable, is_plural)
+				formula_to_np_prime(other, morphology, quantified_variable, is_plural, no_adjectives)
 			])
 	else:
 		raise Exception("formula_to_np_prime ERROR: Unsupported formula type ({}).".format(type(formula)))

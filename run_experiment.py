@@ -423,7 +423,9 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 
 	# print the chain-of-thought and answer
 	chain_of_thought = []
-	for proof_formula in proof_formulas:
+	for k in range(len(proof_formulas)):
+		proof_formula = proof_formulas[k]
+
 		# find the sentence corresponding to this formula
 		found_formula = False
 		for i in range(len(formulas)):
@@ -439,6 +441,10 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			if parsed_lf != proof_formula:
 				raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentence, fol.fol_to_tptp(proof_formula), fol.fol_to_tptp(parsed_lf)))
 			chain_of_thought.append(sentence)
+
+		# if this formula follows a `CONTRADICTS` instance, then add a newline
+		if k > 0 and type(proof_formulas[k - 1]) == fol.FOLFuncApplication and proof_formulas[k - 1].function == "CONTRADICTS":
+			chain_of_thought[-1] = chain_of_thought[-1] + '\n\n'
 	return (question_text, query, formulas + premises, chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):

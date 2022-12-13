@@ -270,7 +270,7 @@ def generate_de_morgans_question(theory, entity_name, num_deduction_steps=None, 
 		contradiction_step = ProofStep(ProofStepType.PROOF_BY_CONTRADICTION, [premise_axiom, instantiation_step], fol.FOLNot(assumption_formula))
 		subproofs.append(contradiction_step)
 
-	proof = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, subproofs, fol.FOLAnd([subproof.conclusion for subproof in subproofs]))
+	proof = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, subproofs, fol.FOLAnd([subproof.conclusion for subproof in subproofs][::-1]))
 
 	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
@@ -283,6 +283,6 @@ def linearize_proof_steps(last_step):
 		return list(itertools.chain.from_iterable([linearize_proof_steps(premise) for premise in reversed(last_step.premises)])) + [last_step]
 	elif last_step.step_type == ProofStepType.PROOF_BY_CONTRADICTION:
 		contradicts_step = ProofStep(ProofStepType.AXIOM, [], fol.FOLFuncApplication("CONTRADICTS", [last_step.premises[0].conclusion]))
-		return list(itertools.chain.from_iterable([linearize_proof_steps(premise) for premise in last_step.premises])) + [contradicts_step, last_step]
+		return linearize_proof_steps(last_step.premises[1]) + [contradicts_step, last_step]
 	else:
 		return list(itertools.chain.from_iterable([linearize_proof_steps(premise) for premise in last_step.premises])) + [last_step]

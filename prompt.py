@@ -3,14 +3,23 @@ from scipy.special import logsumexp
 from random import randrange
 from time import sleep
 
+def has_newline(questions, queries, chains_of_thought, test_question, test_query, test_chain_of_thought):
+	for sentence in (questions + queries + chains_of_thought + [test_question, test_query] + test_chain_of_thought):
+		if '\n\n' in sentence:
+			return True
+	return False
+
 def do_chain_of_thought(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only):
+	# first check if we need to add extra new lines for cleaner formatting
+	newline = '\n\n' if has_newline(questions, queries, chains_of_thought, test_question, test_query, test_chain_of_thought) else '\n'
+
 	prompt = ''
 	for i in range(len(questions)):
-		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i])
+		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + newline + 'A: ' + ' '.join(chains_of_thought[i])
 		if not proofs_only:
 			prompt += ' ' + answers[i]
-		prompt += '\n\n'
-	prompt += 'Q: ' + test_question + ' ' + test_query + '\nA:'
+		prompt += newline + '\n'
+	prompt += 'Q: ' + test_question + ' ' + test_query + newline + 'A:'
 	print_output(prompt)
 	try_num = 0
 	while True:
@@ -47,13 +56,16 @@ def aggregate_sample_predictions(sample_predictions, parse_response):
 	return best_response
 
 def do_self_consistency(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only, parse_response):
+	# first check if we need to add extra new lines for cleaner formatting
+	newline = '\n\n' if has_newline(questions, queries, chains_of_thought, test_question, test_query, test_chain_of_thought) else '\n'
+
 	prompt = ''
 	for i in range(len(questions)):
-		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + '\nA: ' + ' '.join(chains_of_thought[i])
+		prompt += 'Q: ' + questions[i] + ' ' + queries[i] + newline + 'A: ' + ' '.join(chains_of_thought[i])
 		if not proofs_only:
 			prompt += ' ' + answers[i]
-		prompt += '\n\n'
-	prompt += 'Q: ' + test_question + ' ' + test_query + '\nA:'
+		prompt += newline + '\n'
+	prompt += 'Q: ' + test_question + ' ' + test_query + newline + 'A:'
 	print_output(prompt)
 
 	try_num = 0
@@ -74,6 +86,9 @@ def do_self_consistency(predict, print_output, questions, queries, chains_of_tho
 	return aggregate_sample_predictions(responses, parse_response)
 
 def do_selection_inference(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only, parse_reasoning, decapitalize):
+	# first check if we need to add extra new lines for cleaner formatting
+	newline = '\n\n' if has_newline(questions, queries, chains_of_thought, test_question, test_query, test_chain_of_thought) else '\n'
+
 	# first construct the prompts for the selection and inference modules
 	sel_prompt = ''
 	inf_prompt = ''
@@ -87,16 +102,16 @@ def do_selection_inference(predict, print_output, questions, queries, chains_of_
 			premise_indices.append(proofs[i].index(premise))
 		premise_indices.reverse()
 
-		sel_prompt += 'Q: ' + questions[i] + ' ' + ' '.join(chains_of_thought[i][:j]) + ' ' + queries[i] + '\n' + chains_of_thought[i][premise_indices[0]]
+		sel_prompt += 'Q: ' + questions[i] + ' ' + ' '.join(chains_of_thought[i][:j]) + ' ' + queries[i] + newline + chains_of_thought[i][premise_indices[0]]
 		if len(premise_indices) > 1:
 			sel_prompt += ' We know that ' + ' and '.join([decapitalize(chains_of_thought[i][index][:-1]) for index in premise_indices[1:]]) + '.'
-		sel_prompt += '\n\n'
+		sel_prompt += newline + '\n'
 
 		inf_prompt += chains_of_thought[i][premise_indices[0]]
 		if len(premise_indices) > 1:
 			inf_prompt += ' We know that ' + ' and '.join([decapitalize(chains_of_thought[i][index][:-1]) for index in premise_indices[1:]]) + '.'
 		inf_prompt += ' Therefore, ' + decapitalize(chains_of_thought[i][j])
-		inf_prompt += '\n\n'
+		inf_prompt += newline + '\n'
 
 	chain_of_thought = []
 	for iteration in range(5): # TODO: add halt condition
