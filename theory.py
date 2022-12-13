@@ -182,13 +182,9 @@ def get_properties_formula(formulas, node, deduction_rule):
 def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 	formulas = []
 	if ordering == "postorder":
-		if deduction_rule == "ProofByContra1":
+		if deduction_rule == "ProofByContra":
 			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
-				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
-		elif deduction_rule == "ProofByContra2":
-			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
-				fol.FOLAnd([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
 				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
 		else:
 			for child in theory.children:
@@ -206,13 +202,9 @@ def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 		get_disjointness_formulas(formulas, theory)
 	
 	if ordering == "preorder":
-		if deduction_rule == "ProofByContra1":
+		if deduction_rule == "ProofByContra":
 			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
-				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
-		elif deduction_rule == "ProofByContra2":
-			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
-				fol.FOLAnd([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
 				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
 		else:
 			for child in theory.children:
