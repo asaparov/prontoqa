@@ -2,7 +2,7 @@ from theory import *
 from syntax import *
 from proof import *
 from prompt import *
-from random import choice, randrange, shuffle, seed
+from random import choice, randrange, shuffle, seed, sample
 import numpy as np
 from scipy.special import betaincinv
 import argparse
@@ -322,25 +322,35 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		distractor_concept = available_concept_names[index]
 		del available_concept_names[index]
 
-		current_config = config
-		current_config.stop_probability = 1 / (num_deduction_steps + 1)
-		current_config.require_properties = (deduction_rule == "AndIntro" or deduction_rule == "AndElim" or deduction_rule == "OrIntro")
-		current_config.proof_width = proof_width
-		if current_config.require_properties:
-			current_config.generate_negation = False
-		theory = generate_theory(
-						available_concept_names,
-						[["blue", "red", "brown", "orange"],
-						 ["small", "large"],
-						 ["metallic", "wooden", "luminous", "liquid"],
-						 ["transparent", "opaque"],
-						 ["nervous", "happy", "feisty", "shy"],
-						 ["bright", "dull"],
-						 ["sweet", "sour", "spicy", "bitter"],
-						 ["floral", "fruity", "earthy"],
-						 ["hot", "cold", "temperate"],
-						 ["kind", "mean", "angry", "amenable", "aggressive"]],
-						current_config)
+		available_property_families = [["blue", "red", "brown", "orange"],
+							["small", "large"],
+							["metallic", "wooden", "luminous", "liquid"],
+							["transparent", "opaque"],
+							["nervous", "happy", "feisty", "shy"],
+							["bright", "dull"],
+							["sweet", "sour", "spicy", "bitter"],
+							["floral", "fruity", "earthy"],
+							["hot", "cold", "temperate"],
+							["kind", "mean", "angry", "amenable", "aggressive"]]
+
+		if deduction_rule == "ProofByContra":
+			# we only need a theory with one universally-quantified rule
+			concept_names = sample(available_concept_names, proof_width + 1)
+			root = OntologyNode(concept_names[0], None)
+			for i in range(proof_width):
+				child = OntologyNode(concept_names[i + 1], root)
+			theory = root
+		else:
+			current_config = config
+			current_config.stop_probability = 1 / (num_deduction_steps + 1)
+			current_config.require_properties = (deduction_rule == "AndIntro" or deduction_rule == "AndElim" or deduction_rule == "OrIntro")
+			current_config.proof_width = proof_width
+			if current_config.require_properties:
+				current_config.generate_negation = False
+			theory = generate_theory(
+							available_concept_names,
+							available_property_families,
+							current_config)
 		selected_entity = choice(available_entity_names)
 
 	if formula_ordering == "random":
@@ -357,10 +367,13 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		if parsed_lf != formula:
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
 
-	generate_questions_about_types = False
-	if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
-		generate_questions_about_types = True
-	(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width)
+	if deduction_rule == "ProofByContra":
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, num_deduction_steps, proof_width)
+	else:
+		generate_questions_about_types = False
+		if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
+			generate_questions_about_types = True
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width)
 	if proof == None or num_steps != num_deduction_steps:
 		return (None, None, None, None, None, None)
 	proof_formulas = [step.conclusion for step in linearized_proof]
@@ -419,7 +432,13 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				found_formula = True
 				break
 		if not found_formula:
-			chain_of_thought.append(inflect(yield_tokens(formula_to_clause(proof_formula, morphology, no_adjectives)), end_punctuation='.'))
+			sentence = inflect(yield_tokens(formula_to_clause(proof_formula, morphology, no_adjectives)), end_punctuation='.')
+			parsed_lf = parse_sentence(sentence[:-1], morphology, False)
+			if parsed_lf == None:
+				raise Exception("Unable to parse generated sentence: '{}'".format(sentence))
+			if parsed_lf != proof_formula:
+				raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentence, fol.fol_to_tptp(proof_formula), fol.fol_to_tptp(parsed_lf)))
+			chain_of_thought.append(sentence)
 	return (question_text, query, formulas + premises, chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):
@@ -434,7 +453,7 @@ with open('bad_patterns.txt', 'r') as reader:
 	for line in reader:
 		bad_patterns.append(re.compile(line.strip()))
 
-def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, correct_steps, skip_steps):
+def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, proof_index, correct_steps, skip_steps):
 	is_valid = False
 	is_valid_with_skip_steps = False
 	smallest_subproof_size = None
@@ -460,7 +479,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 		pass
 
 	# this could be provable with additional steps of universal instantiation
-	(num_steps, valid_subproof, subproof_axioms) = is_provable(other_premise, axioms, proof, correct_steps, skip_steps)
+	(num_steps, valid_subproof, subproof_axioms, proof_index) = is_provable(other_premise, axioms, proof, proof_index, correct_steps, skip_steps)
 	if valid_subproof and num_steps != None:
 		if smallest_subproof_size == None:
 			smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
@@ -471,10 +490,26 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 				proof_axioms = subproof_axioms + [universal_formula]
 	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, proof_axioms)
 
-def is_provable(formula, axioms, proof, correct_steps, skip_steps):
+def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps):
+	for prev_step_index in (correct_steps + skip_steps + axioms):
+		if type(prev_step_index) == int:
+			missing_axiom = False
+			prev_step = proof[prev_step_index]
+		else:
+			missing_axiom = True
+			prev_step = prev_step_index
+		if prev_step == premise:
+			return (1 if missing_axiom else 0, [prev_step])
+
+	(num_steps, valid_subproof, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, skip_steps)
+	if num_steps != None:
+		return (num_steps, valid_subproof, subproof_axioms, proof_index)
+	return (None, False, [], proof_index)
+
+def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, assumptions=None):
 	# check if this is an axiom
 	if formula in axioms:
-		return (1, True, [formula])
+		return (1, True, [formula], proof_index)
 
 	is_valid = False
 	is_valid_with_skip_steps = False
@@ -482,46 +517,39 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 	proof_axioms = []
 	smallest_subproof_size = None
 
+	# check if this is provable by PROOF_BY_CONTRADICTION
+	if type(formula) == fol.FOLFuncApplication and formula.function == "CONTRADICTS" and proof_index + 1 < len(proof) and assumptions != None:
+		negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
+		(num_steps, valid_subproof, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, skip_steps)
+		if num_steps != None and valid_subproof:
+			next_step = proof[proof_index + 1]
+			negation = (next_step.operand if type(next_step) == fol.FOLNot else fol.FOLNot(next_step))
+			if negation in assumptions:
+				assumptions.remove(negation)
+				smallest_subproof_size = num_steps + 1
+				proof_axioms = subproof_axioms + [negation]
+				return (smallest_subproof_size, valid_subproof, proof_axioms, proof_index + 1)
+			else:
+				return (None, True, [], proof_index)
+		else:
+			return (None, True, [], proof_index)
+
 	# check if this is an instance of CONJUNCTION_INTRODUCTION or DISJUNCTION_INTRODUCTION
 	if type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
 		smallest_subproof_size = (1 if type(formula) == fol.FOLAnd else None)
 		for conjunct in formula.operands:
-			is_premise = False
-			for prev_step_index in (correct_steps + skip_steps + axioms):
-				if type(prev_step_index) == int:
-					missing_axiom = False
-					prev_step = proof[prev_step_index]
-				else:
-					missing_axiom = True
-					prev_step = prev_step_index
-				if prev_step == conjunct:
-					if type(formula) == fol.FOLOr:
-						smallest_subproof_size = 1 + (1 if missing_axiom else 0)
-						proof_axioms = [prev_step]
-					else:
-						proof_axioms += [prev_step]
-					is_premise = True
+			(num_steps, valid_subproof, subproof_axioms, _) = find_premise(conjunct, axioms, proof, proof_index, correct_steps, skip_steps)
+			if num_steps == None or not valid_subproof:
+				if type(formula) == fol.FOLAnd:
 					break
-			if is_premise:
-				if type(formula) == fol.FOLOr:
-					break
-				else:
-					continue
-
-			(num_steps, valid_subproof, subproof_axioms) = is_provable(conjunct, axioms, proof, correct_steps, skip_steps)
-			if valid_subproof and num_steps != None:
+			else:
 				if type(formula) == fol.FOLOr:
 					if smallest_subproof_size == None or num_steps + 1 < smallest_subproof_size:
 						proof_axioms = subproof_axioms
 						smallest_subproof_size = num_steps + 1
 				else:
-					proof_axioms += subproof_axioms
+					proof_axioms.extend(subproof_axioms)
 					smallest_subproof_size += num_steps
-			else:
-				proof_axioms = []
-				smallest_subproof_size = None
-				if type(formula) == fol.FOLAnd:
-					break
 
 	# check if this is an instance of CONJUNCTION_ELIMINATION
 	for prev_step_index in (correct_steps + skip_steps + axioms):
@@ -543,7 +571,7 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 			second_var_map = {}
 			for conjunct in prev_step.operand.consequent.operands:
 				if fol.unify(formula, conjunct, first_var_map, second_var_map):
-					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, correct_steps, skip_steps)
+					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, skip_steps)
 					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):
 						smallest_subproof_size = antecedent_num_steps + 1
 						is_valid = antecedent_is_valid
@@ -562,7 +590,7 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 		first_var_map = {}
 		second_var_map = {}
 		if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(formula, prev_step.operand.consequent, first_var_map, second_var_map):
-			(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, correct_steps, skip_steps)
+			(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, skip_steps)
 			if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps < smallest_subproof_size):
 				smallest_subproof_size = antecedent_num_steps
 				is_valid = antecedent_is_valid
@@ -572,10 +600,10 @@ def is_provable(formula, axioms, proof, correct_steps, skip_steps):
 					break
 
 	if is_valid:
-		return (1, True, proof_axioms)
+		return (1, True, proof_axioms, proof_index)
 	if is_valid_with_skip_steps:
-		return (1, False, proof_axioms)
-	return (smallest_subproof_size, True, proof_axioms)
+		return (1, False, proof_axioms, proof_index)
+	return (smallest_subproof_size, True, proof_axioms, proof_index)
 
 def find_path_length(provability_graph, src, dst):
 	queue = [(src, 0)]
@@ -685,12 +713,17 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	found_conclusion = False
 	found_conclusion_with_skip_steps = False
 	found_conclusion_with_non_atomic_steps = False
+	assumptions = []
 	for i in range(len(proof)):
 		proof_step = proof[i]
 		if proof_step == None:
 			unparseable_steps.append(i)
 			incorrect_steps.append(i)
 			continue
+
+		if type(proof_step) == fol.FOLFuncApplication and proof_step.function == "ASSUME":
+			proof_step = proof_step.args[0]
+			assumptions.append(proof_step)
 
 		is_useful = (proof_step in expected_proof)
 		is_conclusion = (proof_step == expected_proof[-1])
@@ -704,7 +737,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			redundant_steps.append(i)
 			continue
 
-		(num_steps, is_valid, premises) = is_provable(proof_step, axioms, proof, correct_steps, skip_steps)
+		(num_steps, is_valid, premises, i) = is_provable(proof_step, axioms, proof, i, correct_steps, skip_steps, assumptions)
 		if num_steps == 1:
 			if is_valid:
 				correct_steps.append(i)
@@ -1058,7 +1091,7 @@ if __name__ == "__main__":
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference"])
-	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim"])
+	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"])
 	parser.add_argument("--generate-non-atomic-steps", action='store_true')
 	parser.add_argument("--seed", type=int, default=62471893)
 	args = parser.parse_args()
