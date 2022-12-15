@@ -340,6 +340,12 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			for i in range(proof_width):
 				child = OntologyNode(concept_names[i + 1], root)
 			theory = root
+		elif deduction_rule == "OrElim":
+			concept_names = sample(available_concept_names, proof_width + 1)
+			root = OntologyNode(concept_names[0], None)
+			for i in range(proof_width):
+				child = OntologyNode(concept_names[i + 1], root)
+			theory = root
 		else:
 			current_config = config
 			current_config.stop_probability = 1 / (num_deduction_steps + 1)
@@ -369,6 +375,8 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 
 	if deduction_rule == "ProofByContra":
 		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, num_deduction_steps, proof_width)
+	elif deduction_rule == "OrElim":
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_proof_by_cases_question(theory, selected_entity, num_deduction_steps, proof_width)
 	else:
 		generate_questions_about_types = False
 		if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:

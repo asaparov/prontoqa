@@ -274,6 +274,30 @@ def generate_de_morgans_question(theory, entity_name, num_deduction_steps=None, 
 
 	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
+
+def generate_proof_by_cases_question(theory, entity_name, num_deduction_steps=None, proof_width=2):
+	assert num_deduction_steps - 1 == 1
+
+	premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in theory.children])
+	premise_axiom = ProofStep(ProofStepType.AXIOM, [], premise)
+	
+	subproofs = []
+	for i in range(proof_width):
+		assumption_formula = fol.FOLFuncApplication(theory.children[i].name, [fol.FOLConstant(entity_name)])
+		assumption = ProofStep(ProofStepType.AXIOM, [], fol.FOLFuncApplication("ASSUME", [assumption_formula]))
+		subsumption_formula = fol.FOLForAll(1, fol.FOLIfThen(
+			fol.FOLFuncApplication(theory.children[i].name, [fol.FOLVariable(1)]),
+			fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)])
+		))
+		subsumption_step = ProofStep(ProofStepType.AXIOM, [], subsumption_formula)
+		instantiation_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_step, assumption], fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
+		subproofs.append(instantiation_step)
+
+	proof = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, subproofs, fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
+
+	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
+
+
 def linearize_proof_steps(last_step):
 	if last_step.step_type == ProofStepType.AXIOM:
 		return [last_step]
