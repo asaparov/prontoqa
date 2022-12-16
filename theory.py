@@ -186,6 +186,8 @@ def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
 				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
+		#elif deduction_rule == "OrElim":
+		#	formulas.append(fol.FOLAnd([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]))
 		else:
 			for child in theory.children:
 				formulas.extend(get_formulas(child, ordering, deduction_rule))
@@ -206,6 +208,8 @@ def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 			formulas.append(fol.FOLForAll(1, fol.FOLIfThen(
 				fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children]),
 				fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)]))))
+		#elif deduction_rule == "OrElim":
+		#	formulas.append(fol.FOLAnd([fol.FOLFuncApplication(child.name, [theory.name]) for child in theory.children]))
 		else:
 			for child in theory.children:
 				formulas.extend(get_formulas(child, ordering, deduction_rule))
