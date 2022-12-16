@@ -4,7 +4,7 @@ import json
 
 def predict(api_key, model_name, prompt, temperature=0, logprobs=None, n=1):
 	header = { 'Content-Type' : 'application/json', 'Authorization' : 'Bearer ' + api_key }
-	data = { 'model' : model_name, 'prompt' : prompt, 'temperature' : temperature, 'max_tokens' : 256 }
+	data = { 'model' : model_name, 'prompt' : prompt, 'temperature' : temperature, 'max_tokens' : 1024 }
 	if logprobs != None:
 		data['logprobs'] = logprobs
 	if n != 1:

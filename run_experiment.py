@@ -505,7 +505,7 @@ def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps)
 			missing_axiom = True
 			prev_step = prev_step_index
 		if prev_step == premise:
-			return (1 if missing_axiom else 0, [prev_step])
+			return (1 if missing_axiom else 0, True, [prev_step], proof_index)
 
 	(num_steps, valid_subproof, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, skip_steps)
 	if num_steps != None:
@@ -547,6 +547,8 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 			(num_steps, valid_subproof, subproof_axioms, _) = find_premise(conjunct, axioms, proof, proof_index, correct_steps, skip_steps)
 			if num_steps == None or not valid_subproof:
 				if type(formula) == fol.FOLAnd:
+					proof_axioms = []
+					smallest_subproof_size = None
 					break
 			else:
 				if type(formula) == fol.FOLOr:
@@ -720,16 +722,21 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	found_conclusion_with_skip_steps = False
 	found_conclusion_with_non_atomic_steps = False
 	assumptions = []
-	for i in range(len(proof)):
+	i = 0
+	while i < len(proof):
 		proof_step = proof[i]
 		if proof_step == None:
 			unparseable_steps.append(i)
 			incorrect_steps.append(i)
+			i += 1
 			continue
 
+		is_assumption = False
 		if type(proof_step) == fol.FOLFuncApplication and proof_step.function == "ASSUME":
 			proof_step = proof_step.args[0]
+			proof[i] = proof_step
 			assumptions.append(proof_step)
+			is_assumption = True
 
 		is_useful = (proof_step in expected_proof)
 		is_conclusion = (proof_step == expected_proof[-1])
@@ -739,8 +746,14 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen and type(proof_step.operand.antecedent) == fol.FOLFuncApplication and last_step != None and last_step in expected_proof and type(last_step) == fol.FOLFuncApplication and proof_step.operand.antecedent.function == last_step.function:
 			wrong_branch_steps.append(i)
 
-		if proof_step in proof[:i]:
+		if not (type(proof_step) == fol.FOLFuncApplication and proof_step.function == "CONTRADICTS") and proof_step in proof[:i]:
 			redundant_steps.append(i)
+			i += 1
+			continue
+
+		if is_assumption:
+			correct_steps.append(i)
+			i += 1
 			continue
 
 		(num_steps, is_valid, premises, i) = is_provable(proof_step, axioms, proof, i, correct_steps, skip_steps, assumptions)
@@ -751,11 +764,13 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 					correct_and_useful_steps.append(i)
 				if is_conclusion:
 					found_conclusion = True
+				i += 1
 				continue
 			else:
 				skip_steps.append(i)
 				if is_conclusion:
 					found_conclusion_with_skip_steps = True
+				i += 1
 				continue
 		elif num_steps != None:
 			are_premises_useful = True
@@ -769,6 +784,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 				useful_non_atomic_steps.append(i)
 			if is_conclusion:
 				found_conclusion_with_non_atomic_steps = True
+			i += 1
 			continue
 
 		# this step is incorrect, but it may be a valid rule provable from axioms using more than one step
@@ -810,6 +826,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 
 		# we can't find a matching deduction rule, so label this step as incorrect
 		incorrect_steps.append(i)
+		i += 1
 
 	# evaluate the label
 	if proofs_only:
