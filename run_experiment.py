@@ -477,20 +477,21 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	proof_axioms = []
 	other_premise = fol.substitute(universal_formula.operand.antecedent, fol.FOLVariable(universal_formula.variable), instantiated_constant)
 	try:
-		if proof.index(other_premise) in correct_steps:
+		other_premise_index = proof.index(other_premise)
+		if other_premise_index in correct_steps:
 			if formula_index in correct_steps:
-				proof_axioms = [other_premise, universal_formula]
+				proof_axioms = [other_premise_index, formula_index]
 				is_valid = True
 				return (1, True, False, proof_axioms)
 			elif formula_index in skip_steps:
-				proof_axioms = [other_premise, universal_formula]
+				proof_axioms = [other_premise_index, formula_index]
 				is_valid_with_skip_steps = True
 			elif missing_axiom:
 				smallest_subproof_size = 2
-		if proof.index(other_premise) in skip_steps:
+		if other_premise_index in skip_steps:
 			if missing_axiom:
 				smallest_subproof_size = 2
-			proof_axioms = [other_premise, universal_formula]
+			proof_axioms = [other_premise_index, formula_index]
 			is_valid_with_skip_steps = True
 	except ValueError:
 		pass
@@ -500,11 +501,11 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	if valid_subproof and num_steps != None:
 		if smallest_subproof_size == None:
 			smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
-			proof_axioms = subproof_axioms + [universal_formula]
+			proof_axioms = subproof_axioms + [formula_index]
 		else:
 			if num_steps + 1 + (1 if missing_axiom else 0) < smallest_subproof_size:
 				smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
-				proof_axioms = subproof_axioms + [universal_formula]
+				proof_axioms = subproof_axioms + [formula_index]
 	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, proof_axioms)
 
 def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps):
@@ -587,7 +588,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 		if type(prev_step) == fol.FOLAnd:
 			for conjunct in prev_step.operands:
 				if conjunct == formula:
-					proof_axioms = [prev_step]
+					proof_axioms = [prev_step_index]
 					smallest_subproof_size = 1
 					break
 		elif type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and type(prev_step.operand.consequent) == fol.FOLAnd:
@@ -605,36 +606,35 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 							break
 
 	# check if this is an instance of DISJUNCTION_ELIMINATION
-	required_disjuncts = []
-	for j in range(proof_index):
-		if proof[j] == formula:
-			required_disjuncts.append((hypotheses[j], j))
-	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
-		if smallest_subproof_size == 1:
-			break
-		if type(prev_step_index) == int:
-			prev_step = proof[prev_step_index]
-		else:
-			missing_axiom = True
-			prev_step = prev_step_index
-		if type(prev_step) == fol.FOLOr:
-			premises = []
-			other_hypotheses = []
-			disjunction_eliminated = True
-			for disjunct in prev_step.operands:
-				found_disjunct = False
-				for j in range(len(required_disjuncts)):
-					if disjunct in required_disjuncts[j][0]:
-						other_hypotheses = list(required_disjuncts[j][0])
-						other_hypotheses.remove(disjunct)
-						premises.append(required_disjuncts[j][1])
-						found_disjunct = True
+	if hypotheses != None and (smallest_subproof_size == None or smallest_subproof_size > 1):
+		required_disjuncts = []
+		for j in range(proof_index):
+			if proof[j] == formula:
+				required_disjuncts.append((hypotheses[j], j))
+		for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
+			if type(prev_step_index) == int:
+				prev_step = proof[prev_step_index]
+			else:
+				missing_axiom = True
+				prev_step = prev_step_index
+			if type(prev_step) == fol.FOLOr:
+				premises = []
+				other_hypotheses = []
+				disjunction_eliminated = True
+				for disjunct in prev_step.operands:
+					found_disjunct = False
+					for j in range(len(required_disjuncts)):
+						if disjunct in required_disjuncts[j][0]:
+							other_hypotheses = list(required_disjuncts[j][0])
+							other_hypotheses.remove(disjunct)
+							premises.append(required_disjuncts[j][1])
+							found_disjunct = True
+							break
+					if not found_disjunct:
+						disjunction_eliminated = False
 						break
-				if not found_disjunct:
-					disjunction_eliminated = False
-					break
-			if disjunction_eliminated:
-				return (1, True, premises + [prev_step_index], prev_step.operands)
+				if disjunction_eliminated:
+					return (1, True, premises + [prev_step_index], prev_step.operands)
 
 	# check if this is an instance of UNIVERSAL_INSTANTIATION
 	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
@@ -821,7 +821,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		for premise in premises:
 			if type(premise) == int:
 				current_hypotheses.extend(hypotheses[premise])
-			else:
+			elif premise in proof[:i]:
 				current_hypotheses.extend(hypotheses[i - proof[(i-1)::-1].index(premise) - 1])
 		for discharged_hypothesis in discharged_hypotheses:
 			current_hypotheses.remove(discharged_hypothesis)
