@@ -503,20 +503,16 @@ def do_parse_fol_from_tptp(string):
 	formula, pos = parse_fol_from_tptp(string, 0, var_map)
 	return formula
 
-def fol_term_to_tptp(term):
-	if type(term) == FOLVariable:
-		return f'X{term.variable}'
-	elif type(term) == FOLConstant:
-		return term.constant
-	elif type(term) == FOLNumber:
-		return term.number
-	elif type(term) == FOLFuncApplication:
-		return term.function + '(' + ','.join([fol_term_to_tptp(arg) for arg in term.args]) + ')'
-	else:
-		raise Exception(f"fol_term_to_tptp ERROR: Unrecognized term type {type(term)}.")
-
 def fol_to_tptp(formula):
-	if type(formula) == FOLAnd:
+	if type(formula) == FOLVariable:
+		return f'X{formula.variable}'
+	elif type(formula) == FOLConstant:
+		return formula.constant
+	elif type(formula) == FOLNumber:
+		return formula.number
+	elif type(formula) == FOLFuncApplication:
+		return formula.function + '(' + ','.join([fol_to_tptp(arg) for arg in formula.args]) + ')'
+	elif type(formula) == FOLAnd:
 		return '(' + ' & '.join([fol_to_tptp(operand) for operand in formula.operands]) + ')'
 	elif type(formula) == FOLOr:
 		return '(' + ' | '.join([fol_to_tptp(operand) for operand in formula.operands]) + ')'
@@ -527,13 +523,13 @@ def fol_to_tptp(formula):
 	elif type(formula) == FOLIff:
 		return '(' + fol_to_tptp(formula.antecedent) + ' <=> ' + fol_to_tptp(formula.consequent) + ')'
 	elif type(formula) == FOLEquals:
-		return '(' + fol_term_to_tptp(formula.left) + '=' + fol_term_to_tptp(formula.right) + ')'
+		return '(' + fol_to_tptp(formula.left) + '=' + fol_to_tptp(formula.right) + ')'
 	elif type(formula) == FOLForAll:
 		return f'![X{formula.variable}]:(' + fol_to_tptp(formula.operand) + ')'
 	elif type(formula) == FOLExists:
 		return f'?[X{formula.variable}]:(' + fol_to_tptp(formula.operand) + ')'
 	elif type(formula) == FOLFuncApplication:
-		return formula.function + '(' + ','.join([fol_term_to_tptp(arg) for arg in formula.args]) + ')'
+		return formula.function + '(' + ','.join([fol_to_tptp(arg) for arg in formula.args]) + ')'
 	else:
 		raise Exception(f"fol_to_tptp ERROR: Unrecognized formula type {type(formula)}.")
 

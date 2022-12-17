@@ -214,7 +214,7 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 						right
 					])
 				])
-		
+
 	elif type(formula) == fol.FOLFuncApplication and formula.function == "ASSUME" and len(formula.args) == 1:
 		subclause = formula_to_clause(formula.args[0], morphology, no_adjectives, invert)
 		return SyntaxNode("S", [
@@ -223,7 +223,7 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 					subclause
 				])
 			])
-		
+
 	elif type(formula) == fol.FOLFuncApplication and formula.function == "CONTRADICTS" and len(formula.args) == 1:
 		subclause = formula_to_clause(formula.args[0], morphology, no_adjectives, invert)
 		return SyntaxNode("S", [
@@ -236,6 +236,13 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 					])
 				])
 			])
+
+	elif type(formula) == fol.FOLFuncApplication and formula.function == "SINCE" and len(formula.args) == 2:
+		first = formula_to_clause(formula.args[0], morphology, no_adjectives, invert)
+		second = formula_to_clause(formula.args[1], morphology, no_adjectives, invert)
+		return SyntaxNode("S", [
+				SyntaxNode("CC", [SyntaxNode("since")]),
+				first, SyntaxNode(","), second])
 
 	elif type(formula) == fol.FOLFuncApplication and len(formula.args) == 1 and type(formula.args[0]) == fol.FOLConstant:
 		right = formula_to_vp_arg(fol.FOLFuncApplication(formula.function, [fol.FOLVariable(1)]), morphology, 1, False, no_adjectives)
@@ -590,6 +597,16 @@ def parse_clause(tokens, index, morphology):
 		if lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("ASSUME", [lf]), index, invert)
+	elif tokens[index].lower() == "since":
+		(lf, index, invert) = parse_clause(tokens, index + 1, morphology)
+		if lf == None or index == len(tokens):
+			return (None, None, None)
+		if tokens[index] == ',':
+			index += 1
+		(right_lf, index, invert) = parse_clause(tokens, index, morphology)
+		if right_lf == None:
+			return (None, None, None)
+		return (fol.FOLFuncApplication("SINCE", [lf, right_lf]), index, invert)
 	elif index + 2 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "with":
 		(lf, index, invert) = parse_clause(tokens, index + 3, morphology)
 		if lf == None:
@@ -649,6 +666,7 @@ def parse_clause(tokens, index, morphology):
 	else:
 		return (None, None, None) # outside the coverage of the grammar
 
+	old_index = index
 	if index < len(tokens):
 		# this may be coordination
 		is_conjunction = False
@@ -682,6 +700,9 @@ def parse_clause(tokens, index, morphology):
 			lf = fol.FOLAnd([lf] + remainder_lf.operands)
 		elif type(remainder_lf) == fol.FOLOr:
 			lf = fol.FOLOr([lf] + remainder_lf.operands)
+		else:
+			# this just a comma followed by a non-coordinated clause
+			index = old_index
 
 	return (lf, index, invert)
 

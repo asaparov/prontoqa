@@ -450,9 +450,12 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentence, fol.fol_to_tptp(proof_formula), fol.fol_to_tptp(parsed_lf)))
 			chain_of_thought.append(sentence)
 
-		# if this formula follows a `CONTRADICTS` instance, then add a newline
 		if k > 0 and type(proof_formulas[k - 1]) == fol.FOLFuncApplication and proof_formulas[k - 1].function == "CONTRADICTS":
+			# if this formula follows a `CONTRADICTS` instance, then add a newline
 			chain_of_thought[-1] = chain_of_thought[-1] + '\n\n'
+		if type(proof_formula) == fol.FOLFuncApplication and proof_formula.function in {"ASSUME", "SINCE"} and len(chain_of_thought) > 1 and chain_of_thought[-2][-2:] != '\n\n':
+			# if this formula is an `ASSUME` instance, then add a newline
+			chain_of_thought[-2] = chain_of_thought[-2] + '\n\n'
 	return (question_text, query, formulas + premises, chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):
@@ -493,7 +496,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 		pass
 
 	# this could be provable with additional steps of universal instantiation
-	(num_steps, valid_subproof, subproof_axioms, proof_index) = is_provable(other_premise, axioms, proof, proof_index, correct_steps, skip_steps)
+	(num_steps, valid_subproof, subproof_axioms, _) = is_provable(other_premise, axioms, proof, proof_index, correct_steps, skip_steps)
 	if valid_subproof and num_steps != None:
 		if smallest_subproof_size == None:
 			smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
@@ -505,7 +508,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, proof_axioms)
 
 def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps):
-	for prev_step_index in (correct_steps + skip_steps + axioms):
+	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
 		if type(prev_step_index) == int:
 			missing_axiom = False
 			prev_step = proof[prev_step_index]
@@ -520,10 +523,10 @@ def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps)
 		return (num_steps, valid_subproof, subproof_axioms, proof_index)
 	return (None, False, [], proof_index)
 
-def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, assumptions=None):
+def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, hypotheses=None):
 	# check if this is an axiom
 	if formula in axioms:
-		return (1, True, [formula], proof_index)
+		return (1, True, [], [])
 
 	is_valid = False
 	is_valid_with_skip_steps = False
@@ -532,21 +535,26 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 	smallest_subproof_size = None
 
 	# check if this is provable by PROOF_BY_CONTRADICTION
-	if type(formula) == fol.FOLFuncApplication and formula.function == "CONTRADICTS" and proof_index + 1 < len(proof) and assumptions != None:
+	if type(formula) == fol.FOLFuncApplication and formula.function == "CONTRADICTS" and proof_index + 1 < len(proof) and hypotheses != None:
 		negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
 		(num_steps, valid_subproof, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, skip_steps)
 		if num_steps != None and valid_subproof:
+			# find all hypotheses that could have led to this contradiction
+			possible_hypotheses = []
+			for premise in subproof_axioms:
+				for j in range(proof_index):
+					if proof[j] == premise:
+						possible_hypotheses += hypotheses[j]
 			next_step = proof[proof_index + 1]
 			negation = (next_step.operand if type(next_step) == fol.FOLNot else fol.FOLNot(next_step))
-			if negation in assumptions:
-				assumptions.remove(negation)
+			if negation in possible_hypotheses:
 				smallest_subproof_size = num_steps + 1
 				proof_axioms = subproof_axioms + [negation]
-				return (smallest_subproof_size, valid_subproof, proof_axioms, proof_index + 1)
+				return (smallest_subproof_size, valid_subproof, proof_axioms, [negation])
 			else:
-				return (None, True, [], proof_index)
+				return (None, True, [], [])
 		else:
-			return (None, True, [], proof_index)
+			return (None, True, [], [])
 
 	# check if this is an instance of CONJUNCTION_INTRODUCTION or DISJUNCTION_INTRODUCTION
 	if type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
@@ -568,7 +576,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 					smallest_subproof_size += num_steps
 
 	# check if this is an instance of CONJUNCTION_ELIMINATION
-	for prev_step_index in (correct_steps + skip_steps + axioms):
+	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
 		if smallest_subproof_size == 1:
 			break
 		if type(prev_step_index) == int:
@@ -596,8 +604,40 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 						if is_valid:
 							break
 
+	# check if this is an instance of DISJUNCTION_ELIMINATION
+	required_disjuncts = []
+	for j in range(proof_index):
+		if proof[j] == formula:
+			required_disjuncts.append((hypotheses[j], j))
+	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
+		if smallest_subproof_size == 1:
+			break
+		if type(prev_step_index) == int:
+			prev_step = proof[prev_step_index]
+		else:
+			missing_axiom = True
+			prev_step = prev_step_index
+		if type(prev_step) == fol.FOLOr:
+			premises = []
+			other_hypotheses = []
+			disjunction_eliminated = True
+			for disjunct in prev_step.operands:
+				found_disjunct = False
+				for j in range(len(required_disjuncts)):
+					if disjunct in required_disjuncts[j][0]:
+						other_hypotheses = list(required_disjuncts[j][0])
+						other_hypotheses.remove(disjunct)
+						premises.append(required_disjuncts[j][1])
+						found_disjunct = True
+						break
+				if not found_disjunct:
+					disjunction_eliminated = False
+					break
+			if disjunction_eliminated:
+				return (1, True, premises + [prev_step_index], prev_step.operands)
+
 	# check if this is an instance of UNIVERSAL_INSTANTIATION
-	for prev_step_index in (correct_steps + skip_steps + axioms):
+	for prev_step_index in (correct_steps[::-1] + skip_steps + axioms):
 		if type(prev_step_index) == int:
 			prev_step = proof[prev_step_index]
 		else:
@@ -616,10 +656,10 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, skip_steps, 
 					break
 
 	if is_valid:
-		return (1, True, proof_axioms, proof_index)
+		return (1, True, proof_axioms, [])
 	if is_valid_with_skip_steps:
-		return (1, False, proof_axioms, proof_index)
-	return (smallest_subproof_size, True, proof_axioms, proof_index)
+		return (1, False, proof_axioms, [])
+	return (smallest_subproof_size, True, proof_axioms, [])
 
 def find_path_length(provability_graph, src, dst):
 	queue = [(src, 0)]
@@ -693,12 +733,24 @@ def decapitalize(sentence):
 	else:
 		return sentence[0].lower() + sentence[1:]
 
+def split_since_formulas(formulas):
+	i = 0
+	while i < len(formulas):
+		if type(formulas[i]) == fol.FOLFuncApplication and formulas[i].function == "SINCE":
+			formulas.insert(i + 1, formulas[i].args[1])
+			formulas[i] = formulas[i].args[0]
+		i += 1
+	return formulas
+
 def evaluate_response(response_proof, response_label, expected_answer, axioms, proofs_only):
 	if proofs_only:
 		expected_proof = parse_reasoning(expected_answer)
 	else:
 		expected_label_index = expected_answer.rfind(' ')
 		expected_proof = parse_reasoning(expected_answer[:expected_label_index])
+
+	expected_proof = split_since_formulas(expected_proof)
+	response_proof = split_since_formulas(response_proof)
 
 	# construct a graph of provable universally quantified rules from the axioms
 	provability_graph = {}
@@ -729,13 +781,15 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	found_conclusion = False
 	found_conclusion_with_skip_steps = False
 	found_conclusion_with_non_atomic_steps = False
-	assumptions = []
+	hypotheses = []
 	i = 0
 	while i < len(proof):
 		proof_step = proof[i]
+		current_hypotheses = []
 		if proof_step == None:
 			unparseable_steps.append(i)
 			incorrect_steps.append(i)
+			hypotheses.append(current_hypotheses)
 			i += 1
 			continue
 
@@ -743,7 +797,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		if type(proof_step) == fol.FOLFuncApplication and proof_step.function == "ASSUME":
 			proof_step = proof_step.args[0]
 			proof[i] = proof_step
-			assumptions.append(proof_step)
+			current_hypotheses.append(proof_step)
 			is_assumption = True
 
 		is_useful = (proof_step in expected_proof)
@@ -754,17 +808,23 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		if not is_useful and proof_step in axioms and type(proof_step) == fol.FOLForAll and type(proof_step.operand) == fol.FOLIfThen and type(proof_step.operand.antecedent) == fol.FOLFuncApplication and last_step != None and last_step in expected_proof and type(last_step) == fol.FOLFuncApplication and proof_step.operand.antecedent.function == last_step.function:
 			wrong_branch_steps.append(i)
 
-		if not (type(proof_step) == fol.FOLFuncApplication and proof_step.function == "CONTRADICTS") and proof_step in proof[:i]:
-			redundant_steps.append(i)
-			i += 1
-			continue
-
 		if is_assumption:
 			correct_steps.append(i)
+			hypotheses.append(current_hypotheses)
 			i += 1
 			continue
 
-		(num_steps, is_valid, premises, i) = is_provable(proof_step, axioms, proof, i, correct_steps, skip_steps, assumptions)
+		(num_steps, is_valid, premises, discharged_hypotheses) = is_provable(proof_step, axioms, proof, i, correct_steps, skip_steps, hypotheses)
+		if num_steps != None and type(proof_step) == fol.FOLFuncApplication and proof_step.function == "CONTRADICTS":
+			hypotheses.append(current_hypotheses)
+			i += 1
+		for premise in premises:
+			if type(premise) == int:
+				current_hypotheses.extend(hypotheses[premise])
+			else:
+				current_hypotheses.extend(hypotheses[i - proof[(i-1)::-1].index(premise) - 1])
+		for discharged_hypothesis in discharged_hypotheses:
+			current_hypotheses.remove(discharged_hypothesis)
 		if num_steps == 1:
 			if is_valid:
 				correct_steps.append(i)
@@ -772,17 +832,21 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 					correct_and_useful_steps.append(i)
 				if is_conclusion:
 					found_conclusion = True
+				hypotheses.append(current_hypotheses)
 				i += 1
 				continue
 			else:
 				skip_steps.append(i)
 				if is_conclusion:
 					found_conclusion_with_skip_steps = True
+				hypotheses.append(current_hypotheses)
 				i += 1
 				continue
 		elif num_steps != None:
 			are_premises_useful = True
 			for premise in premises:
+				if type(premise) == int:
+					premise = proof[premise]
 				if premise not in expected_proof:
 					are_premises_useful = False
 					break
@@ -792,6 +856,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 				useful_non_atomic_steps.append(i)
 			if is_conclusion:
 				found_conclusion_with_non_atomic_steps = True
+			hypotheses.append(current_hypotheses)
 			i += 1
 			continue
 
@@ -833,6 +898,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 				invalid_steps.append(i)
 
 		# we can't find a matching deduction rule, so label this step as incorrect
+		hypotheses.append(current_hypotheses)
 		incorrect_steps.append(i)
 		i += 1
 

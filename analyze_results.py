@@ -247,7 +247,7 @@ if len(argv) > 1:
 	print("Skip steps: {}".format(skip_step_count / total_steps))
 	print("Invalid steps: {}".format(invalid_step_count / total_steps))
 	print("Correct and useful steps: {}".format(len(all_correct_and_useful_steps) / total_steps))
-	print("Redundant steps: {}".format(len(all_redundant_steps) / total_steps))
+	#print("Redundant steps: {}".format(len(all_redundant_steps) / total_steps))
 	print("Unparseable steps: {}".format(len(all_unparseable_steps) / total_steps))
 	print("Incorrect steps: {}".format(len(all_incorrect_steps) / total_steps))
 

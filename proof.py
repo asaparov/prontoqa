@@ -293,7 +293,7 @@ def generate_proof_by_cases_question(theory, entity_name, num_deduction_steps=No
 		instantiation_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_step, assumption], fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 		subproofs.append(instantiation_step)
 
-	proof = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, subproofs, fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
+	proof = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, subproofs + [premise_axiom], fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 
 	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
@@ -308,5 +308,9 @@ def linearize_proof_steps(last_step):
 	elif last_step.step_type == ProofStepType.PROOF_BY_CONTRADICTION:
 		contradicts_step = ProofStep(ProofStepType.AXIOM, [], fol.FOLFuncApplication("CONTRADICTS", [last_step.premises[0].conclusion]))
 		return linearize_proof_steps(last_step.premises[1]) + [contradicts_step, last_step]
+	elif last_step.step_type == ProofStepType.DISJUNCTION_ELIMINATION:
+		prev_steps = list(itertools.chain.from_iterable([linearize_proof_steps(premise) for premise in last_step.premises[:-1]]))
+		elim_step = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, last_step.premises[:-1], fol.FOLFuncApplication("SINCE", [last_step.premises[-1].conclusion, last_step.conclusion]))
+		return prev_steps + [elim_step]
 	else:
 		return list(itertools.chain.from_iterable([linearize_proof_steps(premise) for premise in last_step.premises])) + [last_step]
