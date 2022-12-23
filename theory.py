@@ -180,6 +180,12 @@ def get_properties_formula(formulas, node, deduction_rule):
 	)))
 
 def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
+	if type(theory) == list:
+		formulas = []
+		for element in theory:
+			formulas.extend(get_formulas(element, ordering, deduction_rule))
+		return formulas
+
 	formulas = []
 	if ordering == "postorder":
 		if deduction_rule == "ProofByContra":

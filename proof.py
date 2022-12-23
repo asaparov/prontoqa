@@ -275,10 +275,13 @@ def generate_de_morgans_question(theory, entity_name, num_deduction_steps=None, 
 	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
 
-def generate_proof_by_cases_question(theory, entity_name, num_deduction_steps=None, proof_width=2):
+def generate_proof_by_cases_question(theories, entity_name, num_deduction_steps=None, proof_width=2):
 	assert num_deduction_steps - 1 == 1
 
-	premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in theory.children])
+	theory = theories[0] # generate the question from the non-distractor ontology
+	distractor_theory = theories[1]
+	premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in theory.children[:proof_width]])
+	distractor_premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in distractor_theory.children[:proof_width]])
 	premise_axiom = ProofStep(ProofStepType.AXIOM, [], premise)
 	
 	subproofs = []
@@ -295,7 +298,10 @@ def generate_proof_by_cases_question(theory, entity_name, num_deduction_steps=No
 
 	proof = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, subproofs + [premise_axiom], fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 
-	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
+	premises = [premise, distractor_premise]
+	shuffle(premises)
+	#premises = [distractor_premise, premise]
+	return (premises, proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
 
 def linearize_proof_steps(last_step):

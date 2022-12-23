@@ -45,6 +45,7 @@
 .*\stupus.*
 .*\sduffus.*
 .*\simpuse\s.*
+.*an\simpuse.*
 .*jmpus\s.*
 ^Red\sis.*
 ^Brown\sis.*
