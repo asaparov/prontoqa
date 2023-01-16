@@ -292,6 +292,22 @@ morphology.add_noun("herbivore", "herbivores")
 morphology.add_noun("shepherd", "shepherds")
 morphology.add_noun("icon", "icons")
 morphology.add_noun("bumblebee", "bumblebees")
+morphology.add_noun("lemur", "lemurs")
+morphology.add_noun("flower", "flowers")
+morphology.add_noun("fig", "figs")
+morphology.add_noun("positive number", "positive numbers")
+morphology.add_noun("light", "lights")
+morphology.add_noun("word", "words")
+morphology.add_noun("spice", "spices")
+morphology.add_noun("human", "humans")
+morphology.add_noun("material", "materials")
+morphology.add_noun("mouse", "mice")
+morphology.add_noun("armadillo", "armadillos")
+morphology.add_noun("creature", "creatures")
+morphology.add_noun("dragonfly", "dragonflies")
+morphology.add_noun("virus", "viruses")
+morphology.add_noun("grape", "grapes")
+morphology.add_noun("mineral", "minerals")
 
 available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 for name in available_entity_names:
@@ -335,11 +351,13 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 
 		if deduction_rule == "ProofByContra":
 			# we only need a theory with one universally-quantified rule
-			concept_names = sample(available_concept_names, proof_width + 1)
+			concept_names = sample(available_concept_names, 3 + proof_width)
 			root = OntologyNode(concept_names[0], None)
+			distractor_root = OntologyNode(concept_names[1], None)
 			for i in range(proof_width):
-				child = OntologyNode(concept_names[i + 1], root)
-			theory = root
+				_ = OntologyNode(concept_names[3 + i], root)
+				_ = OntologyNode(concept_names[3 + i], distractor_root)
+			theory = [root, distractor_root]
 		elif deduction_rule == "OrElim":
 			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
 			root = OntologyNode(concept_names[0], None)
@@ -379,7 +397,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
 
 	if deduction_rule == "ProofByContra":
-		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, num_deduction_steps, proof_width)
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, distractor_concept, num_deduction_steps, proof_width)
 	elif deduction_rule == "OrElim":
 		(premises, conclusion, proof, num_steps, linearized_proof) = generate_proof_by_cases_question(theory, selected_entity, num_deduction_steps, proof_width)
 	else:
@@ -475,6 +493,9 @@ with open('bad_patterns.txt', 'r') as reader:
 	for line in reader:
 		bad_patterns.append(re.compile(line.strip()))
 
+def rindex(items, element):
+	return len(items) - 1 - items[::-1].index(element)
+
 def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps):
 	is_valid = False
 	is_valid_with_non_atomic_steps = False
@@ -483,7 +504,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	proof_axioms = []
 	other_premise = fol.substitute(universal_formula.operand.antecedent, fol.FOLVariable(universal_formula.variable), instantiated_constant)
 	try:
-		other_premise_index = proof.index(other_premise)
+		other_premise_index = rindex(proof[:proof_index], other_premise)
 		if other_premise_index in correct_steps:
 			proof_axioms = [other_premise_index, formula_index]
 			if formula_index in correct_steps:
@@ -719,7 +740,7 @@ def parse_reasoning(response, keep_sentences=False):
 	start = 0
 	lfs = []
 	for end in range(len(tokens)):
-		if tokens[end] == '.':
+		if tokens[end] == '.' or tokens[end] == ';':
 			# parse this sentence
 			lf = parse_sentence(tokens[start:end], morphology, False)
 			if lf == None:
@@ -820,7 +841,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 	i = 0
 	while i < len(proof):
 		proof_step = proof[i]
-		current_hypotheses = []
+		current_hypotheses = set()
 		if proof_step == None:
 			unparseable_steps.append(i)
 			incorrect_steps.append(i)
@@ -832,7 +853,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		if type(proof_step) == fol.FOLFuncApplication and proof_step.function == "ASSUME":
 			proof_step = proof_step.args[0]
 			proof[i] = proof_step
-			current_hypotheses.append(proof_step)
+			current_hypotheses.add(proof_step)
 			is_assumption = True
 
 		is_useful = (proof_step in expected_proof)
@@ -855,9 +876,9 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			i += 1
 		for premise in premises:
 			if type(premise) == int:
-				current_hypotheses.extend(hypotheses[premise])
+				current_hypotheses = set.union(current_hypotheses, hypotheses[premise])
 			elif premise in proof[:i]:
-				current_hypotheses.extend(hypotheses[i - proof[(i-1)::-1].index(premise) - 1])
+				current_hypotheses = set.union(current_hypotheses, hypotheses[rindex(proof[:i], premise)])
 		for discharged_hypothesis in discharged_hypotheses:
 			current_hypotheses.remove(discharged_hypothesis)
 		if num_steps == 1:

@@ -252,10 +252,14 @@ def generate_membership_question(theory, entity_name, num_deduction_steps=None, 
 
 	return (premises, current_step.conclusion, current_step, current_num_steps, linearized_proof)
 
-def generate_de_morgans_question(theory, entity_name, num_deduction_steps=None, proof_width=2):
+def generate_de_morgans_question(theories, entity_name, distractor_concept, num_deduction_steps=None, proof_width=2):
 	assert(num_deduction_steps - 1 == 1)
+
+	theory = theories[0]
+
 	premise = fol.FOLNot(fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 	premise_axiom = ProofStep(ProofStepType.AXIOM, [], premise)
+	distractor_premise = fol.FOLNot(fol.FOLFuncApplication(distractor_concept, [fol.FOLConstant(entity_name)]))
 	antecedent_formula = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children])
 	grounded_antecedent_formula = fol.substitute(antecedent_formula, fol.FOLVariable(1), fol.FOLConstant(entity_name))
 	subsumption_formula = fol.FOLForAll(1, fol.FOLIfThen(antecedent_formula, fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)])))
@@ -272,7 +276,9 @@ def generate_de_morgans_question(theory, entity_name, num_deduction_steps=None, 
 
 	proof = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, subproofs, fol.FOLAnd([subproof.conclusion for subproof in subproofs][::-1]))
 
-	return ([premise], proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
+	premises = [premise, distractor_premise]
+	shuffle(premises)
+	return (premises, proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
 
 def generate_proof_by_cases_question(theories, entity_name, num_deduction_steps=None, proof_width=2):
@@ -300,7 +306,7 @@ def generate_proof_by_cases_question(theories, entity_name, num_deduction_steps=
 
 	premises = [premise, distractor_premise]
 	shuffle(premises)
-	#premises = [distractor_premise, premise]
+	#premises = [distractor_premise, premise] # uncomment to test what happens if the order of these two sentences is fixed
 	return (premises, proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
 

@@ -635,13 +635,14 @@ def parse_clause(tokens, index, morphology):
 			# missing main verb for this clause
 			return (None, None, None)
 
-	if tokens[index] == 'not':
-		is_negated = True
+	num_negations = 0
+	while tokens[index] == 'not':
+		num_negations += 1
 		index += 1
-	else:
-		is_negated = False
 		
 	(right_lf, index, vp_is_plural) = parse_vp_arg(tokens, index, morphology)
+	if right_lf == None:
+		return (None, None, None)
 	if vp_is_plural != None and vp_is_plural != is_plural:
 		return (None, None, None) # grammatical number does not agree
 
@@ -649,8 +650,9 @@ def parse_clause(tokens, index, morphology):
 		if is_plural:
 			return (None, None, None) # outside the coverage of the grammar
 		lf = fol.substitute(right_lf, fol.FOLVariable(1), left_lf)
-		if is_negated:
+		while num_negations > 0:
 			lf = fol.FOLNot(lf)
+			num_negations -= 1
 	elif is_quantified or np_is_plural == True or np_is_plural == None:
 		if np_is_negated:
 			if type(right_lf) == fol.FOLAnd:
@@ -659,10 +661,10 @@ def parse_clause(tokens, index, morphology):
 				remaining_conjuncts = [right_lf]
 			lf = fol.FOLNot(fol.FOLExists(1, fol.FOLAnd([left_lf] + remaining_conjuncts)))
 		else:
-			if is_negated:
-				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, fol.FOLNot(right_lf)))
-			else:
-				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
+			while num_negations > 0:
+				right_lf = fol.FOLNot(right_lf)
+				num_negations -= 1
+			lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
 	else:
 		return (None, None, None) # outside the coverage of the grammar
 

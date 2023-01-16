@@ -159,7 +159,6 @@ def analyze_log(logfile):
 		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) != 0 and len(incorrect_steps) == 0:
 			increment_count(contains_wrong_non_atomic_step)
 		if len(wrong_branch_steps) == 0 and len(useful_skip_steps) == 0 and len(wrong_skip_steps) == 0 and len(useful_non_atomic_steps) == 0 and len(wrong_non_atomic_steps) == 0 and len(incorrect_steps) != 0:
-			print('Proof with ID {} only has invalid steps.'.format(question_id))
 			increment_count(contains_invalid_step)
 
 		if len(wrong_branch_steps) != 0:
@@ -320,10 +319,14 @@ if len(argv) > 1:
 		print("Proportion of incorrect proofs where the \"useless non-atomic step\" is the first mistake: {}".format(get_count(wrong_non_atomic_step_first, offset + 0) / (num_examples - num_correct_proofs)))
 		print("Proportion of incorrect proofs where the \"invalid step\" is the first mistake: {}".format(get_count(invalid_step_first, offset + 0) / (num_examples - num_correct_proofs)))
 
+	incorrect_proof_ids_with_skip_steps = []
 	incorrect_proof_ids_with_skip_or_non_atomic_steps = []
 	for i in range(len(proof_lengths)):
+		if correct_proofs[i] == 0 and correct_proofs_with_skip_steps[i] == 0:
+			incorrect_proof_ids_with_skip_steps.append(i + 1)
 		if correct_proofs[i] == 0 and correct_proofs_with_skip_or_non_atomic_steps[i] == 0:
-			incorrect_proof_ids_with_skip_or_non_atomic_steps.append(i)
+			incorrect_proof_ids_with_skip_or_non_atomic_steps.append(i + 1)
+	print("incorrect_proof_ids_with_skip_steps: {}".format(incorrect_proof_ids_with_skip_steps))
 	print("incorrect_proof_ids_with_skip_or_non_atomic_steps: {}".format(incorrect_proof_ids_with_skip_or_non_atomic_steps))
 	incorrect_proof_with_only_invalid_steps = []
 
