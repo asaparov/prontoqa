@@ -548,7 +548,7 @@ def find_premise(premise, axioms, proof, proof_index, correct_steps, non_atomic_
 			missing_axiom = True
 			prev_step = prev_step_index
 		if prev_step == premise:
-			return (1 if missing_axiom else 0, prev_step_index in correct_steps, prev_step_index in non_atomic_steps, prev_step_index in skip_steps, [prev_step], proof_index)
+			return (1 if missing_axiom else 0, prev_step_index in correct_steps, prev_step_index in non_atomic_steps or prev_step_index in axioms, prev_step_index in skip_steps, [prev_step_index], proof_index)
 
 	(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
 	if num_steps != None:
@@ -594,7 +594,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 		smallest_subproof_size = (1 if type(formula) == fol.FOLAnd else None)
 		for conjunct in formula.operands:
 			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(conjunct, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
-			if num_steps == None or not valid_subproof:
+			if num_steps == None or (not valid_subproof and not valid_subproof_with_non_atomic_steps and not valid_subproof_with_skip_steps):
 				if type(formula) == fol.FOLAnd:
 					proof_axioms = []
 					smallest_subproof_size = None
@@ -623,10 +623,10 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 			for conjunct in prev_step.operands:
 				if conjunct == formula:
 					proof_axioms = [prev_step_index]
-					smallest_subproof_size = 1
+					smallest_subproof_size = 1 + (1 if missing_axiom else 0)
 					if prev_step_index in correct_steps:
 						is_valid = True
-					elif prev_step_index in non_atomic_steps:
+					elif prev_step_index in non_atomic_steps or prev_step_index in axioms:
 						is_valid_with_non_atomic_steps = True
 					elif prev_step_index in skip_steps:
 						is_valid_with_skip_steps = True
@@ -636,6 +636,9 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 			second_var_map = {}
 			for conjunct in prev_step.operand.consequent.operands:
 				if fol.unify(formula, conjunct, first_var_map, second_var_map):
+					# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
+					if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) == formula:
+						continue
 					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
 					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):
 						smallest_subproof_size = antecedent_num_steps + 1
@@ -700,6 +703,9 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 		first_var_map = {}
 		second_var_map = {}
 		if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(formula, prev_step.operand.consequent, first_var_map, second_var_map):
+			# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
+			if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) == formula:
+				continue
 			(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
 			if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps < smallest_subproof_size):
 				smallest_subproof_size = antecedent_num_steps
@@ -747,6 +753,8 @@ def parse_reasoning(response, keep_sentences=False):
 						has_bad_pattern = True
 						break
 				if not has_bad_pattern:
+					import pdb; pdb.set_trace()
+					parse_sentence(tokens[start:end], morphology, False)
 					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
 			if keep_sentences:
 				lfs.append((lf, ' '.join(tokens[start:end])))

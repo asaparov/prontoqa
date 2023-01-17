@@ -535,11 +535,12 @@ def parse_np(tokens, index, morphology):
 
 def parse_vp_arg(tokens, index, morphology):
 	operands = []
+	operand_indices = []
+	operand_plural = []
 	is_conjunction = False
 	is_disjunction = False
 	is_plural = None
 	while index < len(tokens):
-		old_index = index
 		if len(operands) != 0:
 			has_comma = False
 			if tokens[index] == ',':
@@ -556,10 +557,15 @@ def parse_vp_arg(tokens, index, morphology):
 				is_disjunction = True
 				index += 1
 			elif not has_comma:
+				if not is_conjunction and not is_disjunction:
+					# the last comma was actually part of a higher-level coordination
+					del operands[-1]
+					index = operand_indices[-2]
+					is_plural = operand_plural[-2]
 				break
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
-			index = old_index
+			index = operand_indices[-1]
 			break
 		elif operand == None or is_quantified or is_negated:
 			# try parsing as a predicative (ADJP)
@@ -573,15 +579,17 @@ def parse_vp_arg(tokens, index, morphology):
 			elif is_plural != operand_is_plural:
 				return (None, None, None)
 		operands.append(operand)
+		operand_indices.append(index)
+		operand_plural.append(is_plural)
+	# this is ambiguous, since the coordination may either be interpreted at this node or higher in the derivation tree
 	if len(operands) == 1:
-		lf = operands[0]
+		return [(operands[0], index, is_plural)]
 	elif is_conjunction:
-		lf = fol.FOLAnd(operands)
+		return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLAnd(operands), index, is_plural)]
 	elif is_disjunction:
-		lf = fol.FOLOr(operands)
+		return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLOr(operands), index, is_plural)]
 	else:
-		return (None, None, None)
-	return (lf, index, is_plural)
+		return []
 
 def parse_clause(tokens, index, morphology):
 	if tokens[index].lower() == 'is':
@@ -639,74 +647,80 @@ def parse_clause(tokens, index, morphology):
 	while tokens[index] == 'not':
 		num_negations += 1
 		index += 1
-		
-	(right_lf, index, vp_is_plural) = parse_vp_arg(tokens, index, morphology)
-	if right_lf == None:
-		return (None, None, None)
-	if vp_is_plural != None and vp_is_plural != is_plural:
-		return (None, None, None) # grammatical number does not agree
 
-	if type(left_lf) == fol.FOLConstant:
-		if is_plural:
-			return (None, None, None) # outside the coverage of the grammar
-		lf = fol.substitute(right_lf, fol.FOLVariable(1), left_lf)
-		while num_negations > 0:
-			lf = fol.FOLNot(lf)
-			num_negations -= 1
-	elif is_quantified or np_is_plural == True or np_is_plural == None:
-		if np_is_negated:
-			if type(right_lf) == fol.FOLAnd:
-				remaining_conjuncts = right_lf.operands
-			else:
-				remaining_conjuncts = [right_lf]
-			lf = fol.FOLNot(fol.FOLExists(1, fol.FOLAnd([left_lf] + remaining_conjuncts)))
-		else:
+	vp_args = parse_vp_arg(tokens, index, morphology)
+	outputs = []
+	for (right_lf, index, vp_is_plural) in vp_args:
+		if vp_is_plural != None and vp_is_plural != is_plural:
+			continue # grammatical number does not agree
+
+		if type(left_lf) == fol.FOLConstant:
+			if is_plural:
+				continue # outside the coverage of the grammar
+			lf = fol.substitute(right_lf, fol.FOLVariable(1), left_lf)
 			while num_negations > 0:
-				right_lf = fol.FOLNot(right_lf)
+				lf = fol.FOLNot(lf)
 				num_negations -= 1
-			lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
-	else:
-		return (None, None, None) # outside the coverage of the grammar
-
-	old_index = index
-	if index < len(tokens):
-		# this may be coordination
-		is_conjunction = False
-		is_disjunction = False
-		if tokens[index] == ',':
-			index += 1
-		if tokens[index] == 'and':
-			if is_disjunction:
-				return (None, None, None)
-			is_conjunction = True
-			index += 1
-		elif tokens[index] == 'or':
-			if is_conjunction:
-				return (None, None, None)
-			is_disjunction = True
-			index += 1
-		(remainder_lf, index, remainder_invert) = parse_clause(tokens, index, morphology)
-		if remainder_lf == None:
-			return (None, None, None)
-		if is_conjunction:
-			if type(remainder_lf) == fol.FOLAnd:
-				lf = fol.FOLAnd([lf] + remainder_lf.operands)
+		elif is_quantified or np_is_plural == True or np_is_plural == None:
+			if np_is_negated:
+				if type(right_lf) == fol.FOLAnd:
+					remaining_conjuncts = right_lf.operands
+				else:
+					remaining_conjuncts = [right_lf]
+				lf = fol.FOLNot(fol.FOLExists(1, fol.FOLAnd([left_lf] + remaining_conjuncts)))
 			else:
-				lf = fol.FOLAnd([lf, remainder_lf])
-		elif is_disjunction:
-			if type(remainder_lf) == fol.FOLOr:
+				while num_negations > 0:
+					right_lf = fol.FOLNot(right_lf)
+					num_negations -= 1
+				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
+		else:
+			continue # outside the coverage of the grammar
+
+		old_index = index
+		if index < len(tokens):
+			# this may be coordination
+			is_conjunction = False
+			is_disjunction = False
+			if tokens[index] == ',':
+				index += 1
+			if tokens[index] == 'and':
+				if is_disjunction:
+					return (None, None, None)
+				is_conjunction = True
+				index += 1
+			elif tokens[index] == 'or':
+				if is_conjunction:
+					return (None, None, None)
+				is_disjunction = True
+				index += 1
+			(remainder_lf, index, remainder_invert) = parse_clause(tokens, index, morphology)
+			if remainder_lf == None:
+				continue
+			if is_conjunction:
+				if type(remainder_lf) == fol.FOLAnd:
+					lf = fol.FOLAnd([lf] + remainder_lf.operands)
+				else:
+					lf = fol.FOLAnd([lf, remainder_lf])
+			elif is_disjunction:
+				if type(remainder_lf) == fol.FOLOr:
+					lf = fol.FOLOr([lf] + remainder_lf.operands)
+				else:
+					lf = fol.FOLOr([lf, remainder_lf])
+			elif type(remainder_lf) == fol.FOLAnd:
+				lf = fol.FOLAnd([lf] + remainder_lf.operands)
+			elif type(remainder_lf) == fol.FOLOr:
 				lf = fol.FOLOr([lf] + remainder_lf.operands)
 			else:
-				lf = fol.FOLOr([lf, remainder_lf])
-		elif type(remainder_lf) == fol.FOLAnd:
-			lf = fol.FOLAnd([lf] + remainder_lf.operands)
-		elif type(remainder_lf) == fol.FOLOr:
-			lf = fol.FOLOr([lf] + remainder_lf.operands)
-		else:
-			# this just a comma followed by a non-coordinated clause
-			index = old_index
+				# this just a comma followed by a non-coordinated clause
+				index = old_index
 
-	return (lf, index, invert)
+		outputs.append((lf, index, invert))
+
+	if len(outputs) == 0:
+		return (None, None, None)
+	elif len(outputs) != 1:
+		raise Exception("Sentence is ambiguous")
+	return outputs[0]
 
 def parse_sentence(sentence, morphology, expect_invert=None):
 	if type(sentence) == str:
