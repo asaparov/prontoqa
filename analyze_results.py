@@ -321,13 +321,17 @@ if len(argv) > 1:
 
 	incorrect_proof_ids_with_skip_steps = []
 	incorrect_proof_ids_with_skip_or_non_atomic_steps = []
+	diff = []
 	for i in range(len(proof_lengths)):
 		if correct_proofs[i] == 0 and correct_proofs_with_skip_steps[i] == 0:
 			incorrect_proof_ids_with_skip_steps.append(i + 1)
+			if correct_proofs_with_skip_or_non_atomic_steps[i] != 0:
+				diff.append(i + 1)
 		if correct_proofs[i] == 0 and correct_proofs_with_skip_or_non_atomic_steps[i] == 0:
 			incorrect_proof_ids_with_skip_or_non_atomic_steps.append(i + 1)
 	print("incorrect_proof_ids_with_skip_steps: {}".format(incorrect_proof_ids_with_skip_steps))
 	print("incorrect_proof_ids_with_skip_or_non_atomic_steps: {}".format(incorrect_proof_ids_with_skip_or_non_atomic_steps))
+	print("incorrect_proof_ids_with_skip_or_non_atomic_steps \ incorrect_proof_ids_with_skip_steps: {}".format(diff))
 	incorrect_proof_with_only_invalid_steps = []
 
 	if correct_labels != None:
