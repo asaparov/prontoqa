@@ -1170,10 +1170,10 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			train_proof_width = args.proof_width
 			available_train_rules.remove("ProofByContra")
 		elif args.deduction_rule == "OrElim":
-			train_proof_steps = 3
+			train_proof_steps = 3 + 1
 			train_proof_width = args.proof_width
 		elif args.deduction_rule == "ProofByContra":
-			train_proof_steps = 3
+			train_proof_steps = 3 + 1
 			train_proof_width = args.proof_width
 		else:
 			raise Exception("OOD experiments for deduction rule {} is unimplemented.".format(args.deduction_rule))
@@ -1190,7 +1190,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 					curr_deduction_rule = choice(available_train_rules)
 					if curr_deduction_rule == 'ModusPonens':
 						curr_proof_steps = train_proof_steps
-						curr_proof_width = 1
+						curr_proof_width = 2
 					elif curr_deduction_rule == 'AndIntro':
 						curr_proof_steps = train_proof_steps
 						curr_proof_width = train_proof_width
@@ -1201,10 +1201,10 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 						curr_proof_steps = train_proof_steps
 						curr_proof_width = train_proof_width
 					elif curr_deduction_rule == 'OrElim':
-						curr_proof_steps = 2
+						curr_proof_steps = 1 + 1
 						curr_proof_width = train_proof_width
 					elif curr_deduction_rule == 'ProofByContra':
-						curr_proof_steps = 2
+						curr_proof_steps = 1 + 1
 						curr_proof_width = train_proof_width
 					else:
 						raise NotImplementedError()
