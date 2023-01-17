@@ -9,6 +9,8 @@ import argparse
 import getpass
 import re
 
+AVAILABLE_DEDUCTION_RULES = ["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"]
+
 class Morphology(object):
 	def __init__(self):
 		self.plural_nouns = {}
@@ -505,8 +507,9 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	other_premise = fol.substitute(universal_formula.operand.antecedent, fol.FOLVariable(universal_formula.variable), instantiated_constant)
 	try:
 		other_premise_index = rindex(proof[:proof_index], other_premise)
+		smallest_subproof_size = 1 + (1 if missing_axiom else 0)
+		proof_axioms = [other_premise_index, formula_index]
 		if other_premise_index in correct_steps:
-			proof_axioms = [other_premise_index, formula_index]
 			if formula_index in correct_steps:
 				is_valid = True
 				return (1, True, False, False, proof_axioms)
@@ -514,18 +517,11 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 				is_valid_with_non_atomic_steps = True
 			elif formula_index in skip_steps:
 				is_valid_with_skip_steps = True
-			elif missing_axiom:
-				smallest_subproof_size = 2
 		if other_premise_index in non_atomic_steps:
-			if missing_axiom:
-				smallest_subproof_size = 2
-			proof_axioms = [other_premise_index, formula_index]
 			is_valid_with_non_atomic_steps = True
 		if other_premise_index in skip_steps:
-			if missing_axiom:
-				smallest_subproof_size = 2
-			proof_axioms = [other_premise_index, formula_index]
 			is_valid_with_skip_steps = True
+		return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, is_valid_with_non_atomic_steps, proof_axioms)
 	except ValueError:
 		pass
 
@@ -544,7 +540,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, is_valid_with_non_atomic_steps, proof_axioms)
 
 def find_premise(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps):
-	for prev_step_index in (correct_steps[::-1] + non_atomic_steps + skip_steps + axioms):
+	for prev_step_index in (list(range(proof_index - 1, -1, -1)) + axioms):
 		if type(prev_step_index) == int:
 			missing_axiom = False
 			prev_step = proof[prev_step_index]
@@ -615,7 +611,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 					is_valid = True
 
 	# check if this is an instance of CONJUNCTION_ELIMINATION
-	for prev_step_index in (correct_steps[::-1] + non_atomic_steps + skip_steps + axioms):
+	for prev_step_index in (list(range(proof_index - 1, -1, -1)) + axioms):
 		if smallest_subproof_size == 1:
 			break
 		if type(prev_step_index) == int:
@@ -695,7 +691,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 			return (1, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises + [prev_step_index], prev_step.operands)
 
 	# check if this is an instance of UNIVERSAL_INSTANTIATION
-	for prev_step_index in (correct_steps[::-1] + non_atomic_steps + skip_steps + axioms):
+	for prev_step_index in list(range(proof_index - 1, -1, -1)):
 		if type(prev_step_index) == int:
 			prev_step = proof[prev_step_index]
 		else:
@@ -871,6 +867,11 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			continue
 
 		(num_steps, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises, discharged_hypotheses) = is_provable(proof_step, axioms, proof, i, correct_steps, non_atomic_steps, skip_steps, hypotheses)
+		for premise in premises:
+			# if any premise is invalid, do not consider this step as correct
+			if premise in incorrect_steps:
+				num_steps = None
+				break
 		if num_steps != None and type(proof_step) == fol.FOLFuncApplication and proof_step.function == "CONTRADICTS":
 			hypotheses.append(current_hypotheses)
 			i += 1
@@ -934,13 +935,13 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			path_exists = True
 			for antecedent in antecedents:
 				for consequent in consequents:
-					if find_path_length(provability_graph, antecedent, consequent) == -1:
+					path_len = find_path_length(provability_graph, antecedent, consequent)
+					if path_len == -1 or path_len > 2:
 						path_exists = False
 						break
 				if not path_exists:
 					break
 			if path_exists:
-				skip_steps.append(i)
 				# check if this step is actually useful for completing the proof
 				first_var_map = {}
 				second_var_map = {}
@@ -960,6 +961,11 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 					wrong_skip_steps.append(i)
 				else:
 					useful_skip_steps.append(i)
+
+				skip_steps.append(i)
+				hypotheses.append(current_hypotheses)
+				i += 1
+				continue
 			else:
 				invalid_steps.append(i)
 
@@ -1147,6 +1153,30 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			shuffle(available_concept_names)
 		else:
 			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
+	available_train_rules = list(AVAILABLE_DEDUCTION_RULES)
+	if args.OOD:
+		available_train_rules.remove(args.deduction_rule)
+		if args.deduction_rule == "ModusPonens":
+			raise Exception("OOD experiments for ModusPonens is unsupported. (the proofs for other deduction rules contain modus ponens steps)")
+		elif args.deduction_rule == "AndIntro":
+			train_proof_steps = num_proof_steps
+			train_proof_width = args.proof_width
+			available_train_rules.remove("ProofByContra")
+		elif args.deduction_rule == "AndElim":
+			train_proof_steps = num_proof_steps
+			train_proof_width = args.proof_width
+		elif args.deduction_rule == "OrIntro":
+			train_proof_steps = num_proof_steps
+			train_proof_width = args.proof_width
+			available_train_rules.remove("ProofByContra")
+		elif args.deduction_rule == "OrElim":
+			train_proof_steps = 3
+			train_proof_width = args.proof_width
+		elif args.deduction_rule == "ProofByContra":
+			train_proof_steps = 3
+			train_proof_width = args.proof_width
+		else:
+			raise Exception("OOD experiments for deduction rule {} is unimplemented.".format(args.deduction_rule))
 	while trial < args.num_trials * args.repetitions_per_test:
 		for t in range(args.repetitions_per_test):
 			questions = []
@@ -1155,9 +1185,36 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			answers = []
 			proofs = []
 			for i in range(args.few_shot_examples):
+				if args.OOD:
+					# sample a deduction rule other than the test rule
+					curr_deduction_rule = choice(available_train_rules)
+					if curr_deduction_rule == 'ModusPonens':
+						curr_proof_steps = train_proof_steps
+						curr_proof_width = 1
+					elif curr_deduction_rule == 'AndIntro':
+						curr_proof_steps = train_proof_steps
+						curr_proof_width = train_proof_width
+					elif curr_deduction_rule == 'AndElim':
+						curr_proof_steps = train_proof_steps
+						curr_proof_width = train_proof_width
+					elif curr_deduction_rule == 'OrIntro':
+						curr_proof_steps = train_proof_steps
+						curr_proof_width = train_proof_width
+					elif curr_deduction_rule == 'OrElim':
+						curr_proof_steps = 2
+						curr_proof_width = train_proof_width
+					elif curr_deduction_rule == 'ProofByContra':
+						curr_proof_steps = 2
+						curr_proof_width = train_proof_width
+					else:
+						raise NotImplementedError()
+				else:
+					curr_proof_steps = num_proof_steps
+					curr_proof_width = args.proof_width
+					curr_deduction_rule = args.deduction_rule
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question, query, _, chain_of_thought, answer, proof) = generate_question(num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, args.use_dfs, args.proof_width, args.no_adjectives, args.generate_non_atomic_steps)
+					(question, query, _, chain_of_thought, answer, proof) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps)
 					if question != None:
 						break
 				questions.append(question)
@@ -1246,6 +1303,7 @@ if __name__ == "__main__":
 	parser.add_argument("--proofs-only", action='store_true')
 	parser.add_argument("--use-dfs", action='store_true')
 	parser.add_argument("--disjoint-concept-names", action='store_true')
+	parser.add_argument("--OOD", action='store_true')
 	parser.add_argument("--api-key", type=str, default=None)
 	parser.add_argument("--min-hops", type=int, default=1)
 	parser.add_argument("--max-hops", type=int, default=8)
@@ -1254,7 +1312,7 @@ if __name__ == "__main__":
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference"])
-	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"])
+	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=AVAILABLE_DEDUCTION_RULES)
 	parser.add_argument("--generate-non-atomic-steps", action='store_true')
 	parser.add_argument("--seed", type=int, default=62471893)
 	args = parser.parse_args()
@@ -1264,6 +1322,8 @@ if __name__ == "__main__":
 
 	for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 		log_suffix = '_' + str(hops) + 'hop'
+		if args.OOD:
+			log_suffix += '_OOD'
 		if args.deduction_rule != "ModusPonens":
 			log_suffix += '_' + args.deduction_rule
 		if args.deduction_rule == "ModusPonens" and args.proofs_only:
