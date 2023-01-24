@@ -586,6 +586,8 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 				# find all hypotheses that could have led to this contradiction
 				possible_hypotheses = []
 				for premise in subproof_axioms:
+					if type(premise) == int:
+						premise = proof[premise]
 					for j in range(proof_index):
 						if proof[j] == premise:
 							possible_hypotheses += hypotheses[j]

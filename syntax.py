@@ -436,7 +436,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or", ","}:
+	if tokens[index].lower() in {"and", "or", ",", "a", "an"}:
 		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
@@ -548,12 +548,12 @@ def parse_vp_arg(tokens, index, morphology):
 				has_comma = True
 			if tokens[index] == 'and':
 				if is_disjunction:
-					return (None, None, None)
+					return []
 				is_conjunction = True
 				index += 1
 			elif tokens[index] == 'or':
 				if is_conjunction:
-					return (None, None, None)
+					return []
 				is_disjunction = True
 				index += 1
 			elif not has_comma:
@@ -571,13 +571,13 @@ def parse_vp_arg(tokens, index, morphology):
 			# try parsing as a predicative (ADJP)
 			(operand, index) = parse_adjp(tokens, index, morphology)
 			if operand == None:
-				return (None, None, None)
+				return []
 		else:
 			index = new_index
 			if is_plural == None:
 				is_plural = operand_is_plural
 			elif is_plural != operand_is_plural:
-				return (None, None, None)
+				return []
 		operands.append(operand)
 		operand_indices.append(index)
 		operand_plural.append(is_plural)
