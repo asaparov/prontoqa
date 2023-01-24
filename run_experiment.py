@@ -475,7 +475,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentence, fol.fol_to_tptp(proof_formula), fol.fol_to_tptp(parsed_lf)))
 			chain_of_thought.append(sentence)
 
-		if k > 0 and type(proof_formulas[k - 1]) == fol.FOLFuncApplication and proof_formulas[k - 1].function == "CONTRADICTS":
+		if k > 0 and type(proof_formulas[k - 1]) == fol.FOLFuncApplication and proof_formulas[k - 1].function == "CONTRADICTS" and len(proof_formulas[k - 1].args) != 0:
 			# if this formula follows a `CONTRADICTS` instance, then add a newline
 			chain_of_thought[-1] = chain_of_thought[-1] + '\n\n'
 		if type(proof_formula) == fol.FOLFuncApplication and proof_formula.function in {"ASSUME", "SINCE"} and len(chain_of_thought) > 1 and chain_of_thought[-2][-2:] != '\n\n':
@@ -569,25 +569,36 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 
 	# check if this is provable by PROOF_BY_CONTRADICTION
 	if type(formula) == fol.FOLFuncApplication and formula.function == "CONTRADICTS" and proof_index + 1 < len(proof) and hypotheses != None:
-		negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
-		(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
-		if num_steps != None and valid_subproof:
-			# find all hypotheses that could have led to this contradiction
-			possible_hypotheses = []
-			for premise in subproof_axioms:
-				for j in range(proof_index):
-					if proof[j] == premise:
-						possible_hypotheses += hypotheses[j]
+		if len(formula.args) == 0:
+			if proof_index == 0:
+				return (None, False, False, False, [], [])
+			# assume the contradiction is the previous step
 			next_step = proof[proof_index + 1]
 			negation = (next_step.operand if type(next_step) == fol.FOLNot else fol.FOLNot(next_step))
-			if negation in possible_hypotheses:
-				smallest_subproof_size = num_steps + 1
-				proof_axioms = subproof_axioms + [negation]
-				return (smallest_subproof_size, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, proof_axioms, [negation])
+			if negation in hypotheses[proof_index - 1]:
+				return (1, True, False, False, [proof[proof_index - 1], negation], [negation])
 			else:
 				return (None, False, False, False, [], [])
 		else:
-			return (None, False, False, False, [], [])
+			negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
+			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
+			if num_steps != None and valid_subproof:
+				# find all hypotheses that could have led to this contradiction
+				possible_hypotheses = []
+				for premise in subproof_axioms:
+					for j in range(proof_index):
+						if proof[j] == premise:
+							possible_hypotheses += hypotheses[j]
+				next_step = proof[proof_index + 1]
+				negation = (next_step.operand if type(next_step) == fol.FOLNot else fol.FOLNot(next_step))
+				if negation in possible_hypotheses:
+					smallest_subproof_size = num_steps + 1
+					proof_axioms = subproof_axioms + [negation]
+					return (smallest_subproof_size, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, proof_axioms, [negation])
+				else:
+					return (None, False, False, False, [], [])
+			else:
+				return (None, False, False, False, [], [])
 
 	# check if this is an instance of CONJUNCTION_INTRODUCTION or DISJUNCTION_INTRODUCTION
 	if type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
@@ -650,48 +661,51 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 							break
 
 	# check if this is an instance of DISJUNCTION_ELIMINATION
-	if hypotheses != None and (smallest_subproof_size == None or smallest_subproof_size > 1) and proof_index > 0 and proof_index - 1 in correct_steps and type(proof[proof_index - 1]) == fol.FOLOr:
+	if hypotheses != None and (smallest_subproof_size == None or smallest_subproof_size > 1) and proof_index > 0:
 		required_disjuncts = []
 		for j in range(proof_index):
 			if proof[j] == formula:
 				required_disjuncts.append((hypotheses[j], j, j in correct_steps, j in non_atomic_steps, j in skip_steps))
-		prev_step = proof[proof_index - 1]
+		for prev_step_index in correct_steps[::-1]:
+			prev_step = proof[prev_step_index]
+			if type(prev_step) != fol.FOLOr:
+				continue
 
-		premises = []
-		other_hypotheses = []
-		disjunction_eliminated = True
-		elimination_is_valid = True
-		elimination_is_valid_with_non_atomic_steps = False
-		elimination_is_valid_with_skip_steps = False
-		for disjunct in prev_step.operands:
-			found_disjunct = False
-			for j in range(len(required_disjuncts)):
-				(step_hypotheses, step_index, step_is_valid, step_is_valid_with_non_atomic_steps, step_is_valid_with_skip_steps) = required_disjuncts[j]
-				if not step_is_valid and not step_is_valid_with_non_atomic_steps and not step_is_valid_with_skip_steps:
-					continue
-				if disjunct in step_hypotheses:
-					other_hypotheses = list(step_hypotheses)
-					other_hypotheses.remove(disjunct)
-					premises.append(step_index)
-					found_disjunct = True
-					if not step_is_valid:
-						elimination_is_valid = False
-					if step_is_valid_with_non_atomic_steps:
-						elimination_is_valid_with_non_atomic_steps = True
-					if step_is_valid_with_skip_steps:
-						elimination_is_valid_with_skip_steps = True
+			premises = []
+			other_hypotheses = []
+			disjunction_eliminated = True
+			elimination_is_valid = True
+			elimination_is_valid_with_non_atomic_steps = False
+			elimination_is_valid_with_skip_steps = False
+			for disjunct in prev_step.operands:
+				found_disjunct = False
+				for j in range(len(required_disjuncts)):
+					(step_hypotheses, step_index, step_is_valid, step_is_valid_with_non_atomic_steps, step_is_valid_with_skip_steps) = required_disjuncts[j]
+					if not step_is_valid and not step_is_valid_with_non_atomic_steps and not step_is_valid_with_skip_steps:
+						continue
+					if disjunct in step_hypotheses:
+						other_hypotheses = list(step_hypotheses)
+						other_hypotheses.remove(disjunct)
+						premises.append(step_index)
+						found_disjunct = True
+						if not step_is_valid:
+							elimination_is_valid = False
+						if step_is_valid_with_non_atomic_steps:
+							elimination_is_valid_with_non_atomic_steps = True
+						if step_is_valid_with_skip_steps:
+							elimination_is_valid_with_skip_steps = True
+						break
+				if not found_disjunct:
+					disjunction_eliminated = False
 					break
-			if not found_disjunct:
-				disjunction_eliminated = False
-				break
-		if disjunction_eliminated:
-			if elimination_is_valid:
-				is_valid = True
-			if elimination_is_valid_with_non_atomic_steps:
-				is_valid_with_non_atomic_steps = True
-			if elimination_is_valid_with_skip_steps:
-				is_valid_with_skip_steps = True
-			return (1, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises + [prev_step_index], prev_step.operands)
+			if disjunction_eliminated:
+				if elimination_is_valid:
+					is_valid = True
+				if elimination_is_valid_with_non_atomic_steps:
+					is_valid_with_non_atomic_steps = True
+				if elimination_is_valid_with_skip_steps:
+					is_valid_with_skip_steps = True
+				return (1, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises + [prev_step_index], prev_step.operands)
 
 	# check if this is an instance of UNIVERSAL_INSTANTIATION
 	for prev_step_index in list(range(proof_index - 1, -1, -1)):
@@ -715,6 +729,11 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 				proof_axioms = antecedent_proof_axioms
 				if is_valid:
 					break
+
+	if formula in proof[:proof_index] and hypotheses != None and smallest_subproof_size == None:
+		smallest_subproof_size = 0
+		is_valid = True
+		proof_axioms = [rindex(proof[:proof_index], formula)]
 
 	return (smallest_subproof_size, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, proof_axioms, [])
 
@@ -753,7 +772,7 @@ def parse_reasoning(response, keep_sentences=False):
 						has_bad_pattern = True
 						break
 				if not has_bad_pattern:
-					import pdb; pdb.set_trace()
+					import pdb; pdb.set_trace() # TODO: for debugging; delete this
 					parse_sentence(tokens[start:end], morphology, False)
 					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
 			if keep_sentences:
@@ -797,6 +816,8 @@ def split_since_formulas(formulas):
 	while i < len(formulas):
 		if type(formulas[i]) == fol.FOLFuncApplication and formulas[i].function == "SINCE":
 			formulas.insert(i + 1, formulas[i].args[1])
+			formulas[i] = formulas[i].args[0]
+		if type(formulas[i]) == fol.FOLFuncApplication and formulas[i].function == "HOWEVER":
 			formulas[i] = formulas[i].args[0]
 		i += 1
 	return formulas
@@ -890,7 +911,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 				current_hypotheses = set.union(current_hypotheses, hypotheses[rindex(proof[:i], premise)])
 		for discharged_hypothesis in discharged_hypotheses:
 			current_hypotheses.remove(discharged_hypothesis)
-		if num_steps == 1:
+		if num_steps == 0 or num_steps == 1:
 			if is_valid:
 				correct_steps.append(i)
 				if is_useful:

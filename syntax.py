@@ -591,7 +591,7 @@ def parse_vp_arg(tokens, index, morphology):
 	else:
 		return []
 
-def parse_clause(tokens, index, morphology):
+def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 	if tokens[index].lower() == 'is':
 		is_plural = False
 		invert = True
@@ -606,20 +606,39 @@ def parse_clause(tokens, index, morphology):
 			return (None, None, None)
 		return (fol.FOLFuncApplication("ASSUME", [lf]), index, invert)
 	elif tokens[index].lower() == "since":
-		(lf, index, invert) = parse_clause(tokens, index + 1, morphology)
-		if lf == None or index == len(tokens):
+		(lf, new_index, invert) = parse_clause(tokens, index + 1, morphology)
+		if lf == None:
 			return (None, None, None)
+		elif new_index == len(tokens):
+			# try parsing without coordination
+			(lf, new_index, invert) = parse_clause(tokens, index + 1, morphology, can_be_coordinated=False)
+			if lf == None or new_index == len(tokens):
+				return (None, None, None)
+		index = new_index
 		if tokens[index] == ',':
 			index += 1
 		(right_lf, index, invert) = parse_clause(tokens, index, morphology)
 		if right_lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("SINCE", [lf, right_lf]), index, invert)
+	elif tokens[index].lower() == "however":
+		index += 1
+		if index == len(tokens):
+			return (None, None, None)
+		elif tokens[index] == ',':
+			index += 1
+		(lf, index, invert) = parse_clause(tokens, index, morphology)
+		if lf == None:
+			return (None, None, None)
+		return (fol.FOLFuncApplication("HOWEVER", [lf]), index, invert)
 	elif index + 2 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "with":
 		(lf, index, invert) = parse_clause(tokens, index + 3, morphology)
 		if lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert)
+	elif index + 3 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "is" and tokens[index + 2] == "a" and tokens[index + 3] == "contradiction":
+		index += 4
+		return (fol.FOLFuncApplication("CONTRADICTS", []), index, False)
 	else:
 		is_plural = None
 		invert = False
@@ -676,50 +695,72 @@ def parse_clause(tokens, index, morphology):
 		else:
 			continue # outside the coverage of the grammar
 
-		old_index = index
-		if index < len(tokens):
+		if can_be_coordinated:
 			# this may be coordination
+			has_commas = None
 			is_conjunction = False
 			is_disjunction = False
-			if tokens[index] == ',':
-				index += 1
-			if tokens[index] == 'and':
-				if is_disjunction:
-					return (None, None, None)
-				is_conjunction = True
-				index += 1
-			elif tokens[index] == 'or':
-				if is_conjunction:
-					return (None, None, None)
-				is_disjunction = True
-				index += 1
-			(remainder_lf, index, remainder_invert) = parse_clause(tokens, index, morphology)
-			if remainder_lf == None:
-				continue
-			if is_conjunction:
-				if type(remainder_lf) == fol.FOLAnd:
-					lf = fol.FOLAnd([lf] + remainder_lf.operands)
+			operands = [lf]
+			while index < len(tokens):
+				old_index = index
+				if tokens[index] == ',':
+					if has_commas == False:
+						break
+					has_commas = True
+					index += 1
 				else:
-					lf = fol.FOLAnd([lf, remainder_lf])
+					if has_commas == True:
+						break
+					has_commas = False
+				if tokens[index] == 'and':
+					if is_disjunction:
+						index = old_index
+						break
+					is_conjunction = True
+					index += 1
+				elif tokens[index] == 'or':
+					if is_conjunction:
+						index = old_index
+						break
+					is_disjunction = True
+					index += 1
+				elif not has_commas:
+					break
+				elif is_conjunction or is_disjunction:
+					# found a clause without "and"/"or" after an earlier clause with "and"/"or"
+					index = old_index
+					break
+				(coordinate_lf, index, remainder_invert) = parse_clause(tokens, index, morphology, can_be_coordinated=False)
+				if coordinate_lf == None:
+					index = old_index
+					break
+				operands.append(coordinate_lf)
+
+			if len(operands) == 1:
+				lf = operands[0]
+			elif is_conjunction:
+				lf = fol.FOLAnd(operands)
 			elif is_disjunction:
-				if type(remainder_lf) == fol.FOLOr:
-					lf = fol.FOLOr([lf] + remainder_lf.operands)
-				else:
-					lf = fol.FOLOr([lf, remainder_lf])
-			elif type(remainder_lf) == fol.FOLAnd:
-				lf = fol.FOLAnd([lf] + remainder_lf.operands)
-			elif type(remainder_lf) == fol.FOLOr:
-				lf = fol.FOLOr([lf] + remainder_lf.operands)
+				lf = fol.FOLOr(operands)
 			else:
-				# this just a comma followed by a non-coordinated clause
-				index = old_index
+				continue
 
 		outputs.append((lf, index, invert))
 
 	if len(outputs) == 0:
 		return (None, None, None)
 	elif len(outputs) != 1:
-		raise Exception("Sentence is ambiguous")
+		# filter ambiguous outputs that don't complete the full sentence
+		new_outputs = []
+		for (lf, index, invert) in outputs:
+			if index == len(tokens):
+				new_outputs.append((lf, index, invert))
+		if len(new_outputs) == 1:
+			return new_outputs[0]
+
+		import pdb; pdb.set_trace() # TODO: for debugging; delete this
+		parse_clause(tokens, 0, morphology, can_be_coordinated=can_be_coordinated)
+		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(tokens, [fol.fol_to_tptp(lf[0]) for lf in outputs]))
 	return outputs[0]
 
 def parse_sentence(sentence, morphology, expect_invert=None):

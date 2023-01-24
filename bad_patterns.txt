@@ -241,6 +241,8 @@
 .*\steens\s.*
 ^Vumpuses\sare\s.*\sa\sdumpus.*
 .*\sis\sa\shuman\sis\s.*
+^Each\s\w+\sis\s.*\sand\s\w+mpuses$
 ^Every\s\w+\sis\s.*\sand\s\w+mpuses$
 ^\w+mpuses\sare\s.*\sand\sa\s\w+$
+^\w+mpuses\sare\s.*\sand\san\s\w+$
 ^This\sstatement\sis\sfalse$
