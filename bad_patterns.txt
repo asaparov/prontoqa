@@ -89,6 +89,7 @@
 ^Feline\sis\s.*
 ^Felines\sis\s.*
 ^Wooden\sare\s.*
+^Floral\sis\s.*
 ^Composite\sare\s.*
 ^Kind\sis\s.*
 ^Number\sis\s.*
@@ -190,6 +191,7 @@
 .*\sis\s0$
 .*\sis\s6$
 .*\sis\snot\sthe\ssame\sas\skindness.*
+.*\sis\snot\sthe\ssame\sas\sanger.*
 .*\sisFeisty.*
 ^Crawling\sis\s.*
 ^Fraction\sis\s.*

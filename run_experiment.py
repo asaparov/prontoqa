@@ -498,7 +498,7 @@ with open('bad_patterns.txt', 'r') as reader:
 def rindex(items, element):
 	return len(items) - 1 - items[::-1].index(element)
 
-def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps):
+def is_antecedent_provable(universal_formula, formula_index, instantiated_constant, missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas):
 	is_valid = False
 	is_valid_with_non_atomic_steps = False
 	is_valid_with_skip_steps = False
@@ -526,8 +526,8 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 		pass
 
 	# this could be provable with additional steps
-	(num_steps, valid_subproof, _, _, subproof_axioms, _) = is_provable(other_premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
-	if valid_subproof and num_steps != None:
+	(num_steps, valid_subproof, _, _, subproof_axioms, _) = is_provable(other_premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas)
+	if num_steps != None:
 		if smallest_subproof_size == None:
 			smallest_subproof_size = num_steps + 1 + (1 if missing_axiom else 0)
 			proof_axioms = subproof_axioms + [formula_index]
@@ -539,7 +539,7 @@ def is_antecedent_provable(universal_formula, formula_index, instantiated_consta
 				is_valid_with_non_atomic_steps = True
 	return (smallest_subproof_size, is_valid, is_valid_with_skip_steps, is_valid_with_non_atomic_steps, proof_axioms)
 
-def find_premise(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps):
+def find_premise(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas):
 	for prev_step_index in (list(range(proof_index - 1, -1, -1)) + axioms):
 		if type(prev_step_index) == int:
 			missing_axiom = False
@@ -550,12 +550,12 @@ def find_premise(premise, axioms, proof, proof_index, correct_steps, non_atomic_
 		if prev_step == premise:
 			return (1 if missing_axiom else 0, prev_step_index in correct_steps, prev_step_index in non_atomic_steps or prev_step_index in axioms, prev_step_index in skip_steps, [prev_step_index], proof_index)
 
-	(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
+	(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas)
 	if num_steps != None:
 		return (num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, proof_index)
 	return (None, False, False, False, [], proof_index)
 
-def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, hypotheses=None):
+def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas, hypotheses=None):
 	# check if this is an axiom
 	if formula in axioms:
 		return (1, True, False, False, [], [])
@@ -581,7 +581,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 				return (None, False, False, False, [], [])
 		else:
 			negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
-			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
+			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
 			if num_steps != None and valid_subproof:
 				# find all hypotheses that could have led to this contradiction
 				possible_hypotheses = []
@@ -606,7 +606,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 	if type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
 		smallest_subproof_size = (1 if type(formula) == fol.FOLAnd else None)
 		for conjunct in formula.operands:
-			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(conjunct, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
+			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(conjunct, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
 			if num_steps == None or (not valid_subproof and not valid_subproof_with_non_atomic_steps and not valid_subproof_with_skip_steps):
 				if type(formula) == fol.FOLAnd:
 					proof_axioms = []
@@ -652,7 +652,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 					# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
 					if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) == formula:
 						continue
-					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
+					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
 					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):
 						smallest_subproof_size = antecedent_num_steps + 1
 						is_valid = antecedent_is_valid
@@ -716,21 +716,26 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 		else:
 			missing_axiom = True
 			prev_step = prev_step_index
-		first_var_map = {}
-		second_var_map = {}
-		if type(prev_step) == fol.FOLForAll and type(prev_step.operand) == fol.FOLIfThen and fol.unify(formula, prev_step.operand.consequent, first_var_map, second_var_map):
-			# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
-			if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) == formula:
-				continue
-			(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps)
-			if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps < smallest_subproof_size):
-				smallest_subproof_size = antecedent_num_steps
-				is_valid = (prev_step_index in correct_steps) and antecedent_is_valid
-				is_valid_with_non_atomic_steps = (prev_step_index in non_atomic_steps) or antecedent_is_valid_with_non_atomic_steps
-				is_valid_with_skip_steps = (prev_step_index in skip_steps) or antecedent_is_valid_with_skip_steps
-				proof_axioms = antecedent_proof_axioms
-				if is_valid:
-					break
+		if type(prev_step) == fol.FOLAnd:
+			possible_rules = prev_step.operands
+		else:
+			possible_rules = [prev_step]
+		for possible_rule in possible_rules:
+			first_var_map = {}
+			second_var_map = {}
+			if type(possible_rule) == fol.FOLForAll and type(possible_rule.operand) == fol.FOLIfThen and fol.unify(formula, possible_rule.operand.consequent, first_var_map, second_var_map):
+				# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
+				if fol.substitute(possible_rule.operand.antecedent, fol.FOLVariable(possible_rule.variable), second_var_map[possible_rule.variable]) in prev_formulas + [formula]:
+					continue
+				(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(possible_rule, prev_step_index, second_var_map[possible_rule.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
+				if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps < smallest_subproof_size):
+					smallest_subproof_size = antecedent_num_steps
+					is_valid = (prev_step_index in correct_steps) and antecedent_is_valid and possible_rule == prev_step
+					is_valid_with_non_atomic_steps = (prev_step_index in non_atomic_steps) or antecedent_is_valid_with_non_atomic_steps or ((prev_step_index in correct_steps) and antecedent_is_valid and possible_rule != prev_step)
+					is_valid_with_skip_steps = (prev_step_index in skip_steps) or antecedent_is_valid_with_skip_steps
+					proof_axioms = antecedent_proof_axioms
+					if is_valid:
+						break
 
 	if formula in proof[:proof_index] and hypotheses != None and smallest_subproof_size == None:
 		smallest_subproof_size = 0
@@ -897,7 +902,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			i += 1
 			continue
 
-		(num_steps, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises, discharged_hypotheses) = is_provable(proof_step, axioms, proof, i, correct_steps, non_atomic_steps, skip_steps, hypotheses)
+		(num_steps, is_valid, is_valid_with_non_atomic_steps, is_valid_with_skip_steps, premises, discharged_hypotheses) = is_provable(proof_step, axioms, proof, i, correct_steps, non_atomic_steps, skip_steps, [], hypotheses)
 		for premise in premises:
 			# if any premise is invalid, do not consider this step as correct
 			if premise in incorrect_steps:
@@ -1188,7 +1193,10 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 	if args.OOD:
 		available_train_rules.remove(args.deduction_rule)
 		if args.deduction_rule == "ModusPonens":
-			raise Exception("OOD experiments for ModusPonens is unsupported. (the proofs for other deduction rules contain modus ponens steps)")
+			train_proof_steps = 1 + 1
+			train_proof_width = 3 + 1
+			available_train_rules.remove("OrElim")
+			available_train_rules.remove("ProofByContra")
 		elif args.deduction_rule == "AndIntro":
 			train_proof_steps = num_proof_steps
 			train_proof_width = args.proof_width
@@ -1355,11 +1363,11 @@ if __name__ == "__main__":
 		log_suffix = '_' + str(hops) + 'hop'
 		if args.OOD:
 			log_suffix += '_OOD'
-		if args.deduction_rule != "ModusPonens":
+		if args.OOD or args.deduction_rule != "ModusPonens":
 			log_suffix += '_' + args.deduction_rule
-		if args.deduction_rule == "ModusPonens" and args.proofs_only:
+		if not args.OOD and args.deduction_rule == "ModusPonens" and args.proofs_only:
 			log_suffix += '_ProofsOnly'
-		elif args.deduction_rule != "ModusPonens" and not args.proofs_only:
+		elif not args.OOD and args.deduction_rule != "ModusPonens" and not args.proofs_only:
 			log_suffix += '_NotProofsOnly'
 		if args.prompting != "COT":
 			log_suffix += '_' + args.prompting

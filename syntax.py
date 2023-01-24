@@ -436,7 +436,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or", ",", "a", "an"}:
+	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "therefore"}:
 		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
@@ -524,6 +524,8 @@ def parse_np(tokens, index, morphology):
 				np_operands = lf.operands if type(lf) == fol.FOLAnd else [lf]
 				lf = fol.FOLAnd(adjp_operands + np_operands)
 				break
+			else:
+				return (None, None, None, None, None)
 		else:
 			index = new_index
 			break
@@ -571,13 +573,19 @@ def parse_vp_arg(tokens, index, morphology):
 			# try parsing as a predicative (ADJP)
 			(operand, index) = parse_adjp(tokens, index, morphology)
 			if operand == None:
-				return []
+				if len(operands) != 0:
+					return [(operands[0], operand_indices[0], operand_plural[0])]
+				else:
+					return []
 		else:
 			index = new_index
 			if is_plural == None:
 				is_plural = operand_is_plural
 			elif is_plural != operand_is_plural:
-				return []
+				if len(operands) != 0:
+					return [(operands[0], operand_indices[0], operand_plural[0])]
+				else:
+					return []
 		operands.append(operand)
 		operand_indices.append(index)
 		operand_plural.append(is_plural)
@@ -730,7 +738,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 					# found a clause without "and"/"or" after an earlier clause with "and"/"or"
 					index = old_index
 					break
-				(coordinate_lf, index, remainder_invert) = parse_clause(tokens, index, morphology, can_be_coordinated=False)
+				(coordinate_lf, index, _) = parse_clause(tokens, index, morphology, can_be_coordinated=False)
 				if coordinate_lf == None:
 					index = old_index
 					break
@@ -745,6 +753,19 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			else:
 				continue
 
+			if index + 2 < len(tokens):
+				old_index = index
+				if tokens[index] == ',':
+					index += 1
+				if tokens[index] in {'so', 'therefore'}:
+					(conclusion_lf, index, _) = parse_clause(tokens, index, morphology)
+					if conclusion_lf == None:
+						index = old_index
+					else:
+						lf = fol.FOLFuncApplication("SINCE", [lf, conclusion_lf])
+				else:
+					index = old_index
+
 		outputs.append((lf, index, invert))
 
 	if len(outputs) == 0:
@@ -757,6 +778,15 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 				new_outputs.append((lf, index, invert))
 		if len(new_outputs) == 1:
 			return new_outputs[0]
+
+		# filter outputs where the next token is a verb
+		if not can_be_coordinated:
+			new_outputs = []
+			for (lf, index, invert) in outputs:
+				if index < len(tokens) and tokens[index] not in {"is", "are"}:
+					new_outputs.append((lf, index, invert))
+			if len(new_outputs) == 1:
+				return new_outputs[0]
 
 		import pdb; pdb.set_trace() # TODO: for debugging; delete this
 		parse_clause(tokens, 0, morphology, can_be_coordinated=can_be_coordinated)
