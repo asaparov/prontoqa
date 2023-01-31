@@ -51,7 +51,6 @@
 ^Fruity\sis\s.*
 ^Feisty\sis\s.*
 ^uls.*
-^Therefore.*
 ^For\s.*
 ^Fom\s.*
 ^Fau\s.*

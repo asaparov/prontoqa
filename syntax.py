@@ -436,7 +436,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "therefore"}:
+	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "however", "therefore", "because"}:
 		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
@@ -562,8 +562,12 @@ def parse_vp_arg(tokens, index, morphology):
 				if not is_conjunction and not is_disjunction:
 					# the last comma was actually part of a higher-level coordination
 					del operands[-1]
-					index = operand_indices[-2]
-					is_plural = operand_plural[-2]
+					if len(operand_indices) == 1:
+						index = operand_indices[0]
+						is_plural = operand_plural[0]
+					else:
+						index = operand_indices[-2]
+						is_plural = operand_plural[-2]
 				break
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
@@ -613,7 +617,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		if lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("ASSUME", [lf]), index, invert)
-	elif tokens[index].lower() == "since":
+	elif tokens[index].lower() in "since":
 		(lf, new_index, invert) = parse_clause(tokens, index + 1, morphology)
 		if lf == None:
 			return (None, None, None)
@@ -639,8 +643,28 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		if lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("HOWEVER", [lf]), index, invert)
+	elif tokens[index].lower() == "therefore":
+		index += 1
+		if index == len(tokens):
+			return (None, None, None)
+		elif tokens[index] == ',':
+			index += 1
+		(lf, index, invert) = parse_clause(tokens, index, morphology)
+		if lf == None:
+			return (None, None, None)
+		return (fol.FOLFuncApplication("THEREFORE", [lf]), index, invert)
+	elif index + 1 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "proves":
+		(lf, index, invert) = parse_clause(tokens, index + 2, morphology)
+		if lf == None:
+			return (None, None, None)
+		return (fol.FOLFuncApplication("THEREFORE", [lf]), index, invert)
 	elif index + 2 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "with":
 		(lf, index, invert) = parse_clause(tokens, index + 3, morphology)
+		if lf == None:
+			return (None, None, None)
+		return (fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert)
+	elif index + 4 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "the" and tokens[index + 3] == "fact" and tokens[index + 4] == "that":
+		(lf, index, invert) = parse_clause(tokens, index + 5, morphology)
 		if lf == None:
 			return (None, None, None)
 		return (fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert)
@@ -746,6 +770,8 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 
 			if len(operands) == 1:
 				lf = operands[0]
+			elif not is_disjunction and len(operands) == 2 and type(operands[1]) == fol.FOLFuncApplication and operands[1].function == 'THEREFORE':
+				lf = fol.FOLFuncApplication("SINCE", [operands[0], operands[1].args[0]])
 			elif is_conjunction:
 				lf = fol.FOLAnd(operands)
 			elif is_disjunction:
@@ -758,11 +784,17 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 				if tokens[index] == ',':
 					index += 1
 				if tokens[index] in {'so', 'therefore'}:
-					(conclusion_lf, index, _) = parse_clause(tokens, index, morphology)
+					(conclusion_lf, index, _) = parse_clause(tokens, index + 1, morphology)
 					if conclusion_lf == None:
 						index = old_index
 					else:
 						lf = fol.FOLFuncApplication("SINCE", [lf, conclusion_lf])
+				elif tokens[index] == 'because':
+					(premise_lf, index, _) = parse_clause(tokens, index + 1, morphology)
+					if premise_lf == None:
+						index = old_index
+					else:
+						lf = fol.FOLFuncApplication("SINCE", [premise_lf, lf])
 				else:
 					index = old_index
 
