@@ -284,10 +284,10 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 					])
 				])
 
-	elif type(formula) == fol.FOLAnd:
-		# first check if the conjunction can be expressed as a single noun phrase as in `A is a B`
+	elif type(formula) == fol.FOLAnd or type(formula) == fol.FOLOr:
+		# first check if the coordination can be expressed as a single noun phrase as in "A is a B"
 		entity = None
-		expressible_as_np = not no_adjectives
+		expressible_as_np = True
 		right_lf = []
 		for operand in formula.operands:
 			if type(operand) == fol.FOLFuncApplication and len(operand.args) == 1 and type(operand.args[0]) == fol.FOLConstant and (entity == None or entity == operand.args[0]):
@@ -298,7 +298,11 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 				break
 
 		if expressible_as_np:
-			right = formula_to_vp_arg(fol.FOLAnd(right_lf), morphology, 1, False, no_adjectives)
+			if type(formula) == fol.FOLAnd:
+				right_formula = fol.FOLAnd(right_lf)
+			else:
+				right_formula = fol.FOLOr(right_lf)
+			right = formula_to_vp_arg(right_formula, morphology, 1, False, no_adjectives)
 			if invert:
 				return SyntaxNode("S", [
 						SyntaxNode("V", [SyntaxNode("is")]),
@@ -318,35 +322,19 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 
 		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
 		has_commas = choice([True, False])
+		coordinator = ("and" if type(formula) == fol.FOLAnd else "or")
 		if len(formula.operands) > 2:
 			if has_commas:
 				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
 				result[0::2] = child_nodes
 				child_nodes = result
-				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
+				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(coordinator)]))
 			else:
-				result = [SyntaxNode("CC", [SyntaxNode("and")])] * (len(child_nodes) * 2 - 1)
+				result = [SyntaxNode("CC", [SyntaxNode(coordinator)])] * (len(child_nodes) * 2 - 1)
 				result[0::2] = child_nodes
 				child_nodes = result
 		else:
-			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("and")]))
-		return SyntaxNode("S", child_nodes)
-
-	elif type(formula) == fol.FOLOr:
-		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
-		has_commas = choice([True, False])
-		if len(formula.operands) > 2:
-			if has_commas:
-				result = [SyntaxNode(",")] * (len(child_nodes) * 2 - 1)
-				result[0::2] = child_nodes
-				child_nodes = result
-				child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
-			else:
-				result = [SyntaxNode("CC", [SyntaxNode("or")])] * (len(child_nodes) * 2 - 1)
-				result[0::2] = child_nodes
-				child_nodes = result
-		else:
-			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode("or")]))
+			child_nodes.insert(len(child_nodes) - 1, SyntaxNode("CC", [SyntaxNode(coordinator)]))
 		return SyntaxNode("S", child_nodes)
 
 	else:

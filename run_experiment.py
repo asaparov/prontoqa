@@ -8,6 +8,7 @@ from scipy.special import betaincinv
 import argparse
 import getpass
 import re
+import json
 
 AVAILABLE_DEDUCTION_RULES = ["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"]
 
@@ -353,13 +354,16 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 
 		if deduction_rule == "ProofByContra":
 			# we only need a theory with one universally-quantified rule
-			concept_names = sample(available_concept_names, 3 + proof_width)
+			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
 			root = OntologyNode(concept_names[0], None)
 			distractor_root = OntologyNode(concept_names[1], None)
+			synonymous_root = OntologyNode(concept_names[0], None)
 			for i in range(proof_width):
-				_ = OntologyNode(concept_names[3 + i], root)
-				_ = OntologyNode(concept_names[3 + i], distractor_root)
-			theory = [root, distractor_root]
+				_ = OntologyNode(concept_names[2 + i], root)
+				_ = OntologyNode(concept_names[2 + i], distractor_root)
+			for i in range(proof_width):
+				_ = OntologyNode(concept_names[2 + proof_width + i], synonymous_root)
+			theory = [root, distractor_root, synonymous_root]
 		elif deduction_rule == "OrElim":
 			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
 			root = OntologyNode(concept_names[0], None)
@@ -1161,13 +1165,17 @@ def parse_log(log):
 				current_trial = int(line[len('n: '):line.index(',')])
 				if current_trial != trial + 1:
 					raise ValueError('Trial number is inconsistent on line ' + str(line_number))
-				trial = current_trial
 				normal_statistics = log.readline()
-				if normal_statistics is not None:
+				if normal_statistics is None:
+					break
+				else:
 					index = normal_statistics.find('mean: ')
+					if index == -1:
+						break
 					mean = float(normal_statistics[(index + len('mean: ')):normal_statistics.index(',')])
 				log.readline() # consume the empty line separating each example
 				line_number += 2
+				trial = current_trial
 				resume_position = log.tell()
 				found_summary = True
 				break
@@ -1361,14 +1369,14 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			elif model_name == 'unifiedqa':
 				predict_func = lambda x, **kwargs : unifiedqa.predict(args.model_size.lower(), x, **kwargs)
 			elif model_name == 'dummy':
-				predict_func = lambda x, **kwargs : ''
+				predict_func = lambda x, **kwargs : ('', [])
 
 			if args.prompting == "COT":
-				response = do_chain_of_thought(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only)
+				response, logprobs = do_chain_of_thought(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only)
 			elif args.prompting == "selfconsistency":
-				response = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response)
+				response, logprobs = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response)
 			elif args.prompting == "selectioninference":
-				response = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response, decapitalize)
+				response, logprobs = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response, decapitalize)
 
 			if response == None:
 				print_output('WARNING: Context has too many tokens for this model. Skipping question...', log)
@@ -1393,7 +1401,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				num_correct = 0
 			alpha = num_correct + 1
 			beta = (trial - too_long_responses) -num_correct + 1
-			print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)), log)
+			print_output('n: ' + str(trial) + ', (beta prior) mean: ' + str(alpha/(alpha+beta)) + ', 95% lower bound: ' + str(betaincinv(alpha, beta, 0.025)) + ', 95% upper bound: ' + str(betaincinv(alpha, beta, 0.975)) + ', logprobs: ' + json.dumps(logprobs), log)
 			if trial == too_long_responses:
 				mu = 0.0
 			else:
