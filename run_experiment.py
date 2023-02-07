@@ -135,6 +135,8 @@ morphology.add_noun("harpus", "harpuses")
 morphology.add_noun("lirpus", "lirpuses")
 morphology.add_noun("yompus", "yompuses")
 morphology.add_noun("stopus", "stopuses")
+morphology.add_noun("lorpus", "lorpuses")
+morphology.add_noun("brimpus", "brimpuses")
 morphology.add_noun("timple", "timples")
 morphology.add_noun("yimple", "yimples")
 morphology.add_noun("starple", "starples")
@@ -334,7 +336,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			else:
 				available_concept_names = ["number", "real number", "integer", "natural number", "prime number", "Mersenne prime", "even number", "composite number", "negative number", "fraction"]
 		elif available_concept_names == None:
-			available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus"]
+			available_concept_names = ["wumpus", "yumpus", "zumpus", "dumpus", "rompus", "numpus", "tumpus", "vumpus", "impus", "jompus", "gorpus", "shumpus", "lempus", "sterpus", "grimpus", "lorpus", "brimpus"]
 		else:
 			available_concept_names = available_concept_names.copy()
 		index = randrange(len(available_concept_names))
@@ -350,7 +352,10 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 							["sweet", "sour", "spicy", "bitter"],
 							["floral", "fruity", "earthy"],
 							["hot", "cold", "temperate"],
-							["kind", "mean", "angry", "amenable", "aggressive"]]
+							["kind", "mean", "angry", "amenable", "aggressive"],
+							["melodic", "muffled", "discordant", "loud"],
+							["slow", "moderate", "fast"],
+							["windy", "sunny", "overcast", "rainy", "snowy"]]
 
 		if deduction_rule == "ProofByContra":
 			# we only need a theory with one universally-quantified rule
@@ -382,22 +387,38 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			current_config.proof_width = proof_width
 			if current_config.require_properties:
 				current_config.generate_negation = False
+			current_config.generate_distractor_parents = (deduction_rule == "ModusPonens" or deduction_rule == "AndIntro" or deduction_rule == "OrIntro")
+			current_config.generate_distractor_branch = (deduction_rule == "AndElim")
 			theory = generate_theory(
 							available_concept_names,
 							available_property_families,
 							current_config)
+
+			# generate a distractor ontology containing a root node with a single child node
+			if len(available_concept_names) < 2 or len(available_property_families) < 2:
+				return (None, None, None, None, None, None)
+			current_config.stop_probability = 0.0
+			current_config.max_child_count = 1
+			current_config.require_properties = True
+			current_config.generate_distractor_branch = False
+			distractor_root = generate_theory(
+							sample(available_concept_names, 2),
+							available_property_families,
+							current_config)
+			theory = theory + distractor_root
 		selected_entity = choice(available_entity_names)
 
 	if formula_ordering == "random":
-		formulas = get_formulas(theory, ordering="preorder", deduction_rule=deduction_rule)
+		formulas = get_formulas(theory, [], ordering="preorder", deduction_rule=deduction_rule)
 		shuffle(formulas)
 	else:
-		formulas = get_formulas(theory, ordering=formula_ordering, deduction_rule=deduction_rule)
+		formulas = get_formulas(theory, [], ordering=formula_ordering, deduction_rule=deduction_rule)
 	sentences = []
 	for formula in formulas:
 		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology, no_adjectives)), end_punctuation='.'))
 		parsed_lf = parse_sentence(sentences[-1][:-1], morphology, False)
 		if parsed_lf == None:
+			import pdb; pdb.set_trace()
 			raise Exception("Unable to parse generated sentence: '{}'".format(sentences[-1]))
 		if parsed_lf != formula:
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
@@ -432,7 +453,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]),
 				fol.FOLFuncApplication(conclusion.operand.function, [fol.FOLVariable(1)])
 			))
-	if add_distractor and distractor_lf != None:
+	if add_distractor and not proofs_only and distractor_lf != None:
 		distractor_sentence = inflect(yield_tokens(formula_to_clause(distractor_lf, morphology, no_adjectives)), end_punctuation='.')
 		index = randrange(len(formulas) + 1)
 		formulas.insert(index, distractor_lf)
@@ -654,7 +675,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 			for conjunct in prev_step.operand.consequent.operands:
 				if fol.unify(formula, conjunct, first_var_map, second_var_map):
 					# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
-					if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) == formula:
+					if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) in prev_formulas + [formula]:
 						continue
 					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
 					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):

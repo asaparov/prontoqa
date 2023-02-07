@@ -557,6 +557,10 @@ def parse_vp_arg(tokens, index, morphology):
 						index = operand_indices[-2]
 						is_plural = operand_plural[-2]
 				break
+			elif has_comma:
+				if is_conjunction or is_disjunction:
+					index = operand_indices[-1]
+					break
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
 			index = operand_indices[-1]
@@ -601,75 +605,66 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		invert = True
 		index += 1
 	elif tokens[index].lower() == "assume":
-		(lf, index, invert) = parse_clause(tokens, index + 1, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("ASSUME", [lf]), index, invert)
+		outputs = parse_clause(tokens, index + 1, morphology)
+		return [(fol.FOLFuncApplication("ASSUME", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif tokens[index].lower() in "since":
-		(lf, new_index, invert) = parse_clause(tokens, index + 1, morphology)
-		if lf == None:
-			return (None, None, None)
-		elif new_index == len(tokens):
+		outputs = parse_clause(tokens, index + 1, morphology)
+		if len(outputs) == 1 and outputs[0][1] == len(tokens):
 			# try parsing without coordination
-			(lf, new_index, invert) = parse_clause(tokens, index + 1, morphology, can_be_coordinated=False)
-			if lf == None or new_index == len(tokens):
-				return (None, None, None)
-		index = new_index
-		if tokens[index] == ',':
-			index += 1
-		(right_lf, index, invert) = parse_clause(tokens, index, morphology)
-		if right_lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("SINCE", [lf, right_lf]), index, invert)
+			outputs = parse_clause(tokens, index + 1, morphology, can_be_coordinated=False)
+
+		new_outputs = []
+		for (lf, new_index, invert) in outputs:
+			if new_index == len(tokens):
+				continue
+			if tokens[new_index] == ',':
+				new_index += 1
+			if new_index + 3 < len(tokens) and tokens[new_index:(new_index+4)] == ["the", "statement", "is", "proven"]:
+				new_outputs.append((lf, new_index + 4, invert))
+			else:
+				right_outputs = parse_clause(tokens, new_index, morphology)
+				for (right_lf, right_index, right_invert) in right_outputs:
+					new_outputs.append((fol.FOLFuncApplication("SINCE", [lf, right_lf]), right_index, right_invert))
+		return new_outputs
 	elif tokens[index].lower() == "however":
 		index += 1
 		if index == len(tokens):
-			return (None, None, None)
+			return []
 		elif tokens[index] == ',':
 			index += 1
-		(lf, index, invert) = parse_clause(tokens, index, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("HOWEVER", [lf]), index, invert)
+		outputs = parse_clause(tokens, index, morphology)
+		return [(fol.FOLFuncApplication("HOWEVER", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif tokens[index].lower() == "therefore":
 		index += 1
 		if index == len(tokens):
-			return (None, None, None)
+			return []
 		elif tokens[index] == ',':
 			index += 1
-		(lf, index, invert) = parse_clause(tokens, index, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("THEREFORE", [lf]), index, invert)
+		outputs = parse_clause(tokens, index, morphology)
+		return [(fol.FOLFuncApplication("THEREFORE", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 1 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "proves":
-		(lf, index, invert) = parse_clause(tokens, index + 2, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("THEREFORE", [lf]), index, invert)
+		outputs = parse_clause(tokens, index + 2, morphology)
+		return [(fol.FOLFuncApplication("THEREFORE", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 2 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "with":
-		(lf, index, invert) = parse_clause(tokens, index + 3, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert)
+		outputs = parse_clause(tokens, index + 3, morphology)
+		return [(fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 4 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "the" and tokens[index + 3] == "fact" and tokens[index + 4] == "that":
-		(lf, index, invert) = parse_clause(tokens, index + 5, morphology)
-		if lf == None:
-			return (None, None, None)
-		return (fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert)
+		outputs = parse_clause(tokens, index + 5, morphology)
+		return [(fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 3 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "is" and tokens[index + 2] == "a" and tokens[index + 3] == "contradiction":
 		index += 4
-		return (fol.FOLFuncApplication("CONTRADICTS", []), index, False)
+		return [(fol.FOLFuncApplication("CONTRADICTS", []), index, False)]
 	else:
 		is_plural = None
 		invert = False
 
 	(left_lf, index, np_is_plural, np_is_negated, is_quantified) = parse_np(tokens, index, morphology)
 	if left_lf == None:
-		return (None, None, None)
+		return []
 	if index == len(tokens):
-		return (None, None, None) # clause is incomplete
+		return [] # clause is incomplete
 	if is_plural != None and is_plural != np_is_plural:
-		return (None, None, None) # grammatical number does not agree
+		return [] # grammatical number does not agree
 
 	if not invert:
 		if tokens[index] == 'is':
@@ -680,7 +675,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			index += 1
 		else:
 			# missing main verb for this clause
-			return (None, None, None)
+			return []
 
 	num_negations = 0
 	while tokens[index] == 'not':
@@ -718,6 +713,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		if can_be_coordinated:
 			# this may be coordination
 			has_commas = None
+			original_index = index
 			is_conjunction = False
 			is_disjunction = False
 			operands = [lf]
@@ -750,7 +746,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 					# found a clause without "and"/"or" after an earlier clause with "and"/"or"
 					index = old_index
 					break
-				(coordinate_lf, index, _) = parse_clause(tokens, index, morphology, can_be_coordinated=False)
+				(coordinate_lf, index, _) = parse_singleton_clause(tokens, index, morphology, can_be_coordinated=False)
 				if coordinate_lf == None:
 					index = old_index
 					break
@@ -765,20 +761,20 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			elif is_disjunction:
 				lf = fol.FOLOr(operands)
 			else:
-				continue
+				index = original_index
 
 			if index + 2 < len(tokens):
 				old_index = index
 				if tokens[index] == ',':
 					index += 1
 				if tokens[index] in {'so', 'therefore'}:
-					(conclusion_lf, index, _) = parse_clause(tokens, index + 1, morphology)
+					(conclusion_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology)
 					if conclusion_lf == None:
 						index = old_index
 					else:
 						lf = fol.FOLFuncApplication("SINCE", [lf, conclusion_lf])
 				elif tokens[index] == 'because':
-					(premise_lf, index, _) = parse_clause(tokens, index + 1, morphology)
+					(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology)
 					if premise_lf == None:
 						index = old_index
 					else:
@@ -789,7 +785,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		outputs.append((lf, index, invert))
 
 	if len(outputs) == 0:
-		return (None, None, None)
+		return []
 	elif len(outputs) != 1:
 		# filter ambiguous outputs that don't complete the full sentence
 		new_outputs = []
@@ -797,7 +793,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			if index == len(tokens):
 				new_outputs.append((lf, index, invert))
 		if len(new_outputs) == 1:
-			return new_outputs[0]
+			return [new_outputs[0]]
 
 		# filter outputs where the next token is a verb
 		if not can_be_coordinated:
@@ -806,17 +802,36 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 				if index < len(tokens) and tokens[index] not in {"is", "are"}:
 					new_outputs.append((lf, index, invert))
 			if len(new_outputs) == 1:
-				return new_outputs[0]
+				return [new_outputs[0]]
 
+	return outputs
+
+def parse_singleton_clause(tokens, index, morphology, can_be_coordinated=True):
+	outputs = parse_clause(tokens, index, morphology, can_be_coordinated=can_be_coordinated)
+	if len(outputs) == 0:
+		return (None, None, None)
+	elif len(outputs) != 1:
 		import pdb; pdb.set_trace() # TODO: for debugging; delete this
-		parse_clause(tokens, 0, morphology, can_be_coordinated=can_be_coordinated)
-		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(tokens, [fol.fol_to_tptp(lf[0]) for lf in outputs]))
+		parse_clause(tokens, index, morphology, can_be_coordinated=can_be_coordinated)
+		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(tokens[index:], [fol.fol_to_tptp(lf) for (lf, _, _) in outputs]))
 	return outputs[0]
 
 def parse_sentence(sentence, morphology, expect_invert=None):
 	if type(sentence) == str:
 		sentence = re.findall(r"[\w\-]+|[^\w\s]", sentence)
-	(lf, index, invert) = parse_clause(sentence, 0, morphology)
-	if expect_invert != None and invert != expect_invert:
-		return None # subject and auxiliary were either incorrectly inverted or incorrectly not inverted
-	return lf
+	outputs = parse_clause(sentence, 0, morphology)
+
+	new_outputs = []
+	for (lf, index, invert) in outputs:
+		if (expect_invert != None and invert != expect_invert) or index != len(sentence):
+			continue # subject and auxiliary were either incorrectly inverted or incorrectly not inverted
+		new_outputs.append((lf, index, invert))
+	outputs = new_outputs
+
+	if len(outputs) == 0:
+		return None
+	elif len(outputs) != 1:
+		import pdb; pdb.set_trace() # TODO: for debugging; delete this
+		parse_clause(sentence, 0, morphology)
+		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(sentence, [fol.fol_to_tptp(lf) for (lf, _, _) in outputs]))
+	return outputs[0][0]

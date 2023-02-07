@@ -26,6 +26,7 @@
 ^A\slepidopteran\sis\s.*
 ^A\swren\sis\s.*
 ^She\sis\s.*
+.*\sshe\sis\s.*
 ^True\sor\strue.*
 ^True\sor\sfalse.*
 ^False\sor\strue.*
@@ -131,6 +132,8 @@
 .*\sis\snot\sarthropods.*
 .*\sis\sjompuses.*
 .*\sis\sa\srompuses.*
+.*\sis\sa\syumpuses.*
+.*\sis\sa\svumpuses.*
 .*\sis\sa\sfelines.*
 .*\sis\sa\snot\s.*
 .*\sis\sa\sfruity$
@@ -247,3 +250,12 @@
 ^\w+mpuses\sare\s.*\sand\sa\s\w+$
 ^\w+mpuses\sare\s.*\sand\san\s\w+$
 ^This\sstatement\sis\sfalse$
+.*\w+\sor\sa\s\w+\sand\sa\s\w+.*
+.*\w+\sor\sa\s\w+\sand\sfruity\s.*
+.*\sis\sa\s\w+pus\s,\s\w+pus$
+.*\sis\sjompus\s.*
+^Hot\s,\stemperate\s,\sand\s.*
+.*\sa\stemperate\s,.*
+^This
+^If\s\w+\swere\s.*
+.*\sand\sa\s\w+pus\sis\sdull$

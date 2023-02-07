@@ -22,7 +22,6 @@ def do_chain_of_thought(predict, print_output, questions, queries, chains_of_tho
 	prompt += 'Q: ' + test_question + ' ' + test_query + newline + 'A:'
 	print_output(prompt)
 	try_num = 0
-	import pdb; pdb.set_trace()
 	while True:
 		try:
 			response, logprobs = predict(prompt)
@@ -123,7 +122,6 @@ def do_selection_inference(predict, print_output, questions, queries, chains_of_
 	chain_of_thought = []
 	logprobs = []
 	for iteration in range(5): # TODO: add halt condition
-		import pdb; pdb.set_trace()
 		response, selection_logprobs = predict(sel_prompt + 'Q: ' + test_question + ' ' + test_query)
 		logprobs.append(selection_logprobs)
 		if response == None:
