@@ -677,8 +677,20 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 					# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
 					if fol.substitute(prev_step.operand.antecedent, fol.FOLVariable(prev_step.variable), second_var_map[prev_step.variable]) in prev_formulas + [formula]:
 						continue
-					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
-					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size):
+					expected_premise_indices = [i - 1 for i in range(proof_index + 1) if proof[i] == formula or (type(proof[i]) == fol.FOLAnd and formula in proof[i].operands)]
+					if len(expected_premise_indices) == 0:
+						expected_premise_indices = [proof_index - 1]
+					if type(prev_step_index) == int:
+						if type(prev_step) == fol.FOLAnd:
+							expected_premise_indices.append(prev_step_index)
+						if prev_step_index == proof_index - 1:
+							new_proof_index = proof_index - 1
+						else:
+							new_proof_index = proof_index
+					else:
+						new_proof_index = proof_index
+					(antecedent_num_steps, antecedent_is_valid, antecedent_is_valid_with_non_atomic_steps, antecedent_is_valid_with_skip_steps, antecedent_proof_axioms) = is_antecedent_provable(prev_step, prev_step_index, second_var_map[prev_step.variable], missing_axiom, axioms, proof, new_proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
+					if antecedent_num_steps != None and (smallest_subproof_size == None or antecedent_num_steps + 1 < smallest_subproof_size) and (prev_step_index in expected_premise_indices or any([i in antecedent_proof_axioms for i in expected_premise_indices])):
 						smallest_subproof_size = antecedent_num_steps + 1
 						is_valid = antecedent_is_valid
 						is_valid_with_non_atomic_steps = antecedent_is_valid_with_non_atomic_steps
@@ -1247,7 +1259,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		import opt
 	elif model_name == 'unifiedqa':
 		import unifiedqa
-	elif model_name != 'dummy':
+	elif model_name not in ['dummy', 'json']:
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
 	# set the random seed for reproducibility
@@ -1322,6 +1334,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			train_proof_width = args.proof_width
 		else:
 			raise Exception("OOD experiments for deduction rule {} is unimplemented.".format(args.deduction_rule))
+	examples = {}
 	while trial < args.num_trials * args.repetitions_per_test:
 		for t in range(args.repetitions_per_test):
 			questions = []
@@ -1382,8 +1395,35 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			trial += 1
 			if trial <= resume_trial:
 				continue
-			
-			if model_name == 'gpt3':
+
+			if model_name == 'json':
+				example = {}
+				for i in range(len(questions)):
+					if args.proofs_only:
+						example['in_context_example{}'.format(i)] = {
+							'question' : questions[i],
+							'query' : queries[i],
+							'chain_of_thought' : chains_of_thought[i]}
+					else:
+						example['in_context_example{}'.format(i)] = {
+							'question' : questions[i],
+							'query' : queries[i],
+							'chain_of_thought' : chains_of_thought[i],
+							'answer' : answers[i]}
+				if args.proofs_only:
+					example['test_example'] = {
+						'question' : question,
+						'query' : query,
+						'chain_of_thought' : chain_of_thought}
+				else:
+					example['test_example'] = {
+						'question' : question,
+						'query' : query,
+						'chain_of_thought' : chain_of_thought,
+						'answer' : answer}
+				examples['example{}'.format(trial)] = example
+				continue
+			elif model_name == 'gpt3':
 				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, args.model_size, x, **kwargs)
 			elif model_name == 'opt':
 				predict_func = lambda x, **kwargs : opt.predict(args.model_size, x, opt_server, **kwargs)
@@ -1430,6 +1470,8 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			stddev = np.sqrt(mu*(1 - mu)/(trial - too_long_responses))
 			print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
 			log.flush()
+	if model_name == 'json':
+		json.dump(examples, log, indent=1)
 	log.close()
 	return label_results
 
@@ -1511,6 +1553,8 @@ if __name__ == "__main__":
 			run_experiment("unifiedqa", args, 1 + hops, 1 + hops + args.test_hops_diff, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log")
 		elif args.model_name == 'dummy':
 			run_experiment("dummy", args, 1 + hops, 1 + hops + args.test_hops_diff, "dummy" + log_suffix + ".log")
+		elif args.model_name == 'json':
+			run_experiment("json", args, 1 + hops, 1 + hops + args.test_hops_diff, log_suffix[1:] + ".json")
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break

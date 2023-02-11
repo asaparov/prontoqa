@@ -243,12 +243,13 @@
 .*\sShephard\s.*
 .*\steen\s.*
 .*\steens\s.*
-^Vumpuses\sare\s.*\sa\sdumpus.*
 .*\sis\sa\shuman\sis\s.*
-^Each\s\w+\sis\s.*\sand\s\w+mpuses$
-^Every\s\w+\sis\s.*\sand\s\w+mpuses$
-^\w+mpuses\sare\s.*\sand\sa\s\w+$
-^\w+mpuses\sare\s.*\sand\san\s\w+$
+^Each\s\w+\sis\s.*\sand\s\w+puses$
+^Every\s\w+\sis\s.*\sand\s\w+puses$
+^Sam\sis\s.*\sand\s\w+puses$
+^Polly\sis\s.*\sand\s\w+puses$
+^\w+puses\sare\s.*\sand\sa\s\w+$
+^\w+puses\sare\s.*\sand\san\s\w+$
 ^This\sstatement\sis\sfalse$
 .*\w+\sor\sa\s\w+\sand\sa\s\w+.*
 .*\w+\sor\sa\s\w+\sand\sfruity\s.*
@@ -259,3 +260,4 @@
 ^This
 ^If\s\w+\swere\s.*
 .*\sand\sa\s\w+pus\sis\sdull$
+^Since\sStella\sis\sbright\sand\sa\snumpus\sand\sa\sjompus\sand\sdiscordant\s,\sa\slorpus.*

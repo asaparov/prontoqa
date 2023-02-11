@@ -25,6 +25,7 @@ class OntologyNode(object):
 		self.are_children_disjoint = False
 		for parent in self.parents:
 			parent.children.append(self)
+		self.subsumption_formulas = None
 
 	def count_concepts(self):
 		num_concepts = 1
@@ -172,6 +173,9 @@ def print_ontology(tree, indent=0):
 	print((' ' * indent) + ")")
 
 def get_subsumption_formula(node, deduction_rule):
+	if node.subsumption_formulas != None:
+		return node.subsumption_formulas
+
 	formulas = []
 	if deduction_rule == "AndIntro":
 		for parent in node.parents:
@@ -212,6 +216,7 @@ def get_subsumption_formula(node, deduction_rule):
 				fol.FOLFuncApplication(node.name, [fol.FOLVariable(1)]),
 				fol.FOLFuncApplication(parent.name, [fol.FOLVariable(1)])
 			)))
+	node.subsumption_formulas = formulas
 	return formulas
 
 def get_disjointness_formulas(formulas, node):
