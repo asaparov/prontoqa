@@ -830,7 +830,7 @@ if __name__ == "__main__":
 	parser.add_argument("--disjoint-concept-names", action='store_true')
 	parser.add_argument("--api-key", type=str, default=None)
 	parser.add_argument("--min-hops", type=int, default=1)
-	parser.add_argument("--max-hops", type=int, default=8)
+	parser.add_argument("--max-hops", type=int, default=5)
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
