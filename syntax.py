@@ -24,6 +24,7 @@ def formula_to_np_prime(formula, morphology, quantified_variable, is_plural, no_
 				formula_to_np_prime(other, morphology, quantified_variable, is_plural, no_adjectives)
 			])
 	else:
+		import pdb; pdb.set_trace()
 		raise Exception("formula_to_np_prime ERROR: Unsupported formula type ({}).".format(type(formula)))
 
 def formula_to_np(formula, morphology, quantified_variable, is_plural, is_universally_quantified, is_negated, no_adjectives):
@@ -320,7 +321,7 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 						])
 					])
 
-		child_nodes = [formula_to_clause(operand, morphology, invert=False) for operand in formula.operands]
+		child_nodes = [formula_to_clause(operand, morphology, no_adjectives, invert=False) for operand in formula.operands]
 		has_commas = choice([True, False])
 		coordinator = ("and" if type(formula) == fol.FOLAnd else "or")
 		if len(formula.operands) > 2:

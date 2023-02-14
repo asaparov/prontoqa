@@ -347,9 +347,16 @@ def substitute(formula, src, dst):
 	def apply_substitute(f):
 		if f == src:
 			return dst
+		elif type(src) == FOLVariable and type(f) in [FOLForAll, FOLExists] and src.variable == f.variable:
+			return f
 		else:
 			return f.apply(apply_substitute)
 	return apply_substitute(formula)
+
+def copy(formula):
+	def apply_identity(f):
+		return f.apply(apply_identity)
+	return apply_identity(formula)
 
 def max_variable(formula):
 	max_var = 0
@@ -358,8 +365,33 @@ def max_variable(formula):
 		if type(f) == FOLVariable or type(f) == FOLForAll or type(f) == FOLExists:
 			max_var = max(max_var, f.variable)
 		f.visit(max_variable_visit)
-	formula.visit(max_variable_visit)
+	max_variable_visit(formula)
 	return max_var
+
+def free_variables(formula):
+	free_variables = []
+	bound_variables = []
+	def free_variables_visit(f):
+		nonlocal bound_variables, free_variables
+		if type(f) == FOLVariable and f.variable not in bound_variables and f.variable not in free_variables:
+			free_variables.append(f.variable)
+		if type(f) == FOLForAll or type(f) == FOLExists:
+			bound_variables.append(f.variable)
+		f.visit(free_variables_visit)
+		if type(f) == FOLForAll or type(f) == FOLExists:
+			bound_variables.pop()
+	free_variables_visit(formula)
+	return free_variables
+
+def bound_variables(formula):
+	bound_variables = []
+	def bound_variables_visit(f):
+		nonlocal bound_variables
+		if (type(f) == FOLForAll or type(f) == FOLExists) and f.variable not in bound_variables:
+			bound_variables.append(f.variable)
+		f.visit(bound_variables_visit)
+	bound_variables_visit(formula)
+	return bound_variables
 
 def contains(formula, subtree):
 	found = False

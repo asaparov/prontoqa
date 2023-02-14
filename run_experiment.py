@@ -10,7 +10,7 @@ import getpass
 import re
 import json
 
-AVAILABLE_DEDUCTION_RULES = ["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"]
+AVAILABLE_DEDUCTION_RULES = ["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra", "Composed"]
 
 class Morphology(object):
 	def __init__(self):
@@ -357,7 +357,17 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 							["slow", "moderate", "fast"],
 							["windy", "sunny", "overcast", "rainy", "snowy"]]
 
-		if deduction_rule == "ProofByContra":
+		selected_entity = choice(available_entity_names)
+		if deduction_rule == "Composed":
+			proof = generate_compositional_question(["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"], num_deduction_steps, available_concept_names, selected_entity)
+			conclusion = proof.conclusion
+			linearized_proof = linearize_proof_steps(proof)
+			axioms = get_axioms(proof)
+			premises = [(axiom.conclusion.args[0] if type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME" else axiom.conclusion) for axiom in axioms if fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity))]
+			theory = [(axiom.conclusion.args[0] if type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME" else axiom.conclusion) for axiom in axioms if not fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity))]
+			num_steps = num_deduction_steps
+			import pdb; pdb.set_trace()
+		elif deduction_rule == "ProofByContra":
 			# we only need a theory with one universally-quantified rule
 			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
 			root = OntologyNode(concept_names[0], None)
@@ -406,19 +416,29 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 							available_property_families,
 							current_config)
 			theory = theory + distractor_root
-		selected_entity = choice(available_entity_names)
 
 	if formula_ordering == "random":
-		formulas = get_formulas(theory, [], ordering="preorder", deduction_rule=deduction_rule)
+		if deduction_rule == "Composed":
+			formulas = theory[:]
+		else:
+			formulas = get_formulas(theory, [], ordering="preorder", deduction_rule=deduction_rule)
 		shuffle(formulas)
 	else:
-		formulas = get_formulas(theory, [], ordering=formula_ordering, deduction_rule=deduction_rule)
+		if deduction_rule == "Composed":
+			if formula_ordering == "postorder":
+				formulas = reversed(theory)
+			elif formula_ordering == "random":
+				formulas = theory[:]
+				shuffle(formulas)
+			else:
+				formuals = theory[:]
+		else:
+			formulas = get_formulas(theory, [], ordering=formula_ordering, deduction_rule=deduction_rule)
 	sentences = []
 	for formula in formulas:
 		sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology, no_adjectives)), end_punctuation='.'))
 		parsed_lf = parse_sentence(sentences[-1][:-1], morphology, False)
 		if parsed_lf == None:
-			import pdb; pdb.set_trace()
 			raise Exception("Unable to parse generated sentence: '{}'".format(sentences[-1]))
 		if parsed_lf != formula:
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
@@ -427,7 +447,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, distractor_concept, num_deduction_steps, proof_width)
 	elif deduction_rule == "OrElim":
 		(premises, conclusion, proof, num_steps, linearized_proof) = generate_proof_by_cases_question(theory, selected_entity, num_deduction_steps, proof_width)
-	else:
+	elif deduction_rule != "Composed":
 		generate_questions_about_types = False
 		if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
 			generate_questions_about_types = True
@@ -889,8 +909,6 @@ def parse_reasoning(response, keep_sentences=False):
 						has_bad_pattern = True
 						break
 				if not has_bad_pattern:
-					import pdb; pdb.set_trace() # TODO: for debugging; delete this
-					parse_sentence(tokens[start:end], morphology, False)
 					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
 			if keep_sentences:
 				lfs.append((lf, ' '.join(tokens[start:end])))
@@ -1308,7 +1326,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		else:
 			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
 	available_train_rules = list(AVAILABLE_DEDUCTION_RULES)
-	if args.OOD:
+	if args.OOD or args.deduction_rule == "Composed":
 		available_train_rules.remove(args.deduction_rule)
 		if args.deduction_rule == "ModusPonens":
 			train_proof_steps = 1 + 1
@@ -1332,6 +1350,9 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		elif args.deduction_rule == "ProofByContra":
 			train_proof_steps = 3 + 1
 			train_proof_width = args.proof_width
+		elif args.deduction_rule == "Composed":
+			train_proof_steps = 1 + 1
+			train_proof_width = args.proof_width
 		else:
 			raise Exception("OOD experiments for deduction rule {} is unimplemented.".format(args.deduction_rule))
 	examples = {}
@@ -1343,7 +1364,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			answers = []
 			proofs = []
 			for i in range(args.few_shot_examples):
-				if args.OOD:
+				if args.OOD or args.deduction_rule == "Composed":
 					# sample a deduction rule other than the test rule
 					curr_deduction_rule = choice(available_train_rules)
 					if curr_deduction_rule == 'ModusPonens':
