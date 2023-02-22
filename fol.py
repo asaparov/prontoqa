@@ -393,6 +393,16 @@ def bound_variables(formula):
 	bound_variables_visit(formula)
 	return bound_variables
 
+def predicates(formula):
+	predicate_list = []
+	def predicates_visit(f):
+		nonlocal predicate_list
+		if type(f) == FOLFuncApplication:
+			predicate_list.append(f.function)
+		f.visit(predicates_visit)
+	predicates_visit(formula)
+	return predicate_list
+
 def contains(formula, subtree):
 	found = False
 	def visit(f):
@@ -483,7 +493,7 @@ def parse_fol_literal_from_tptp(string, pos, var_map):
 		pos += 1
 	else:
 		formula, pos = parse_fol_term_from_tptp(string, pos, var_map)
-		if string[pos] == '=':
+		if pos < len(string) and string[pos] == '=':
 			other, pos = parse_fol_literal_from_tptp(string, pos + 1, var_map)
 			formula = FOLEquals(formula, other)
 	return formula, pos
@@ -509,8 +519,8 @@ def parse_fol_from_tptp(string, pos, var_map):
 				pos += 1
 			other, pos = parse_fol_literal_from_tptp(string, pos, var_map)
 			operands.append(other)
-			while string[pos].isspace():
-				pos += 1
+			if pos == len(string):
+				break
 			while string[pos].isspace():
 				pos += 1
 			if string[pos] == operator:

@@ -97,7 +97,7 @@ def formula_to_adjp(formula, morphology, quantified_variable):
 		adjective = formula.function
 		return SyntaxNode("ADJP", [SyntaxNode("ADJ", [SyntaxNode(adjective)])])
 	else:
-		raise Exception("formula_to_adjp ERROR: Unsupported formula type.")
+		raise Exception("formula_to_adjp ERROR: Unsupported formula type ({}).".format(fol.fol_to_tptp(formula)))
 
 def formula_to_vp_arg(formula, morphology, quantified_variable, is_plural, no_adjectives):
 	if type(formula) == fol.FOLFuncApplication and not morphology.is_noun(formula.function):
@@ -456,7 +456,7 @@ def parse_np(tokens, index, morphology):
 		operands = []
 		is_conjunction = False
 		is_disjunction = False
-		while True:
+		while index < len(tokens):
 			if len(operands) != 0:
 				has_comma = False
 				if tokens[index] == ',':
@@ -483,7 +483,9 @@ def parse_np(tokens, index, morphology):
 			else:
 				index = new_index
 			operands.append(operand)
-		if is_conjunction:
+		if len(operands) == 1:
+			lf = operands[0]
+		elif is_conjunction:
 			lf = fol.FOLAnd(operands)
 		elif is_disjunction:
 			lf = fol.FOLOr(operands)
@@ -531,6 +533,12 @@ def parse_vp_arg(tokens, index, morphology):
 	is_conjunction = False
 	is_disjunction = False
 	is_plural = None
+	if tokens[index] == 'either':
+		is_disjunction = True
+		index += 1
+	elif tokens[index] == 'both':
+		is_conjunction = True
+		index += 1
 	while index < len(tokens):
 		if len(operands) != 0:
 			has_comma = False
@@ -562,6 +570,11 @@ def parse_vp_arg(tokens, index, morphology):
 				if is_conjunction or is_disjunction:
 					index = operand_indices[-1]
 					break
+		if tokens[index] == 'not':
+			negated = True
+			index += 1
+		else:
+			negated = False
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
 			index = operand_indices[-1]
@@ -575,6 +588,8 @@ def parse_vp_arg(tokens, index, morphology):
 				else:
 					return []
 		else:
+			if negated:
+				operand = fol.FOLNot(operand)
 			index = new_index
 			if is_plural == None:
 				is_plural = operand_is_plural
@@ -587,7 +602,7 @@ def parse_vp_arg(tokens, index, morphology):
 		operand_indices.append(index)
 		operand_plural.append(is_plural)
 	# this is ambiguous, since the coordination may either be interpreted at this node or higher in the derivation tree
-	if len(operands) == 1:
+	if len(operands) == 1 and not is_conjunction and not is_disjunction:
 		return [(operands[0], index, is_plural)]
 	elif is_conjunction:
 		return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLAnd(operands), index, is_plural)]

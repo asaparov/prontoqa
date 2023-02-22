@@ -363,10 +363,34 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			conclusion = proof.conclusion
 			linearized_proof = linearize_proof_steps(proof)
 			axioms = get_axioms(proof)
-			premises = [(axiom.conclusion.args[0] if type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME" else axiom.conclusion) for axiom in axioms if fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity))]
-			theory = [(axiom.conclusion.args[0] if type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME" else axiom.conclusion) for axiom in axioms if not fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity))]
+			premises = [axiom.conclusion for axiom in axioms if fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity)) and not (type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME")]
+			theory = [axiom.conclusion for axiom in axioms if not fol.contains(axiom.conclusion, fol.FOLConstant(selected_entity)) and not (type(axiom.conclusion) == fol.FOLFuncApplication and axiom.conclusion.function == "ASSUME")]
 			num_steps = num_deduction_steps
-			import pdb; pdb.set_trace()
+
+			if add_distractor:
+				predicates = []
+				for step in linearized_proof:
+					for predicate in fol.predicates(step.conclusion):
+						if predicate not in predicates:
+							predicates.append(predicate)
+				distractor_concepts = [c for c in available_concept_names if c not in predicates]
+				distractors = generate_compositional_distractors(proof, distractor_concepts, selected_entity)
+				if distractors == None:
+					return (None, None, None, None, None, None)
+				theory.extend([remove_assumptions(d) for d in distractors])
+				if type(premises[0]) in [fol.FOLAnd, fol.FOLOr]:
+					if len(distractor_concepts) < len(premises[0].operands):
+						return (None, None, None, None, None, None)
+					selected_concepts = sample(distractor_concepts, len(premises[0].operands))
+					if type(premises[0]) == fol.FOLAnd:
+						new_premise = fol.FOLAnd([fol.FOLFuncApplication(selected_concepts[i], [fol.FOLConstant(selected_entity)]) for i in range(len(selected_concepts))])
+					else:
+						new_premise = fol.FOLOr([fol.FOLFuncApplication(selected_concepts[i], [fol.FOLConstant(selected_entity)]) for i in range(len(selected_concepts))])
+				else:
+					if len(distractor_concepts) == 0:
+						return (None, None, None, None, None, None)
+					new_premise = fol.FOLFuncApplication(choice(distractor_concepts), [fol.FOLConstant(selected_entity)])
+				premises.insert(randrange(0, len(premises)), new_premise)
 		elif deduction_rule == "ProofByContra":
 			# we only need a theory with one universally-quantified rule
 			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
@@ -627,7 +651,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 		else:
 			negation = (formula.args[0].operand if type(formula.args[0]) == fol.FOLNot else fol.FOLNot(formula.args[0]))
 			(num_steps, valid_subproof, valid_subproof_with_non_atomic_steps, valid_subproof_with_skip_steps, subproof_axioms, _) = find_premise(negation, axioms, proof, proof_index, correct_steps, non_atomic_steps, skip_steps, prev_formulas + [formula])
-			if num_steps != None and valid_subproof:
+			if num_steps != None and (valid_subproof or valid_subproof_with_non_atomic_steps or valid_subproof_with_skip_steps):
 				# find all hypotheses that could have led to this contradiction
 				possible_hypotheses = []
 				for premise in subproof_axioms:
@@ -1043,6 +1067,7 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 		if num_steps != None and type(proof_step) == fol.FOLFuncApplication and proof_step.function == "CONTRADICTS":
 			hypotheses.append(current_hypotheses)
 			i += 1
+			is_conclusion = (proof[i] == expected_proof[-1])
 		for premise in premises:
 			if type(premise) == int:
 				current_hypotheses = set.union(current_hypotheses, hypotheses[premise])
@@ -1328,6 +1353,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 	available_train_rules = list(AVAILABLE_DEDUCTION_RULES)
 	if args.OOD or args.deduction_rule == "Composed":
 		available_train_rules.remove(args.deduction_rule)
+		available_train_rules.remove("Composed")
 		if args.deduction_rule == "ModusPonens":
 			train_proof_steps = 1 + 1
 			train_proof_width = 3 + 1
@@ -1445,11 +1471,11 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				examples['example{}'.format(trial)] = example
 				continue
 			elif model_name == 'gpt3':
-				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, args.model_size, x, **kwargs)
+				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, args.model_size, x, stop='Q:', **kwargs)
 			elif model_name == 'opt':
-				predict_func = lambda x, **kwargs : opt.predict(args.model_size, x, opt_server, **kwargs)
+				predict_func = lambda x, **kwargs : opt.predict(args.model_size, x, opt_server, stop='Q:', **kwargs)
 			elif model_name == 'unifiedqa':
-				predict_func = lambda x, **kwargs : unifiedqa.predict(args.model_size.lower(), x, **kwargs)
+				predict_func = lambda x, **kwargs : unifiedqa.predict(args.model_size.lower(), x, stop='Q:', **kwargs)
 			elif model_name == 'dummy':
 				predict_func = lambda x, **kwargs : ('', [])
 

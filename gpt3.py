@@ -1,12 +1,29 @@
 import urllib.request
 from urllib.error import HTTPError
 import json
+import time
 
-def predict(api_key, model_name, prompt, temperature=0, logprobs=5, n=1):
+last_request_time = float('-inf')
+
+def predict(api_key, model_name, prompt, temperature=0, logprobs=5, n=1, stop=None, min_query_interval=None):
+	# limit the rate of the queries
+	if min_query_interval == None:
+		if model_name in ['code-davinci-001', 'code-cushman-001', 'code-davinci-002']:
+			min_query_interval = 10.0
+		else:
+			min_query_interval = 0.0
+	global last_request_time
+	current_request_time = time.monotonic()
+	if current_request_time - last_request_time < min_query_interval:
+		time.sleep(min_query_interval - (current_request_time - last_request_time))
+	last_request_time = time.monotonic()
+
 	header = { 'Content-Type' : 'application/json', 'Authorization' : 'Bearer ' + api_key }
 	data = { 'model' : model_name, 'prompt' : prompt, 'temperature' : temperature, 'max_tokens' : 1024 }
 	if logprobs != None:
 		data['logprobs'] = logprobs
+	if stop != None:
+		data['stop'] = stop
 	if n != 1:
 		data['n'] = n
 	request = urllib.request.Request('https://api.openai.com/v1/completions', headers=header, data=json.dumps(data).encode())
