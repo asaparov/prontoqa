@@ -9,6 +9,7 @@ import argparse
 import getpass
 import re
 import json
+import sys
 
 AVAILABLE_DEDUCTION_RULES = ["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra", "Composed"]
 
@@ -915,7 +916,7 @@ def find_path_length(provability_graph, src, dst):
 			visited.add(next_consequent)
 	return -1
 
-def parse_reasoning(response, keep_sentences=False):
+def parse_reasoning(response, errors, keep_sentences=False):
 	# first tokenize the response
 	tokens = re.findall(r"[\w\-]+|[^\w\s]", response)
 
@@ -924,7 +925,12 @@ def parse_reasoning(response, keep_sentences=False):
 	for end in range(len(tokens)):
 		if tokens[end] == '.' or tokens[end] == ';':
 			# parse this sentence
-			lf = parse_sentence(tokens[start:end], morphology, False)
+			try:
+				lf = parse_sentence(tokens[start:end], morphology, False)
+			except Exception as e:
+				errors.append(e)
+				start = end + 1
+				continue
 			if lf == None:
 				# check that this sentence is in the list of expected bad patterns
 				has_bad_pattern = False
@@ -933,7 +939,10 @@ def parse_reasoning(response, keep_sentences=False):
 						has_bad_pattern = True
 						break
 				if not has_bad_pattern:
-					raise Exception("Unable to parse sentence \"{}.\"".format(' '.join(tokens[start:end])))
+					e = UnableToParseError(tokens[start:end])
+					errors.append(e)
+					start = end + 1
+					continue
 			if keep_sentences:
 				lfs.append((lf, ' '.join(tokens[start:end])))
 			else:
@@ -960,9 +969,10 @@ def parse_response(response):
 		if possible_label not in acceptable_answers['True'] and possible_label not in acceptable_answers['False']:
 			label_index = last_period_index + 1
 
-	proof = parse_reasoning(response[:label_index])
+	errors = []
+	proof = parse_reasoning(response[:label_index], errors)
 	label = response[(label_index + 1):].lower()
-	return (proof, label)
+	return (proof, label, errors)
 
 def decapitalize(sentence):
 	if morphology.is_proper_noun(sentence[:sentence.find(' ')]):
@@ -981,12 +991,12 @@ def split_since_formulas(formulas):
 		i += 1
 	return formulas
 
-def evaluate_response(response_proof, response_label, expected_answer, axioms, proofs_only):
+def evaluate_response(response_proof, response_label, expected_answer, axioms, proofs_only, parse_errors):
 	if proofs_only:
-		expected_proof = parse_reasoning(expected_answer)
+		expected_proof = parse_reasoning(expected_answer, parse_errors)
 	else:
 		expected_label_index = expected_answer.rfind(' ')
-		expected_proof = parse_reasoning(expected_answer[:expected_label_index])
+		expected_proof = parse_reasoning(expected_answer[:expected_label_index], parse_errors)
 
 	expected_proof = split_since_formulas(expected_proof)
 	response_proof = split_since_formulas(response_proof)
@@ -1190,6 +1200,7 @@ def parse_log(log):
 	last_question = None
 	sample_predictions = []
 	proofs_only = False
+	parse_errors = []
 	while True:
 		# look for the next line beginning with 'Predicted answer:'
 		line = log.readline()
@@ -1262,7 +1273,8 @@ def parse_log(log):
 
 		if len(sample_predictions) != 0:
 			# this question was answered using self-consistency, so compute the aggregated answer
-			predicted_answer = aggregate_sample_predictions(sample_predictions, parse_response)
+			predicted_answer, errors = aggregate_sample_predictions(sample_predictions, parse_response)
+			parse_errors.extend(errors)
 
 		# evaluate the correctness of this example
 		if predicted_answer[-1] == '\n':
@@ -1281,8 +1293,9 @@ def parse_log(log):
 					raise ValueError("Log contains examples generated with and without 'proofs-only'.")
 				last_question = last_question[:last_question.index('Prove:')]
 				proofs_only = True
-			(predicted_proof, predicted_label) = parse_response(predicted_answer)
-			result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question), proofs_only)
+			(predicted_proof, predicted_label, errors) = parse_response(predicted_answer)
+			parse_errors.extend(errors)
+			result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question, parse_errors), proofs_only, parse_errors)
 			results.append(result)
 			(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 			label_results.append(label)
@@ -1290,7 +1303,7 @@ def parse_log(log):
 			expected_mean = np.sum(label_results) / (trial - too_long_responses)
 			#if mean == None or np.abs(mean - expected_mean) > 1.0e-9:
 				#raise ValueError('parse_log ERROR: The reported mean ({}) differs from the calculated mean ({}).'.format(mean, expected_mean))
-	return (trial, too_long_responses, results, label_results, resume_position)
+	return (trial, too_long_responses, results, label_results, resume_position, parse_errors)
 
 def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_file):
 	global gpt_api_key
@@ -1314,7 +1327,13 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 	if args.resume:
 		log = open(log_file, "a+")
 		log.seek(0)
-		(resume_trial, too_long_responses, results, label_results, truncate_pos) = parse_log(log)
+		parse_errors = []
+		(resume_trial, too_long_responses, results, label_results, truncate_pos, parse_errors) = parse_log(log)
+		if len(parse_errors) != 0:
+			print('There were errors while parsing the existing log file:')
+			for e in parse_errors:
+				print(e)
+			sys.exit(1)
 		print('Resuming previous experiment at trial ' + str(resume_trial + 1))
 		log.truncate(truncate_pos)
 	else:
@@ -1322,7 +1341,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		resume_trial = 0
 		label_results = []
 
-	available_concept_names = None		
+	available_concept_names = None
 	if args.disjoint_concept_names:
 		if args.ontology == "fictional":
 			available_concept_names = [
@@ -1498,7 +1517,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				print_output('\nExpected answer: ' + ' '.join(chain_of_thought), log)
 				if not args.proofs_only:
 					print_output(' ' + answer, log)
-				#(predicted_proof, predicted_label) = parse_response(response)
+				#(predicted_proof, predicted_label, parse_errors) = parse_response(response)
 				#result = evaluate_response(predicted_proof, predicted_label, ' '.join(chain_of_thought) + ' ' + answer, question_lfs, args.proofs_only)
 				#(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 

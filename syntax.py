@@ -3,6 +3,17 @@ import fol
 import re
 from random import randrange, choice
 
+class UnableToParseError(Exception):
+	def __init__(self, tokens):
+		self.tokens = tokens
+		super().__init__("Unable to parse sentence: {}".format(tokens))
+
+class AmbiguousParseError(Exception):
+	def __init__(self, tokens, logical_forms):
+		self.tokens = tokens
+		self.logical_forms = logical_forms
+		super().__init__("Sentence {} has multiple semantic parses: {}".format(tokens, [fol.fol_to_tptp(lf) for lf in logical_forms]))
+
 class SyntaxNode(object):
 	def __init__(self, label, children=None):
 		self.label = label
@@ -558,11 +569,11 @@ def parse_vp_arg(tokens, index, morphology):
 			elif not has_comma:
 				if not is_conjunction and not is_disjunction:
 					# the last comma was actually part of a higher-level coordination
-					del operands[-1]
 					if len(operand_indices) == 1:
 						index = operand_indices[0]
 						is_plural = operand_plural[0]
 					else:
+						del operands[-1]
 						index = operand_indices[-2]
 						is_plural = operand_plural[-2]
 				break
@@ -578,6 +589,9 @@ def parse_vp_arg(tokens, index, morphology):
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
 			index = operand_indices[-1]
+			if len(operands) == 1:
+				is_conjunction = False
+				is_disjunction = False
 			break
 		elif operand == None or is_quantified or is_negated:
 			# try parsing as a predicative (ADJP)
@@ -611,7 +625,7 @@ def parse_vp_arg(tokens, index, morphology):
 	else:
 		return []
 
-def parse_clause(tokens, index, morphology, can_be_coordinated=True):
+def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_sentence=False):
 	if tokens[index].lower() == 'is':
 		is_plural = False
 		invert = True
@@ -621,7 +635,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 		invert = True
 		index += 1
 	elif tokens[index].lower() == "assume":
-		outputs = parse_clause(tokens, index + 1, morphology)
+		outputs = parse_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("ASSUME", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif tokens[index].lower() in "since":
 		outputs = parse_clause(tokens, index + 1, morphology)
@@ -638,7 +652,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			if new_index + 3 < len(tokens) and tokens[new_index:(new_index+4)] == ["the", "statement", "is", "proven"]:
 				new_outputs.append((lf, new_index + 4, invert))
 			else:
-				right_outputs = parse_clause(tokens, new_index, morphology)
+				right_outputs = parse_clause(tokens, new_index, morphology, complete_sentence=complete_sentence)
 				for (right_lf, right_index, right_invert) in right_outputs:
 					new_outputs.append((fol.FOLFuncApplication("SINCE", [lf, right_lf]), right_index, right_invert))
 		return new_outputs
@@ -648,7 +662,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			return []
 		elif tokens[index] == ',':
 			index += 1
-		outputs = parse_clause(tokens, index, morphology)
+		outputs = parse_clause(tokens, index, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("HOWEVER", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif tokens[index].lower() == "therefore":
 		index += 1
@@ -656,16 +670,16 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 			return []
 		elif tokens[index] == ',':
 			index += 1
-		outputs = parse_clause(tokens, index, morphology)
+		outputs = parse_clause(tokens, index, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("THEREFORE", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 1 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "proves":
-		outputs = parse_clause(tokens, index + 2, morphology)
+		outputs = parse_clause(tokens, index + 2, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("THEREFORE", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 2 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "with":
-		outputs = parse_clause(tokens, index + 3, morphology)
+		outputs = parse_clause(tokens, index + 3, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 4 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "contradicts" and tokens[index + 2] == "the" and tokens[index + 3] == "fact" and tokens[index + 4] == "that":
-		outputs = parse_clause(tokens, index + 5, morphology)
+		outputs = parse_clause(tokens, index + 5, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 3 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "is" and tokens[index + 2] == "a" and tokens[index + 3] == "contradiction":
 		index += 4
@@ -784,13 +798,13 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 				if tokens[index] == ',':
 					index += 1
 				if tokens[index] in {'so', 'therefore'}:
-					(conclusion_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology)
+					(conclusion_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
 					if conclusion_lf == None:
 						index = old_index
 					else:
 						lf = fol.FOLFuncApplication("SINCE", [lf, conclusion_lf])
 				elif tokens[index] == 'because':
-					(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology)
+					(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
 					if premise_lf == None:
 						index = old_index
 					else:
@@ -798,6 +812,8 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 				else:
 					index = old_index
 
+		if complete_sentence and index < len(tokens):
+			continue
 		outputs.append((lf, index, invert))
 
 	if len(outputs) == 0:
@@ -822,20 +838,18 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True):
 
 	return outputs
 
-def parse_singleton_clause(tokens, index, morphology, can_be_coordinated=True):
-	outputs = parse_clause(tokens, index, morphology, can_be_coordinated=can_be_coordinated)
+def parse_singleton_clause(tokens, index, morphology, can_be_coordinated=True, complete_sentence=False):
+	outputs = parse_clause(tokens, index, morphology, can_be_coordinated=can_be_coordinated, complete_sentence=complete_sentence)
 	if len(outputs) == 0:
 		return (None, None, None)
 	elif len(outputs) != 1:
-		import pdb; pdb.set_trace() # TODO: for debugging; delete this
-		parse_clause(tokens, index, morphology, can_be_coordinated=can_be_coordinated)
-		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(tokens[index:], [fol.fol_to_tptp(lf) for (lf, _, _) in outputs]))
+		raise AmbiguousParseError(tokens[index:], [lf for (lf, _, _) in outputs])
 	return outputs[0]
 
 def parse_sentence(sentence, morphology, expect_invert=None):
 	if type(sentence) == str:
 		sentence = re.findall(r"[\w\-]+|[^\w\s]", sentence)
-	outputs = parse_clause(sentence, 0, morphology)
+	outputs = parse_clause(sentence, 0, morphology, complete_sentence=True)
 
 	new_outputs = []
 	for (lf, index, invert) in outputs:
@@ -847,7 +861,5 @@ def parse_sentence(sentence, morphology, expect_invert=None):
 	if len(outputs) == 0:
 		return None
 	elif len(outputs) != 1:
-		import pdb; pdb.set_trace() # TODO: for debugging; delete this
-		parse_clause(sentence, 0, morphology)
-		raise Exception("Sentence is ambiguous: {}. Logical forms: {}".format(sentence, [fol.fol_to_tptp(lf) for (lf, _, _) in outputs]))
+		raise AmbiguousParseError(sentence, [lf for (lf, _, _) in outputs])
 	return outputs[0][0]

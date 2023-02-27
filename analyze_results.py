@@ -1,6 +1,6 @@
 import numpy as np
 from run_experiment import parse_log, parse_response, evaluate_response, parse_reasoning
-from sys import argv
+from sys import argv, exit
 
 # see https://www.mikulskibartosz.name/wilson-score-in-python-example/
 def wilson_conf_interval(p, n, z=1.96):
@@ -23,20 +23,37 @@ def get_count(result_array, index):
 
 def analyze_log(logfile):
 	with open(logfile, "r") as log:
+		parse_errors = []
 		if logfile.endswith(".json"):
 			import json
 			results = []
 			proofs_only = False
 			first_example = True
-			for key, value in json.load(log).items():
+			try:
+				json_data = json.load(log)
+			except json.JSONDecodeError:
+				# try reading as JSONL
+				log.seek(0)
+				json_data = {}
+				index = 1
+				for line in log:
+					json_data['example' + str(index)] = json.loads(line)
+					index += 1
+			log.close()
+			for key, value in json_data.items():
 				example_id = int(key[len("example"):])
 				last_question = value["test_example"]["question"] + " " + value["test_example"]["query"]
 				expected_answer = " ".join(value["test_example"]["chain_of_thought"])
-				try:
+				if "model_output" in value["test_example"]:
 					predicted_answer = value["test_example"]["model_output"]
-				except KeyError:
+				elif "model_output" in value:
+					predicted_answer = value["model_output"]
+				else:
 					print("ERROR: Example {} is missing model output.".format(example_id))
 					continue
+
+				if type(predicted_answer) == list and len(predicted_answer) == 1:
+					predicted_answer = predicted_answer[0]
 
 				try:
 					if not first_example and proofs_only:
@@ -48,15 +65,22 @@ def analyze_log(logfile):
 					last_question = last_question[:last_question.index('Prove:')]
 					proofs_only = True
 
-				(predicted_proof, predicted_label) = parse_response(predicted_answer)
-				result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question), proofs_only)
+				(predicted_proof, predicted_label, errors) = parse_response(predicted_answer)
+				parse_errors.extend(errors)
+				result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question, parse_errors), proofs_only, parse_errors)
 
 				while example_id > len(results):
 					results.append(None)
 				results[example_id - 1] = result
 				first_example = False
 		else:
-			(_, _, results, _, _) = parse_log(log)
+			parse_errors = []
+			(_, _, results, _, _, parse_errors) = parse_log(log)
+		if len(parse_errors) != 0:
+			print('There were errors during semantic parsing for file ' + logfile + ':')
+			for e in parse_errors:
+				print(e)
+			exit(1)
 
 	# collect incorrect steps
 	all_correct_steps = []

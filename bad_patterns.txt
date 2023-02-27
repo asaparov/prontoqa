@@ -19,6 +19,7 @@
 ^Vumpus\sis\s.*
 ^Wumpies\s.*
 ^Every\snumber\s:\s.*
+^Every\s\w+puses\s.*
 ^EveryVertebrate\s.*
 ^EachWren\s.*
 ^A\syumpus\sis\s.*
@@ -27,6 +28,7 @@
 ^A\swren\sis\s.*
 ^She\sis\s.*
 .*\sshe\sis\s.*
+.*\she\sis\s.*
 ^True\sor\strue.*
 ^True\sor\sfalse.*
 ^False\sor\strue.*
@@ -75,6 +77,7 @@
 .*\simpuse\s.*
 .*an\simpuse.*
 .*jmpus\s.*
+.*\sjompuse\s.*
 .*\slepidopterian.*
 .*\scrustacebore\s.*
 .*\sarefaist.*
@@ -127,7 +130,8 @@
 .*\sare\sa\scarnivore.*
 .*\sare\sa\slepidopteran.*
 .*\sare\sa\smoth.*
-.*\sare\sa\s\w+pus.*
+.*\sa\s\w+pus.*
+.*\san\s\w+pus.*
 .*\sare\snot\sa\slemur$
 .*\sare\snumber$
 .*\sare\sreal\snumber$
@@ -140,10 +144,8 @@
 .*\sis\snot\s\w+puses$
 .*\sis\sarthropods.*
 .*\sis\snot\sarthropods.*
-.*\sis\sjompuses.*
-.*\sis\sa\srompuses.*
-.*\sis\sa\syumpuses.*
-.*\sis\sa\svumpuses.*
+.*\sis\s\w+puses.*
+.*\sis\sa\s\w+puses.*
 .*\sis\sa\sfelines.*
 .*\sis\sa\snot\s.*
 .*\sis\sa\sfruity$
@@ -288,3 +290,15 @@
 .*\sor\sa\s\w+pus\s,\sa\s\w+pus\s,\sor\sa\s\w+pus$
 .*\ssmall\sor\slarge\sand\san\s\w+pus$
 .*\sa\s\w+pus\s,\sa\s\w+pus\s,\sor\sa\s\w+pus\sor\sa\s\w+pus\s.*
+.*\swren\s.*
+.*\sa\s\w+pus\s,\sa\s\w+pus\s,\sor\sa\s\w+pus\sare\s\w+puses$
+.*\sa\s\w+pus\s,\sa\s\w+pus\s,\sor\sa\s\w+pus\sare\sall\s\w+puses$
+.*\sa\s\w+pus\sis\sa\s\w+pus$
+.*\sa\s\w+pus\sis\sa\s\w+pus\s.*
+.*a\s\w+pus\sis\sslow\sand\sa\s\w+pus.*
+.*\sare\smuffled\sand\sa\s\w+pus.*
+.*\sare\scold\sand\sa\s\w+pus.*
+.*\sare\sloud\sand\sa\s\w+pus.*
+.*\sare\smetallic\sand\sa\s\w+pus.*
+.*\sare\ssnowy\s,\srainy\s,\sand\sa\s\w+pus.*
+.*\sis\ssmall\sand\sa\s\w+puses.*

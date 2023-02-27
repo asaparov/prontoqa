@@ -36,8 +36,10 @@ def do_chain_of_thought(predict, print_output, questions, queries, chains_of_tho
 
 def aggregate_sample_predictions(sample_predictions, parse_response):
 	response_map = {}
+	parse_errors = []
 	for (sample_prediction, logprobs) in sample_predictions:
-		(predicted_proof, predicted_label) = parse_response(sample_prediction)
+		(predicted_proof, predicted_label, errors) = parse_response(sample_prediction)
+		parse_errors.extend(errors)
 		predicted_proof = tuple(predicted_proof)
 		if predicted_proof in response_map:
 			response_map[predicted_proof].append(logprobs)
@@ -59,7 +61,7 @@ def aggregate_sample_predictions(sample_predictions, parse_response):
 		if total_logprob > max_logprob:
 			max_logprob = total_logprob
 			best_response = logprobs[0]
-	return best_response, logprob_array
+	return best_response, logprob_array, parse_errors
 
 def do_self_consistency(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only, parse_response):
 	# first check if we need to add extra new lines for cleaner formatting
