@@ -78,8 +78,8 @@ def analyze_log(logfile):
 			(_, _, results, _, _, parse_errors) = parse_log(log)
 		if len(parse_errors) != 0:
 			print('There were errors during semantic parsing for file ' + logfile + ':')
-			for e in parse_errors:
-				print(e)
+			for sentence, e in parse_errors:
+				print('  Error parsing {}: {}'.format(sentence, e))
 			exit(1)
 
 	# collect incorrect steps

@@ -46,6 +46,7 @@
 ^Nump\s.*
 ^Tumpatures.*
 ^Numpures.*
+^Vumpsuses.*
 ^Numpities.*
 ^Dumpures.*
 ^Dumpers.*
@@ -302,3 +303,5 @@
 .*\sare\smetallic\sand\sa\s\w+pus.*
 .*\sare\ssnowy\s,\srainy\s,\sand\sa\s\w+pus.*
 .*\sis\ssmall\sand\sa\s\w+puses.*
+^\w+puses\sare\scold\s,\s\w+puses$
+^An\s\w+pus\sis\sangry\sor\saggressive$

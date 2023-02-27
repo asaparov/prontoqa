@@ -928,7 +928,7 @@ def parse_reasoning(response, errors, keep_sentences=False):
 			try:
 				lf = parse_sentence(tokens[start:end], morphology, False)
 			except Exception as e:
-				errors.append(e)
+				errors.append((tokens[start:end], e))
 				start = end + 1
 				continue
 			if lf == None:
@@ -940,7 +940,7 @@ def parse_reasoning(response, errors, keep_sentences=False):
 						break
 				if not has_bad_pattern:
 					e = UnableToParseError(tokens[start:end])
-					errors.append(e)
+					errors.append((tokens[start:end], e))
 					start = end + 1
 					continue
 			if keep_sentences:
@@ -1331,8 +1331,8 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		(resume_trial, too_long_responses, results, label_results, truncate_pos, parse_errors) = parse_log(log)
 		if len(parse_errors) != 0:
 			print('There were errors while parsing the existing log file:')
-			for e in parse_errors:
-				print(e)
+			for sentence, e in parse_errors:
+				print('  Error parsing {}: {}'.format(sentence, e))
 			sys.exit(1)
 		print('Resuming previous experiment at trial ' + str(resume_trial + 1))
 		log.truncate(truncate_pos)

@@ -6,13 +6,13 @@ from random import randrange, choice
 class UnableToParseError(Exception):
 	def __init__(self, tokens):
 		self.tokens = tokens
-		super().__init__("Unable to parse sentence: {}".format(tokens))
+		super().__init__("Unable to parse sentence")
 
 class AmbiguousParseError(Exception):
 	def __init__(self, tokens, logical_forms):
 		self.tokens = tokens
 		self.logical_forms = logical_forms
-		super().__init__("Sentence {} has multiple semantic parses: {}".format(tokens, [fol.fol_to_tptp(lf) for lf in logical_forms]))
+		super().__init__("Sentence has multiple semantic parses {}".format([fol.fol_to_tptp(lf) for lf in logical_forms]))
 
 class SyntaxNode(object):
 	def __init__(self, label, children=None):
