@@ -1370,9 +1370,10 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 		else:
 			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
 	available_train_rules = list(AVAILABLE_DEDUCTION_RULES)
-	if args.OOD or args.deduction_rule == "Composed":
+	if args.OOD:
 		available_train_rules.remove(args.deduction_rule)
-		available_train_rules.remove("Composed")
+		if args.deduction_rule != "Composed":
+			available_train_rules.remove("Composed")
 		if args.deduction_rule == "ModusPonens":
 			train_proof_steps = 1 + 1
 			train_proof_width = 3 + 1
@@ -1409,7 +1410,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			answers = []
 			proofs = []
 			for i in range(args.few_shot_examples):
-				if args.OOD or args.deduction_rule == "Composed":
+				if args.OOD:
 					# sample a deduction rule other than the test rule
 					curr_deduction_rule = choice(available_train_rules)
 					if curr_deduction_rule == 'ModusPonens':

@@ -421,10 +421,14 @@ def prove_graph(graph):
 					disjunction_map[disjunct].append(vertex)
 
 	def add_provable(premise, conclusion):
-		if premise in conclusion.provable_from:
+		found_new_premise = False
+		for new_premise in premise.provable_from:
+			if new_premise not in conclusion.provable_from:
+				conclusion.provable_from.append(new_premise)
+				proves[new_premise].append(conclusion)
+				found_new_premise = True
+		if not found_new_premise:
 			return
-		conclusion.provable_from.append(premise)
-		proves[premise].append(conclusion)
 		if conclusion not in queue:
 			queue.append(conclusion)
 		if conclusion in conjunction_map:
@@ -680,8 +684,6 @@ def generate_compositional_question(allowed_deduction_rules, depth, available_ty
 		axioms = get_axioms(proof)
 		for axiom in axioms:
 			add_axiom_to_provabilty_graph(graph, axiom.conclusion)
-		if proof.step_type == ProofStepType.DISJUNCTION_ELIMINATION and proof.conclusion == fol.do_parse_fol_from_tptp('impus(Polly)'):
-			import pdb; pdb.set_trace()
 		prove_graph(graph)
 
 		is_valid = (check_compositional_proof(proof, [a.conclusion for a in axioms]) != None) and len(get_deduction_rules(proof)) >= 4
