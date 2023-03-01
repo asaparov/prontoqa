@@ -212,8 +212,8 @@ def get_formulas(theory, ordering="postorder", deduction_rule="ModusPonens"):
 	return formulas
 
 def sample_real_ontology(available_entity_names, num_deduction_steps):
-	if num_deduction_steps > 7:
-		raise ValueError('sample_real_ontology ERROR: No available ontologies with depth greater than 7.')
+	if num_deduction_steps > 5 + 1:
+		raise ValueError('sample_real_ontology ERROR: No available ontologies with depth greater than 5.')
 	r = randrange(3)
 	if r == 0:
 		animal = OntologyNode("animal", None)
