@@ -6,13 +6,13 @@ from random import randrange, choice
 class UnableToParseError(Exception):
 	def __init__(self, tokens):
 		self.tokens = tokens
-		super().__init__("Unable to parse sentence")
+		super().__init__("Unable to parse sentence {}".format(tokens))
 
 class AmbiguousParseError(Exception):
 	def __init__(self, tokens, logical_forms):
 		self.tokens = tokens
 		self.logical_forms = logical_forms
-		super().__init__("Sentence has multiple semantic parses {}".format([fol.fol_to_tptp(lf) for lf in logical_forms]))
+		super().__init__("Sentence {} has multiple semantic parses {}".format(tokens, [fol.fol_to_tptp(lf) for lf in logical_forms]))
 
 class SyntaxNode(object):
 	def __init__(self, label, children=None):
@@ -740,14 +740,23 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 		else:
 			continue # outside the coverage of the grammar
 
-		if can_be_coordinated:
+		if not can_be_coordinated:
+			arg_outputs = [(lf, index)]
+		else:
 			# this may be coordination
+			arg_outputs = []
 			has_commas = None
 			original_index = index
 			is_conjunction = False
 			is_disjunction = False
 			operands = [lf]
-			while index < len(tokens):
+			queue = [(operands, index, has_commas, is_conjunction, is_disjunction)]
+			coordination_outputs = []
+			while len(queue) != 0:
+				(operands, index, has_commas, is_conjunction, is_disjunction) = queue.pop()
+				if index == len(tokens):
+					coordination_outputs.append((operands, index, is_conjunction, is_disjunction))
+					continue
 				old_index = index
 				if tokens[index] == ',':
 					if has_commas == False:
@@ -776,45 +785,47 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 					# found a clause without "and"/"or" after an earlier clause with "and"/"or"
 					index = old_index
 					break
-				(coordinate_lf, index, _) = parse_singleton_clause(tokens, index, morphology, can_be_coordinated=False)
-				if coordinate_lf == None:
-					index = old_index
-					break
-				operands.append(coordinate_lf)
+				coordinate_parses = parse_clause(tokens, index, morphology, can_be_coordinated=False)
+				for coordinate_lf, index, _ in coordinate_parses:
+					queue.append((operands + [coordinate_lf], index, has_commas, is_conjunction, is_disjunction))
+				if len(coordinate_parses) == 0:
+					coordination_outputs.append((operands, old_index, is_conjunction, is_disjunction))
 
-			if len(operands) == 1:
-				lf = operands[0]
-			elif not is_disjunction and len(operands) == 2 and type(operands[1]) == fol.FOLFuncApplication and operands[1].function == 'THEREFORE':
-				lf = fol.FOLFuncApplication("SINCE", [operands[0], operands[1].args[0]])
-			elif is_conjunction:
-				lf = fol.FOLAnd(operands)
-			elif is_disjunction:
-				lf = fol.FOLOr(operands)
-			else:
-				index = original_index
-
-			if index + 2 < len(tokens):
-				old_index = index
-				if tokens[index] == ',':
-					index += 1
-				if tokens[index] in {'so', 'therefore'}:
-					(conclusion_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
-					if conclusion_lf == None:
-						index = old_index
-					else:
-						lf = fol.FOLFuncApplication("SINCE", [lf, conclusion_lf])
-				elif tokens[index] == 'because':
-					(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
-					if premise_lf == None:
-						index = old_index
-					else:
-						lf = fol.FOLFuncApplication("SINCE", [premise_lf, lf])
+			for operands, index, is_conjunction, is_disjunction in coordination_outputs:
+				if len(operands) == 1:
+					new_lf = operands[0]
+				elif not is_disjunction and len(operands) == 2 and type(operands[1]) == fol.FOLFuncApplication and operands[1].function == 'THEREFORE':
+					new_lf = fol.FOLFuncApplication("SINCE", [operands[0], operands[1].args[0]])
+				elif is_conjunction:
+					new_lf = fol.FOLAnd(operands)
+				elif is_disjunction:
+					new_lf = fol.FOLOr(operands)
 				else:
-					index = old_index
+					index = original_index
+					new_lf = lf
 
-		if complete_sentence and index < len(tokens):
-			continue
-		outputs.append((lf, index, invert))
+				if index + 2 < len(tokens):
+					old_index = index
+					if tokens[index] == ',':
+						index += 1
+					if tokens[index] in {'so', 'therefore'}:
+						(conclusion_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
+						if conclusion_lf == None:
+							index = old_index
+						else:
+							new_lf = fol.FOLFuncApplication("SINCE", [new_lf, conclusion_lf])
+					elif tokens[index] == 'because':
+						(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
+						if premise_lf == None:
+							index = old_index
+						else:
+							new_lf = fol.FOLFuncApplication("SINCE", [premise_lf, new_lf])
+					else:
+						index = old_index
+
+				arg_outputs.append((new_lf, index))
+
+		outputs.extend([(lf, index, invert) for lf, index in arg_outputs if not (complete_sentence and index != len(tokens))])
 
 	if len(outputs) == 0:
 		return []
