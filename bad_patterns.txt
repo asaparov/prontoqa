@@ -57,7 +57,6 @@
 ^Fruity\sis\s.*
 ^Feisty\sis\s.*
 ^Moderate\sis\s.*
-
 ^uls.*
 ^For\s.*
 ^Fom\s.*
