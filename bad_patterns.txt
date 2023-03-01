@@ -10,6 +10,7 @@
 .*\sinvertree\s.*
 .*\sbuttertrees\s.*
 .*\ssprucey$
+.*\sshumps.*
 .*\sable\sto\s.*
 .*\sthat\sis\snot\s.*
 ^Tumpus\sis\s.*
@@ -56,6 +57,7 @@
 ^Fruity\sis\s.*
 ^Feisty\sis\s.*
 ^Moderate\sis\s.*
+
 ^uls.*
 ^For\s.*
 ^Fom\s.*
