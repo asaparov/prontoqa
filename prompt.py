@@ -9,6 +9,16 @@ def has_newline(questions, queries, chains_of_thought, test_question, test_query
 			return True
 	return False
 
+def do_query_logprobs(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only):
+	def predict_func(prompt):
+		test_prompt = prompt + ' '.join(test_chain_of_thought)
+		if not proofs_only:
+			test_prompt += test_answer
+		output, logprobs = predict(test_prompt, logprobs=5, max_tokens=0, echo=True)
+		return output[len(prompt):], logprobs
+
+	return do_chain_of_thought(predict_func, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only)
+
 def do_chain_of_thought(predict, print_output, questions, queries, chains_of_thought, answers, proofs, test_question, test_query, test_chain_of_thought, test_answer, test_proof, proofs_only):
 	# first check if we need to add extra new lines for cleaner formatting
 	newline = '\n\n' if has_newline(questions, queries, chains_of_thought, test_question, test_query, test_chain_of_thought) else '\n'

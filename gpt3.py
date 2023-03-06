@@ -5,7 +5,7 @@ import time
 
 last_request_time = float('-inf')
 
-def predict(api_key, model_name, prompt, temperature=0, logprobs=5, n=1, stop=None, min_query_interval=None):
+def predict(api_key, model_name, prompt, temperature=0, logprobs=5, n=1, stop=None, max_tokens=1024, echo=False, min_query_interval=None):
 	# limit the rate of the queries
 	if min_query_interval == None:
 		if model_name in ['code-davinci-001', 'code-cushman-001', 'code-davinci-002']:
@@ -19,13 +19,15 @@ def predict(api_key, model_name, prompt, temperature=0, logprobs=5, n=1, stop=No
 	last_request_time = time.monotonic()
 
 	header = { 'Content-Type' : 'application/json', 'Authorization' : 'Bearer ' + api_key }
-	data = { 'model' : model_name, 'prompt' : prompt, 'temperature' : temperature, 'max_tokens' : 1024 }
+	data = { 'model' : model_name, 'prompt' : prompt, 'temperature' : temperature, 'max_tokens' : max_tokens }
 	if logprobs != None:
 		data['logprobs'] = logprobs
 	if stop != None:
 		data['stop'] = stop
 	if n != 1:
 		data['n'] = n
+	if echo:
+		data['echo'] = True
 	request = urllib.request.Request('https://api.openai.com/v1/completions', headers=header, data=json.dumps(data).encode())
 	try:
 		with urllib.request.urlopen(request) as response:

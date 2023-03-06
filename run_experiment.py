@@ -1260,6 +1260,11 @@ def parse_log(log):
 					if index == -1:
 						break
 					mean = float(normal_statistics[(index + len('mean: ')):normal_statistics.index(',')])
+				index = line.find('logprobs: ')
+				if index == -1:
+					logprobs = None
+				else:
+					logprobs = json.loads(line[(index + len('logprobs: ')):])
 				log.readline() # consume the empty line separating each example
 				line_number += 2
 				trial = current_trial
@@ -1296,7 +1301,7 @@ def parse_log(log):
 			(predicted_proof, predicted_label, errors) = parse_response(predicted_answer)
 			parse_errors.extend(errors)
 			result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question, parse_errors), proofs_only, parse_errors)
-			results.append(result)
+			results.append(result + (logprobs,))
 			(label, expected_label, correct_steps, correct_and_useful_steps, redundant_steps, unparseable_steps, wrong_branch_steps, useful_skip_steps, wrong_skip_steps, useful_non_atomic_steps, wrong_non_atomic_steps, invalid_steps, incorrect_steps, found_conclusion, found_conclusion_with_skip_steps, found_conclusion_with_non_atomic_steps) = result
 			label_results.append(label)
 		if not proofs_only:
@@ -1505,6 +1510,8 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				response, logprobs = do_self_consistency(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response)
 			elif args.prompting == "selectioninference":
 				response, logprobs = do_selection_inference(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only, parse_response, decapitalize)
+			elif args.prompting == "querylogprobs":
+				response, logprobs = do_query_logprobs(predict_func, lambda x : print_output(x, log), questions, queries, chains_of_thought, answers, proofs, question, query, chain_of_thought, answer, proof, args.proofs_only)
 
 			if response == None:
 				print_output('WARNING: Context has too many tokens for this model. Skipping question...', log)
@@ -1565,7 +1572,7 @@ if __name__ == "__main__":
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
-	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference"])
+	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference", "querylogprobs"])
 	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=AVAILABLE_DEDUCTION_RULES)
 	parser.add_argument("--generate-non-atomic-steps", action='store_true')
 	parser.add_argument("--seed", type=int, default=62471893)
