@@ -2,7 +2,7 @@ from theory import *
 from syntax import *
 from proof import *
 from prompt import *
-from random import choice, randrange, shuffle, seed, sample
+from random import choice, choices, randrange, shuffle, seed, sample
 import numpy as np
 from scipy.special import betaincinv
 import argparse
@@ -1411,15 +1411,35 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 	examples = {}
 	while trial < args.num_trials * args.repetitions_per_test:
 		for t in range(args.repetitions_per_test):
+			if args.deduction_rule == "Composed" and args.OOD:
+				# if we are testing compositional generalization, first generate the test example
+				if t == 0:
+					while True:
+						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
+						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
+						if question != None:
+							break
+				else:
+					# re-use the same test question from the first sub-iteration
+					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
+				# get the deduction rules used in the test proof
+				available_train_rules = list(set([str(step.step_type) for step in proof if step.step_type != ProofStepType.AXIOM]))
+
 			questions = []
 			queries = []
 			chains_of_thought = []
 			answers = []
 			proofs = []
+			while True:
+				selected_train_rules = choices(available_train_rules, k=args.few_shot_examples)
+				if args.deduction_rule == "Composed" and args.OOD and len(set(selected_train_rules)) != len(available_train_rules):
+					continue
+				break
 			for i in range(args.few_shot_examples):
 				if args.OOD:
 					# sample a deduction rule other than the test rule
-					curr_deduction_rule = choice(available_train_rules)
+					curr_deduction_rule = selected_train_rules[i]
 					if curr_deduction_rule == 'ModusPonens':
 						curr_proof_steps = train_proof_steps
 						curr_proof_width = 2
@@ -1446,25 +1466,26 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 					curr_deduction_rule = args.deduction_rule
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question, query, _, chain_of_thought, answer, proof) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps)
-					if question != None:
+					(question_i, query_i, _, chain_of_thought_i, answer_i, proof_i) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps)
+					if question_i != None:
 						break
-				questions.append(question)
-				queries.append(query)
-				chains_of_thought.append(chain_of_thought)
-				answers.append(answer)
-				proofs.append(proof)
+				questions.append(question_i)
+				queries.append(query_i)
+				chains_of_thought.append(chain_of_thought_i)
+				answers.append(answer_i)
+				proofs.append(proof_i)
 
-			if t == 0:
-				while True:
-					next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-					test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
+			if args.deduction_rule != "Composed":
+				if t == 0:
+					while True:
+						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
+						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
+						if question != None:
+							break
+				else:
+					# re-use the same test question from the first sub-iteration
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
-					if question != None:
-						break
-			else:
-				# re-use the same test question from the first sub-iteration
-				(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 
 			trial += 1
 			if trial <= resume_trial:

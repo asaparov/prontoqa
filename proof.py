@@ -14,6 +14,24 @@ class ProofStepType(Enum):
 	DISJUNCTION_ELIMINATION = 5 # given A or B, A proves C, B proves C, conclude C
 	PROOF_BY_CONTRADICTION = 6 # given A, B proves ~A, conclude ~B
 
+	def __str__(self):
+		if self == ProofStepType.AXIOM:
+			return "Axiom"
+		elif self == ProofStepType.UNIVERSAL_INSTANTIATION:
+			return "ModusPonens"
+		elif self == ProofStepType.CONJUNCTION_INTRODUCTION:
+			return "AndIntro"
+		elif self == ProofStepType.CONJUNCTION_ELIMINATION:
+			return "AndElim"
+		elif self == ProofStepType.DISJUNCTION_INTRODUCTION:
+			return "OrIntro"
+		elif self == ProofStepType.DISJUNCTION_ELIMINATION:
+			return "OrElim"
+		elif self == ProofStepType.PROOF_BY_CONTRADICTION:
+			return "ProofByContra"
+		else:
+			raise ValueError()
+
 class ProofStep(object):
 	def __init__(self, step_type, premises, conclusion):
 		self.step_type = step_type
@@ -43,19 +61,20 @@ def generate_membership_question(theories, entity_name, num_deduction_steps=None
 		child = choice(start.children)
 		properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in child.properties]
 		properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in child.negated_properties]
-		if len(properties) != max(proof_width, 2) - 2:
-			raise ValueError("Expected exactly {} defining propert{}.".format(max(proof_width, 2) - 2, "y" if proof_width == 2 else "ies"))
+		expected_num_properties = max(proof_width, 2) - 2 # the conjunction should have 2 concept names and proof_width - 2 properties
+		if len(properties) != expected_num_properties:
+			raise ValueError("Expected exactly {} defining propert{}.".format(expected_num_properties, "y" if expected_num_properties == 1 else "ies"))
 		other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(entity_name)]) for parent in start.parents[1:]] + [fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])]
 		shuffle(other_conjuncts)
 		start_formula = fol.FOLAnd(properties + other_conjuncts)
 
-		distractor_child = choice(theories[-1].children)
+		distractor_child = choice(theories[1].children)
 		distractor_properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in distractor_child.properties]
 		distractor_properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in distractor_child.negated_properties]
 		other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(entity_name)]) for parent in distractor_child.parents]
 		shuffle(other_conjuncts)
-		if len(distractor_properties) != max(proof_width, 2) - 2:
-			raise ValueError("Expected exactly {} defining propert{}.".format(max(proof_width, 2) - 2, "y" if proof_width == 2 else "ies"))
+		if len(distractor_properties) != expected_num_properties:
+			raise ValueError("Expected exactly {} defining propert{}.".format(expected_num_properties, "y" if expected_num_properties == 1 else "ies"))
 		distractor_formula = fol.FOLAnd(distractor_properties + other_conjuncts)
 	else:
 		start_formula = fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])
