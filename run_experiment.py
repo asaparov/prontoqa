@@ -440,6 +440,8 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 							sample(available_concept_names, 2),
 							available_property_families,
 							current_config)
+			if len(distractor_root[0].children) != 1:
+				return (None, None, None, None, None, None)
 			theory = theory + distractor_root
 
 	if formula_ordering == "random":
@@ -456,7 +458,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				formulas = theory[:]
 				shuffle(formulas)
 			else:
-				formuals = theory[:]
+				formulas = theory[:]
 		else:
 			formulas = get_formulas(theory, [], ordering=formula_ordering, deduction_rule=deduction_rule)
 	sentences = []
@@ -1456,7 +1458,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 			if t == 0:
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-					test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width, args.no_adjectives, False)
+					test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 					if question != None:
 						break
@@ -1571,6 +1573,7 @@ if __name__ == "__main__":
 	parser.add_argument("--proof-width", type=int, default=2)
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
+	parser.add_argument("--test-width-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference", "querylogprobs"])
 	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=AVAILABLE_DEDUCTION_RULES)
@@ -1603,6 +1606,8 @@ if __name__ == "__main__":
 			log_suffix += '_' + str(args.proof_width) + 'proofwidth'
 		if args.test_hops_diff != 0:
 			log_suffix += '_' + str(hops + args.test_hops_diff) + 'testhops'
+		if args.test_width_diff != 0:
+			log_suffix += '_' + str(args.proof_width + args.test_width_diff) + 'testwidth'
 		if args.ordering != 'postorder':
 			log_suffix += '_' + args.ordering
 		if args.ontology == "true":

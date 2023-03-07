@@ -293,13 +293,11 @@ def analyze_log(logfile):
 			correct_labels += label
 
 		if logprobs != None:
-			answer_index = None
+			answer_index = 0
 			for i in range(len(logprobs['tokens'])-1, 2, -1):
 				if logprobs['tokens'][(i-4):(i-1)] == ['\n', 'A', ':']:
 					answer_index = i
 					break
-			if answer_index == None:
-				raise Exception("Logprobs field doesn't contain '\nA:'")
 			answer_logprobs = logprobs['token_logprobs'][answer_index:]
 			perplexities.append(np.exp(-np.sum(answer_logprobs) / len(answer_logprobs)))
 		else:

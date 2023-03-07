@@ -49,7 +49,7 @@ def generate_membership_question(theories, entity_name, num_deduction_steps=None
 		shuffle(other_conjuncts)
 		start_formula = fol.FOLAnd(properties + other_conjuncts)
 
-		distractor_child = choice(theories[1].children)
+		distractor_child = choice(theories[-1].children)
 		distractor_properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in distractor_child.properties]
 		distractor_properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in distractor_child.negated_properties]
 		other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(entity_name)]) for parent in distractor_child.parents]
@@ -59,7 +59,7 @@ def generate_membership_question(theories, entity_name, num_deduction_steps=None
 		distractor_formula = fol.FOLAnd(distractor_properties + other_conjuncts)
 	else:
 		start_formula = fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])
-		distractor_child = choice(theories[1].children)
+		distractor_child = choice(theories[-1].children)
 		distractor_formula = fol.FOLFuncApplication(distractor_child.name, [fol.FOLConstant(entity_name)])
 	premises = [start_formula, distractor_formula]
 	start_axiom = ProofStep(ProofStepType.AXIOM, [], start_formula)

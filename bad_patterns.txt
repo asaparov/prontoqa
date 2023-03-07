@@ -104,7 +104,9 @@
 ^Number\sis\s.*
 ^Dog\sis\s.*
 ^Bird\sis\s.*
+^Wooden\sis\s.*
 ^Cold\s,\s.*\sis\s.*
+^Hot\sis\s.*
 ^Mean\s,\s.*\sis\s.*
 ^even\snumber\sis\s.*
 ^Spider\sis\s.*
@@ -221,16 +223,20 @@
 ^Carnivorous\sare\s.*
 ^Feline\sis\s.*
 ^Feline\sare\s.*
+^Amenable\sis\s.*
+^Shy\sis\s.*
 ^Each\sfae\s.*
 ^Every\sfae\s.*
 ^Each\smax\s.*
 ^Every\smax\s.*
+^Every\sdull\s.*
 ^Each\swren\s.*
 ^Every\swren\s.*
 ^every\sreal\sis\s.*
 ^Each\ssour\sis\s.*
 ^Each\sunicellular\sis\s.*
 ^Every\sunicellular\sis\s.*
+^Every\ssmall\sis\s.*
 ^Each\sfeisty\sis\s.*
 ^Every\sfeisty\sis\s.*
 ^Each\smuffled\sis\s.*
@@ -304,5 +310,6 @@
 .*\sare\smetallic\sand\sa\s\w+pus.*
 .*\sare\ssnowy\s,\srainy\s,\sand\sa\s\w+pus.*
 .*\sis\ssmall\sand\sa\s\w+puses.*
+.*,\sfeisty$
 ^\w+puses\sare\scold\s,\s\w+puses$
 ^An\s\w+pus\sis\sangry\sor\saggressive$
