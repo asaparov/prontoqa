@@ -695,7 +695,7 @@ def do_generate_compositional_question(conclusion, allowed_deduction_rules, disa
 	else:
 		raise ValueError("Unrecognized deduction step type '{}'".format(step_type))
 
-def generate_compositional_question(allowed_deduction_rules, depth, available_types, entity):
+def generate_compositional_question(allowed_deduction_rules, depth, available_types, entity, num_rule_types):
 	while True:
 		proof = do_generate_compositional_question(fol.FOLVariable(1), allowed_deduction_rules, [], depth, available_types, entity, False)
 
@@ -705,7 +705,7 @@ def generate_compositional_question(allowed_deduction_rules, depth, available_ty
 			add_axiom_to_provabilty_graph(graph, axiom.conclusion)
 		prove_graph(graph)
 
-		is_valid = (check_compositional_proof(proof, [a.conclusion for a in axioms]) != None) and len(get_deduction_rules(proof)) >= 4
+		is_valid = (check_compositional_proof(proof, [a.conclusion for a in axioms]) != None) and len(get_deduction_rules(proof)) >= 1 + num_rule_types
 		if not is_valid:
 			continue
 		for key, value in graph.items():
