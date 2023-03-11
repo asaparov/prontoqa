@@ -17,7 +17,7 @@ If you use our code in your work, please cite our paper:
 
 ## Running experiments
 To generate the examples and evaluate models, use [`run_experiment.py`](run_experiment.py). There are a number of command-line flags:
- - `--model-name [gpt3|opt|unifiedqa|dummy]` specifies the model to test. The `dummy` model is a trivial model, used for testing, that outputs nothing for any input.
+ - `--model-name [gpt3|opt|unifiedqa|json|dummy]` specifies the model to test. If `json` is specified, the examples are output to a JSON-formatted file without feeding them to a model. The `dummy` model is a trivial model, used for testing, that outputs nothing for any input.
  - `--model-size <size>` where `<size>` indicates the version or size of the model. For GPT-3, this must be the OpenAI identifier for the model. For example, to use the InstructGPT 350M parameter model, specify `--model-size text-ada-001`.
  - `--ordering [postorder|preorder|random]` specifies the order of the context sentences of each question.
  - `--num-trials <n>` specifies the number of examples per experiment.
@@ -30,5 +30,28 @@ The output of the experiments are written to a file whose name is automatically 
 
 The model outputs from our experiments are provided in `model_outputs.zip`.
 
+## Generating data without running experiments
+
+To generate data in JSON format, use the `run_experiment.py` script with the flag `--model-name json`. See the above section for details on the other arguments.
+
 ## Analyzing output
-Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in our paper.
+Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in our paper. To analyze the output of a single file, run `analyze_results.py <filename>`. This script supports the reading of both JSON-formatted output files as well as the log files output by `run_experiment.py`. The expected JSON format is as follows:
+```
+{
+  "example1": {
+    ...
+    "test_example": {
+      ...
+      "model_output": <model output as a string, including the predicted label>
+    }
+  },
+  "example2": {
+    ...
+    "test_example": {
+      ...
+      "model_output": <model output as a string, including the predicted label>
+    }
+  },
+  ...
+}
+```

@@ -8,6 +8,7 @@ from scipy.special import betaincinv
 import argparse
 import getpass
 import re
+import json
 
 class Morphology(object):
 	def __init__(self):
@@ -699,7 +700,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 		import opt
 	elif model_name == 'unifiedqa':
 		import unifiedqa
-	elif model_name != 'dummy':
+	elif model_name not in ['dummy', 'json']:
 		raise ValueError('Unrecognized model_name "' + model_name + '"')
 
 	# set the random seed for reproducibility
@@ -736,6 +737,7 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			shuffle(available_concept_names)
 		else:
 			raise Exception("Only the fictional ontology type is suppoted when `disjoint_concept_names` is set.")
+	examples = {}
 	while trial < num_trials * repetitions_per_test:
 		for t in range(repetitions_per_test):
 			questions = []
@@ -769,8 +771,35 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			trial += 1
 			if trial <= resume_trial:
 				continue
-			
-			if model_name == 'gpt3':
+
+			if model_name == 'json':
+				example = {}
+				for i in range(len(questions)):
+					if args.proofs_only:
+						example['in_context_example{}'.format(i)] = {
+							'question' : questions[i],
+							'query' : queries[i],
+							'chain_of_thought' : chains_of_thought[i]}
+					else:
+						example['in_context_example{}'.format(i)] = {
+							'question' : questions[i],
+							'query' : queries[i],
+							'chain_of_thought' : chains_of_thought[i],
+							'answer' : answers[i]}
+				if args.proofs_only:
+					example['test_example'] = {
+						'question' : question,
+						'query' : query,
+						'chain_of_thought' : chain_of_thought}
+				else:
+					example['test_example'] = {
+						'question' : question,
+						'query' : query,
+						'chain_of_thought' : chain_of_thought,
+						'answer' : answer}
+				examples['example{}'.format(trial)] = example
+				continue
+			elif model_name == 'gpt3':
 				predict_func = lambda x, **kwargs : gpt3.predict(gpt_api_key, model_size, x, **kwargs)
 			elif model_name == 'opt':
 				predict_func = lambda x, **kwargs : opt.predict(model_size, x, opt_server, **kwargs)
@@ -811,6 +840,8 @@ def run_experiment(model_name, model_size, num_proof_steps, test_num_proof_steps
 			stddev = np.sqrt(mu*(1 - mu)/(trial - too_long_responses))
 			print_output('  (normal approximation) mean: ' + str(mu) + ', 95% lower bound: ' + str(mu - 1.96*stddev) + ', 95% upper bound: ' + str(mu + 1.96*stddev) + '\n', log)
 			log.flush()
+	if model_name == 'json':
+		json.dump(examples, log, indent=1)
 	log.close()
 	return label_results
 
@@ -874,6 +905,8 @@ if __name__ == "__main__":
 			run_experiment("unifiedqa", args.model_size.lower(), 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "unifiedqa_" + args.model_size.lower() + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		elif args.model_name == 'dummy':
 			run_experiment("dummy", args.model_size, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, "dummy" + log_suffix + ".log", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
+		elif args.model_name == 'json':
+			run_experiment("json", None, 1 + hops, 1 + hops + args.test_hops_diff, args.few_shot_examples, args.num_trials, args.repetitions_per_test, log_suffix[1:] + ".json", args.ordering, args.ontology, not args.no_distractor, args.resume, args.seed, args.prompting, args.deduction_rule, args.proofs_only, args.use_dfs, args.disjoint_concept_names)
 		else:
 			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
 			break
