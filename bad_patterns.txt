@@ -121,7 +121,8 @@
 .*INSERT.*
 .*\saredumpuses.*
 .*\{.*
-^\d*[a-zA-Z]*.*
+^\d+[a-zA-Z]*.*
 .*\sShephard\s.*
 .*\steen\s.*
 .*\steens\s.*
+^Vumpuses\sare\s.*\sa\sdumpus.*
