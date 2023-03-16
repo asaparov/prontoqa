@@ -321,7 +321,7 @@ for name in available_entity_names:
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, require_properties=False, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2, no_adjectives=False, generate_non_atomic_steps=False):
+def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2, no_adjectives=False, generate_non_atomic_steps=False, num_rule_types=3):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -360,7 +360,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 
 		selected_entity = choice(available_entity_names)
 		if deduction_rule == "Composed":
-			proof = generate_compositional_question(["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"], num_deduction_steps, available_concept_names, selected_entity)
+			proof = generate_compositional_question(["ModusPonens", "AndIntro", "AndElim", "OrIntro", "OrElim", "ProofByContra"], num_deduction_steps, available_concept_names, selected_entity, num_rule_types)
 			conclusion = proof.conclusion
 			linearized_proof = linearize_proof_steps(proof)
 			axioms = get_axioms(proof)
@@ -1416,7 +1416,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1466,7 +1466,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 					curr_deduction_rule = args.deduction_rule
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question_i, query_i, _, chain_of_thought_i, answer_i, proof_i) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps)
+					(question_i, query_i, _, chain_of_thought_i, answer_i, proof_i) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps, args.rule_types)
 					if question_i != None:
 						break
 				questions.append(question_i)
@@ -1475,11 +1475,11 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				answers.append(answer_i)
 				proofs.append(proof_i)
 
-			if args.deduction_rule != "Composed":
+			if not (args.deduction_rule == "Composed" and args.OOD):
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1596,6 +1596,7 @@ if __name__ == "__main__":
 	parser.add_argument("--test-hops-diff", type=int, default=0)
 	parser.add_argument("--test-width-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
+	parser.add_argument("--rule-types", type=int, default=3)
 	parser.add_argument("--prompting", type=str, default="COT", choices=["COT", "selfconsistency", "selectioninference", "querylogprobs"])
 	parser.add_argument("--deduction-rule", type=str, default="ModusPonens", choices=AVAILABLE_DEDUCTION_RULES)
 	parser.add_argument("--generate-non-atomic-steps", action='store_true')
@@ -1625,6 +1626,8 @@ if __name__ == "__main__":
 			log_suffix += '_disjointconcepts'
 		if args.proof_width != 2:
 			log_suffix += '_' + str(args.proof_width) + 'proofwidth'
+		if args.rule_types != 3:
+			log_suffix += '_' + str(args.rule_types) + 'ruletypes'
 		if args.test_hops_diff != 0:
 			log_suffix += '_' + str(hops + args.test_hops_diff) + 'testhops'
 		if args.test_width_diff != 0:
