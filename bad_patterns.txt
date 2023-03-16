@@ -314,4 +314,8 @@
 .*,\sfeisty$
 ^\w+puses\sare\scold\s,\s\w+puses$
 ^An\s\w+pus\sis\sangry\sor\saggressive$
+^An\s\w+pus\sis\sdull\sor\sbright$
 .*\sit\scannot\sbe\sproven\sthat\s.*
+.*\sis\s\w+\sand\s\w+puses\s.*
+.*\sis\s\w+\sand\s\w+puses$
+.*\sis\sbright\s,\s\w+puses.*

@@ -48,12 +48,23 @@ def analyze_log(logfile):
 					predicted_answer = value["test_example"]["model_output"]
 				elif "model_output" in value:
 					predicted_answer = value["model_output"]
+				elif "output" in value:
+					predicted_answer = value["output"]
 				else:
 					print("ERROR: Example {} is missing model output.".format(example_id))
 					continue
 
+				if "logprobs" in value["test_example"]:
+					logprobs = value["test_example"]["logprobs"]
+				elif "logprobs" in value:
+					logprobs = value["logprobs"]
+				else:
+					logprobs = None
+
 				if type(predicted_answer) == list and len(predicted_answer) == 1:
 					predicted_answer = predicted_answer[0]
+				if predicted_answer.startswith("Output: "):
+					predicted_answer = predicted_answer[len("Output: "):]
 
 				try:
 					if not first_example and proofs_only:
@@ -68,6 +79,7 @@ def analyze_log(logfile):
 				(predicted_proof, predicted_label, errors) = parse_response(predicted_answer)
 				parse_errors.extend(errors)
 				result = evaluate_response(predicted_proof, predicted_label, expected_answer, parse_reasoning(last_question, parse_errors), proofs_only, parse_errors)
+				result = result + (logprobs,)
 
 				while example_id > len(results):
 					results.append(None)
