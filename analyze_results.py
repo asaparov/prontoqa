@@ -335,7 +335,7 @@ if len(argv) > 1:
 	if correct_labels != None:
 		print("Proof accuracy of examples with label `True`: {}".format(get_count(expected_label_true, offset + 1) / (expected_label_true[0] + expected_label_true[1])))
 		print("Proof accuracy of examples with label `False`: {}".format((num_correct_proofs - get_count(expected_label_true, offset + 1)) / (num_examples - expected_label_true[0] - expected_label_true[1])))
-		
+
 	if num_correct_proofs == 0:
 		print("(there are no correct proofs)")
 	else:
@@ -364,7 +364,7 @@ if len(argv) > 1:
 		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
 		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
 		print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-		
+
 	print("\nProportion of ALL proofs that are strictly correct: {}".format(strictly_correct_proofs / num_examples))
 	print("Proportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
 	print("Proportion of ALL proofs that would be correct if \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_non_atomic_step) / num_examples))
