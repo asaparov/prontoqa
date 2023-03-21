@@ -44,7 +44,9 @@
 ^Fepus.*
 ^Fepis.*
 ^Impure.*
+^Discordants.*
 ^Nump\s.*
+^Imps\s.*
 ^Lorpsues.*
 ^Tumpatures.*
 ^Numpures.*
@@ -97,6 +99,7 @@
 ^Feline\sis\s.*
 ^Felines\sis\s.*
 ^Wooden\sare\s.*
+^Mean\sare\s.*
 ^Floral\sis\s.*
 ^Composite\sare\s.*
 ^Kind\sis\s.*
@@ -305,6 +308,7 @@
 .*\sa\s\w+pus\sis\sa\s\w+pus$
 .*\sa\s\w+pus\sis\sa\s\w+pus\s.*
 .*a\s\w+pus\sis\sslow\sand\sa\s\w+pus.*
+.*\sare\s\w+pus$
 .*\sare\smuffled\sand\sa\s\w+pus.*
 .*\sare\scold\sand\sa\s\w+pus.*
 .*\sare\sloud\sand\sa\s\w+pus.*

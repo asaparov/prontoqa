@@ -403,7 +403,10 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 				_ = OntologyNode(concept_names[2 + i], distractor_root)
 			for i in range(proof_width):
 				_ = OntologyNode(concept_names[2 + proof_width + i], synonymous_root)
-			theory = [root, distractor_root, synonymous_root]
+			if add_distractor:
+				theory = [root, distractor_root, synonymous_root]
+			else:
+				theory = [root]
 		elif deduction_rule == "OrElim":
 			concept_names = sample(available_concept_names, 2 + 2 * proof_width)
 			root = OntologyNode(concept_names[0], None)
@@ -412,9 +415,13 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			for i in range(proof_width):
 				_ = OntologyNode(concept_names[2 + i], root)
 				_ = OntologyNode(concept_names[2 + i], distractor_root)
-			for i in range(proof_width):
-				_ = OntologyNode(concept_names[2 + proof_width + i], root)
-			theory = [root, distractor_root]
+			if add_distractor:
+				for i in range(proof_width):
+					_ = OntologyNode(concept_names[2 + proof_width + i], root)
+			if add_distractor:
+				theory = [root, distractor_root]
+			else:
+				theory = [root]
 		else:
 			current_config = config
 			current_config.stop_probability = 1 / (num_deduction_steps + 1)
@@ -422,27 +429,28 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			current_config.proof_width = proof_width
 			if current_config.require_properties:
 				current_config.generate_negation = False
-			current_config.generate_distractor_parents = (deduction_rule == "ModusPonens" or deduction_rule == "AndIntro" or deduction_rule == "OrIntro")
-			current_config.generate_distractor_branch = (deduction_rule == "AndElim")
+			current_config.generate_distractor_parents = add_distractor and (deduction_rule == "ModusPonens" or deduction_rule == "AndIntro" or deduction_rule == "OrIntro")
+			current_config.generate_distractor_branch = add_distractor and (deduction_rule == "AndElim")
 			theory = generate_theory(
 							available_concept_names,
 							available_property_families,
 							current_config)
 
 			# generate a distractor ontology containing a root node with a single child node
-			if len(available_concept_names) < 2 or len(available_property_families) < 2:
-				return (None, None, None, None, None, None)
-			current_config.stop_probability = 0.0
-			current_config.max_child_count = 1
-			current_config.require_properties = True
-			current_config.generate_distractor_branch = False
-			distractor_root = generate_theory(
-							sample(available_concept_names, 2),
-							available_property_families,
-							current_config)
-			if len(distractor_root[0].children) != 1:
-				return (None, None, None, None, None, None)
-			theory = theory + distractor_root
+			if add_distractor:
+				if len(available_concept_names) < 2 or len(available_property_families) < 2:
+					return (None, None, None, None, None, None)
+				current_config.stop_probability = 0.0
+				current_config.max_child_count = 1
+				current_config.require_properties = True
+				current_config.generate_distractor_branch = False
+				distractor_root = generate_theory(
+								sample(available_concept_names, 2),
+								available_property_families,
+								current_config)
+				if len(distractor_root[0].children) != 1:
+					return (None, None, None, None, None, None)
+				theory = theory + distractor_root
 
 	if formula_ordering == "random":
 		if deduction_rule == "Composed":
@@ -471,14 +479,20 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 			raise Exception("Parsed sentence does not match original logical form:\n  Sentence: \"{}\"\n  Original: {}\n  Parsed:   {}".format(sentences[-1], fol.fol_to_tptp(formula), fol.fol_to_tptp(parsed_lf)))
 
 	if deduction_rule == "ProofByContra":
-		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, distractor_concept, num_deduction_steps, proof_width)
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_de_morgans_question(theory, selected_entity, distractor_concept, num_deduction_steps, proof_width, add_distractor)
 	elif deduction_rule == "OrElim":
-		(premises, conclusion, proof, num_steps, linearized_proof) = generate_proof_by_cases_question(theory, selected_entity, num_deduction_steps, proof_width)
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_proof_by_cases_question(theory, selected_entity, num_deduction_steps, proof_width, add_distractor)
 	elif deduction_rule != "Composed":
 		generate_questions_about_types = False
 		if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
 			generate_questions_about_types = True
-		(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width)
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width, add_distractor)
+		if not add_distractor and linearized_proof != None:
+			# if we don't want distractors, remove parts of the ontology that are unused by the proof
+			formulas = [formula for formula in formulas if any([formula == step.conclusion for step in linearized_proof])]
+			sentences = []
+			for formula in formulas:
+				sentences.append(inflect(yield_tokens(formula_to_clause(formula, morphology, no_adjectives)), end_punctuation='.'))
 	if proof == None or num_steps != num_deduction_steps:
 		return (None, None, None, None, None, None)
 	proof_formulas = [step.conclusion for step in linearized_proof]
@@ -1411,12 +1425,15 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 	examples = {}
 	while trial < args.num_trials * args.repetitions_per_test:
 		for t in range(args.repetitions_per_test):
+			test_distractor = not args.no_distractor
+			if args.no_distractor and args.test_with_distractor:
+				test_distractor = True
 			if args.deduction_rule == "Composed" and args.OOD:
 				# if we are testing compositional generalization, first generate the test example
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1479,7 +1496,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1594,6 +1611,7 @@ if __name__ == "__main__":
 	parser.add_argument("--proof-width", type=int, default=2)
 	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
+	parser.add_argument("--test-with-distractor", action='store_true')
 	parser.add_argument("--test-width-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--rule-types", type=int, default=3)
@@ -1640,6 +1658,8 @@ if __name__ == "__main__":
 			log_suffix += '_falseontology'
 		if args.no_distractor:
 			log_suffix += '_nodistractor'
+		if args.no_distractor and args.test_with_distractor:
+			log_suffix += '_testdistractor'
 		if args.no_adjectives:
 			log_suffix += '_noadj'
 		if args.generate_non_atomic_steps:
