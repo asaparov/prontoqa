@@ -323,3 +323,6 @@
 .*\sis\s\w+\sand\s\w+puses\s.*
 .*\sis\s\w+\sand\s\w+puses$
 .*\sis\sbright\s,\s\w+puses.*
+.*\sand\stherefore\smelodic$
+\w+puses\sand\s\w+puses\sare\s.*
+.*\sare\sred\sand\s\w+puses\s.*

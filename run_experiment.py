@@ -1433,7 +1433,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.test_ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1496,7 +1496,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.test_ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1595,11 +1595,13 @@ if __name__ == "__main__":
 	parser.add_argument("--model-name", type=str, required=True)
 	parser.add_argument("--model-size", type=str, required=True)
 	parser.add_argument("--ordering", type=str, default="postorder", choices=["postorder", "preorder", "random"])
+	parser.add_argument("--test-ordering", type=str, default=None, choices=["postorder", "preorder", "random"])
 	parser.add_argument("--num-trials", type=int, default=500)
 	parser.add_argument("--few-shot-examples", type=int, default=8)
 	parser.add_argument("--ontology", type=str, default="fictional", choices=["fictional", "true", "false"])
 	parser.add_argument("--opt-server", type=str, default=None)
 	parser.add_argument("--no-distractor", action='store_true')
+	parser.add_argument("--test-with-distractor", action='store_true')
 	parser.add_argument("--no-adjectives", action='store_true')
 	parser.add_argument("--proofs-only", action='store_true')
 	parser.add_argument("--use-dfs", action='store_true')
@@ -1608,10 +1610,9 @@ if __name__ == "__main__":
 	parser.add_argument("--api-key", type=str, default=None)
 	parser.add_argument("--min-hops", type=int, default=1)
 	parser.add_argument("--max-hops", type=int, default=8)
-	parser.add_argument("--proof-width", type=int, default=2)
-	parser.add_argument("--hops-skip", type=int, default=1)
 	parser.add_argument("--test-hops-diff", type=int, default=0)
-	parser.add_argument("--test-with-distractor", action='store_true')
+	parser.add_argument("--hops-skip", type=int, default=1)
+	parser.add_argument("--proof-width", type=int, default=2)
 	parser.add_argument("--test-width-diff", type=int, default=0)
 	parser.add_argument("--repetitions-per-test", type=int, default=1)
 	parser.add_argument("--rule-types", type=int, default=3)
@@ -1623,6 +1624,8 @@ if __name__ == "__main__":
 
 	opt_server = args.opt_server
 	gpt_api_key = args.api_key
+	if args.test_ordering == None:
+		args.test_ordering = args.ordering
 
 	for hops in range(args.min_hops, args.max_hops+1, args.hops_skip):
 		log_suffix = '_' + str(hops) + 'hop'
@@ -1652,6 +1655,8 @@ if __name__ == "__main__":
 			log_suffix += '_' + str(args.proof_width + args.test_width_diff) + 'testwidth'
 		if args.ordering != 'postorder':
 			log_suffix += '_' + args.ordering
+		if args.test_ordering != args.ordering:
+			log_suffix += '_test' + args.test_ordering
 		if args.ontology == "true":
 			log_suffix += '_trueontology'
 		elif args.ontology == "false":

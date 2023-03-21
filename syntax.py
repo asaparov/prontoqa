@@ -436,7 +436,7 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "however", "therefore", "because"}:
+	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
 		return (None, None)
 	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
 
@@ -597,7 +597,10 @@ def parse_vp_arg(tokens, index, morphology):
 			# try parsing as a predicative (ADJP)
 			(operand, index) = parse_adjp(tokens, index, morphology)
 			if operand == None:
-				if len(operands) != 0:
+				if len(operands) > 1 and (is_conjunction or is_disjunction):
+					index = operand_indices[-1]
+					break
+				elif len(operands) != 0:
 					return [(operands[0], operand_indices[0], operand_plural[0])]
 				else:
 					return []
@@ -637,7 +640,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 	elif tokens[index].lower() == "assume":
 		outputs = parse_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
 		return [(fol.FOLFuncApplication("ASSUME", [lf]), index, invert) for (lf, index, invert) in outputs]
-	elif tokens[index].lower() in "since":
+	elif tokens[index].lower() in ["since", "as"]:
 		outputs = parse_clause(tokens, index + 1, morphology)
 		if len(outputs) == 1 and outputs[0][1] == len(tokens):
 			# try parsing without coordination
@@ -816,7 +819,7 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 							index = old_index
 						else:
 							new_lf = fol.FOLFuncApplication("SINCE", [new_lf, conclusion_lf])
-					elif tokens[index] == 'because':
+					elif tokens[index] in ['because', 'since', 'as']:
 						(premise_lf, index, _) = parse_singleton_clause(tokens, index + 1, morphology, complete_sentence=complete_sentence)
 						if premise_lf == None:
 							index = old_index
