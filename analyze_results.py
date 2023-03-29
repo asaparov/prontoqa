@@ -1,5 +1,6 @@
 import numpy as np
 from run_experiment import parse_log, parse_response, evaluate_response, parse_reasoning
+from syntax import UnableToParseError, AmbiguousParseError
 from sys import argv, exit
 
 # see https://www.mikulskibartosz.name/wilson-score-in-python-example/
@@ -91,7 +92,12 @@ def analyze_log(logfile):
 		if len(parse_errors) != 0:
 			print('There were errors during semantic parsing for file ' + logfile + ':')
 			for sentence, e in parse_errors:
-				print('  Error parsing {}: {}'.format(sentence, e))
+				if type(e) in [UnableToParseError, AmbiguousParseError]:
+					print('  Error parsing {}: {}'.format(sentence, e))
+				else:
+					import traceback
+					print('  Error parsing {}: '.format(sentence))
+					traceback.print_exception(e)
 			exit(1)
 
 	# collect incorrect steps

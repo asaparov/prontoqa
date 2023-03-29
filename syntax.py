@@ -436,9 +436,48 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
+	# this could be a coordinated ADJP
+	operands = []
+	is_conjunction = False
+	is_disjunction = False
+	while index < len(tokens):
+		last_index = index
+		if len(operands) != 0:
+			has_comma = False
+			if tokens[index] == ',':
+				index += 1
+				has_comma = True
+			if tokens[index] == 'and':
+				if is_disjunction:
+					break
+				is_conjunction = True
+				index += 1
+			elif tokens[index] == 'or':
+				if is_conjunction:
+					break
+				is_disjunction = True
+				index += 1
+			elif not has_comma:
+				break
+		if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
+			index = last_index
+			break
+		if len(operands) != 0 and morphology.is_any_noun(tokens[index].lower()):
+			index = last_index
+			break
+		operands.append(fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]))
+		index += 1
+
+	if len(operands) == 0:
 		return (None, None)
-	return (fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]), index + 1)
+	elif len(operands) == 1:
+		return (operands[0], index)
+	elif is_conjunction:
+		return (fol.FOLAnd(operands), index)
+	elif is_disjunction:
+		return (fol.FOLOr(operands), index)
+	else:
+		return (None, None)
 
 def parse_np(tokens, index, morphology):
 	if tokens[index].lower() in {"each", "every"}:
@@ -491,9 +530,21 @@ def parse_np(tokens, index, morphology):
 				(operand, index) = parse_adjp(tokens, index, morphology)
 				if operand == None:
 					return (None, None, None, None, None)
+				elif type(operand) == fol.FOLAnd:
+					if is_disjunction:
+						return (None, None, None, None, None)
+					is_conjunction = True
+					operands.extend(operand.operands)
+				elif type(operand) == fol.FOLOr:
+					if is_conjunction:
+						return (None, None, None, None, None)
+					is_disjunction = True
+					operands.extend(operand.operands)
+				else:
+					operands.append(operand)
 			else:
 				index = new_index
-			operands.append(operand)
+				operands.append(operand)
 		if len(operands) == 1:
 			lf = operands[0]
 		elif is_conjunction:
@@ -516,15 +567,20 @@ def parse_np(tokens, index, morphology):
 			(adjp_lf, index) = parse_adjp(tokens, index, morphology)
 			if adjp_lf == None or index >= len(tokens):
 				return (None, None, None, None, None)
-			if type(adjp_lf) == fol.FOLAnd:
-				adjp_operands.extend(adjp_lf)
+			if type(adjp_lf) in [fol.FOLAnd, fol.FOLOr]:
+				adjp_operands.extend(adjp_lf.operands)
 			else:
 				adjp_operands.append(adjp_lf)
 			(lf, new_index, is_plural) = parse_np_prime(tokens, index, morphology)
 			if isinstance(lf, fol.FOLFormula):
 				index = new_index
 				np_operands = lf.operands if type(lf) == fol.FOLAnd else [lf]
-				lf = fol.FOLAnd(adjp_operands + np_operands)
+				if type(adjp_lf) == fol.FOLOr:
+					if type(lf) in [fol.FOLAnd, fol.FOLOr]:
+						return (None, None, None, None, None)
+					lf = fol.FOLOr(adjp_operands + np_operands)
+				else:
+					lf = fol.FOLAnd(adjp_operands + np_operands)
 				break
 			else:
 				return (None, None, None, None, None)
@@ -596,7 +652,7 @@ def parse_vp_arg(tokens, index, morphology):
 		elif operand == None or is_quantified or is_negated:
 			# try parsing as a predicative (ADJP)
 			(operand, index) = parse_adjp(tokens, index, morphology)
-			if operand == None:
+			if operand == None or (type(operand) == fol.FOLAnd and is_disjunction) or (type(operand) == fol.FOLOr and is_conjunction):
 				if len(operands) > 1 and (is_conjunction or is_disjunction):
 					index = operand_indices[-1]
 					break
@@ -604,6 +660,20 @@ def parse_vp_arg(tokens, index, morphology):
 					return [(operands[0], operand_indices[0], operand_plural[0])]
 				else:
 					return []
+			if type(operand) == fol.FOLAnd:
+				operands.extend(operand.operands)
+				operand_indices.extend([-1]*(len(operands)-1) + [index])
+				operand_plural.extend([is_plural]*len(operands))
+				is_conjunction = True
+			if type(operand) == fol.FOLOr:
+				operands.extend(operand.operands)
+				operand_indices.extend([-1]*(len(operands)-1) + [index])
+				operand_plural.extend([is_plural]*len(operands))
+				is_disjunction = True
+			else:
+				operands.append(operand)
+				operand_indices.append(index)
+				operand_plural.append(is_plural)
 		else:
 			if negated:
 				operand = fol.FOLNot(operand)
@@ -615,16 +685,22 @@ def parse_vp_arg(tokens, index, morphology):
 					return [(operands[0], operand_indices[0], operand_plural[0])]
 				else:
 					return []
-		operands.append(operand)
-		operand_indices.append(index)
-		operand_plural.append(is_plural)
+			operands.append(operand)
+			operand_indices.append(index)
+			operand_plural.append(is_plural)
 	# this is ambiguous, since the coordination may either be interpreted at this node or higher in the derivation tree
 	if len(operands) == 1 and not is_conjunction and not is_disjunction:
 		return [(operands[0], index, is_plural)]
 	elif is_conjunction:
-		return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLAnd(operands), index, is_plural)]
+		if operand_indices[0] == -1:
+			return [(fol.FOLAnd(operands), index, is_plural)]
+		else:
+			return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLAnd(operands), index, is_plural)]
 	elif is_disjunction:
-		return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLOr(operands), index, is_plural)]
+		if operand_indices[0] == -1:
+			return [(fol.FOLOr(operands), index, is_plural)]
+		else:
+			return [(operands[0], operand_indices[0], operand_plural[0]), (fol.FOLOr(operands), index, is_plural)]
 	else:
 		return []
 
@@ -686,6 +762,9 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 		return [(fol.FOLFuncApplication("CONTRADICTS", [lf]), index, invert) for (lf, index, invert) in outputs]
 	elif index + 3 < len(tokens) and tokens[index].lower() == "this" and tokens[index + 1] == "is" and tokens[index + 2] == "a" and tokens[index + 3] == "contradiction":
 		index += 4
+		return [(fol.FOLFuncApplication("CONTRADICTS", []), index, False)]
+	elif index < len(tokens) and tokens[index].lower() == "contradiction":
+		index += 1
 		return [(fol.FOLFuncApplication("CONTRADICTS", []), index, False)]
 	else:
 		is_plural = None

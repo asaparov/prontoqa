@@ -39,6 +39,9 @@ class Morphology(object):
 	def is_proper_noun(self, word):
 		return word in self.proper_nouns
 
+	def is_any_noun(self, word):
+		return self.is_noun(word) or self.is_plural_noun(word) or self.is_proper_noun(word)
+
 	def to_plural(self, noun):
 		return self.plural_nouns[noun]
 
@@ -1100,7 +1103,8 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			elif premise in proof[:i]:
 				current_hypotheses = set.union(current_hypotheses, hypotheses[rindex(proof[:i], premise)])
 		for discharged_hypothesis in discharged_hypotheses:
-			current_hypotheses.remove(discharged_hypothesis)
+			if discharged_hypothesis in current_hypotheses:
+				current_hypotheses.remove(discharged_hypothesis)
 		if num_steps == 0 or num_steps == 1:
 			if is_valid:
 				correct_steps.append(i)
