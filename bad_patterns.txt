@@ -60,6 +60,7 @@
 ^Fruity\sis\s.*
 ^Feisty\sis\s.*
 ^Moderate\sis\s.*
+^Temperate\sis\s.*
 ^uls.*
 ^For\s.*
 ^Fom\s.*

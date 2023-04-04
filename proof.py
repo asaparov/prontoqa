@@ -44,7 +44,7 @@ def get_nodes(theory, level=0):
 		nodes.extend(get_nodes(child, level + 1))
 	return nodes
 
-def generate_membership_question(theories, entity_name, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True, proof_width=2, add_distractor=True):
+def generate_membership_question(theories, formulas, entity_name, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True, proof_width=2, add_distractor=True):
 	nodes = get_nodes(theories[0])
 	max_level = 0
 	for _, level in nodes:
@@ -252,70 +252,149 @@ def generate_membership_question(theories, entity_name, num_deduction_steps=None
 				break
 
 	linearized_proof = linearize_proof_steps(current_step)
-	if use_dfs and len(branch_points) > 0:
-		branch_index = 0
-		for step in linearized_proof:
-			if type(step.conclusion) == fol.FOLFuncApplication and step.conclusion.function == branch_points[-1].name:
+
+	def unify_conjunction(first, second, first_var_map, second_var_map):
+		if type(first) == fol.FOLAnd:
+			for operand in first.operands:
+				if fol.unify(operand, second, first_var_map, second_var_map):
+					return True
+		return False
+
+	if use_dfs:
+		stack = [[ProofStep(ProofStepType.AXIOM, [], premise)] for premise in premises]
+		shuffle(stack)
+		for step in stack[:-1]:
+			step.insert(0, ProofStep(ProofStepType.AXIOM, [], fol.FOLFuncApplication("START_OVER", [])))
+		path = []
+		while len(stack) > 0:
+			current_steps = stack.pop()
+			path.extend(current_steps)
+			current = current_steps[-1]
+			current_lf = current.conclusion
+			if type(current_lf) == fol.FOLFuncApplication and current_lf.function == "BACKTRACK":
+				current_lf = current_lf.args[0]
+
+			# check if we reached the destination
+			if current_lf == current_step.conclusion:
 				break
-			branch_index += 1
-		dfs_node = branch_points[-1]
-		dfs_step = linearized_proof[branch_index]
-
-		dfs_proof = []
-		while True:
-			subsumption_formula_count = (len(dfs_node.parents) if deduction_rule == "ModusPonens" else 1)
-			probabilities = [subsumption_formula_count] * len(dfs_node.parents) + [1] * len(dfs_node.properties) + [1] * len(dfs_node.negated_properties)
-			if np.sum(probabilities) == 0:
+			elif type(current_lf) == fol.FOLAnd and any([operand == current_step.conclusion for operand in current_lf.operands]):
+				elim_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [current], current_step.conclusion)
+				path.append(elim_step)
 				break
-			probabilities = np.array(probabilities) / np.sum(probabilities)
-			index = np.random.choice(1 + len(dfs_node.properties) + len(dfs_node.negated_properties), p=probabilities)
-			if index < subsumption_formula_count:
-				subsumption_formula = get_subsumption_formula(dfs_node, deduction_rule)[index]
-				subsumption_step = ProofStep(ProofStepType.AXIOM, [], subsumption_formula)
-				dfs_proof.append(subsumption_step)
-				conclusion = fol.FOLFuncApplication(dfs_node.parents[index].name, [fol.FOLConstant(entity_name)])
-				next_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_step, dfs_step], conclusion)
-
-				dfs_node = dfs_node.parents[index]
-				dfs_step = next_step
-				dfs_proof.append(dfs_step)
-
-			elif index < subsumption_formula_count + len(dfs_node.properties):
-				index -= subsumption_formula_count
-				properties_formulas = []
-				get_properties_formula(properties_formulas, dfs_node, deduction_rule)
-				properties_formula = properties_formulas[0]
-				properties_step = ProofStep(ProofStepType.AXIOM, [], properties_formula)
-				dfs_proof.append(properties_step)
-				conclusion = fol.substitute(properties_formula.operand.consequent, fol.FOLVariable(1), fol.FOLConstant(entity_name))
-				next_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [properties_step, dfs_step], conclusion)
-				dfs_step = next_step
-				dfs_proof.append(dfs_step)
-
-				if type(conclusion) == fol.FOLAnd:
-					dfs_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [dfs_step], fol.FOLFuncApplication(dfs_node.properties[index], [fol.FOLConstant(entity_name)]))
-					dfs_proof.append(dfs_step)
+			elif type(current_step.conclusion) == fol.FOLOr and any([current_lf == operand for operand in current_step.conclusion.operands]):
+				intro_step = ProofStep(ProofStepType.DISJUNCTION_INTRODUCTION, [current], current_step.conclusion)
+				path.append(intro_step)
 				break
+			elif type(current_step.conclusion) == fol.FOLAnd:
+				for i in range(len(current_step.conclusion.operands)):
+					operand = current_step.conclusion.operands[i]
+					if current_lf == operand:
+						# prove the other operands
+						operand_proofs = []
+						for j in range(len(current_step.conclusion.operands)):
+							if j == i:
+								operand_proofs.append(current)
+								continue
+							other_operand = current_step.conclusion.operands[j]
+							if other_operand in formulas or other_operand in premises:
+								operand_proofs.append(ProofStep(ProofStepType.AXIOM, [], other_operand))
+								continue
+							for step in path:
+								if step.conclusion == other_operand:
+									operand_proofs.append(step)
+									break
+						if len(operand_proofs) != len(current_step.conclusion.operands):
+							continue
 
-			else:
-				index -= subsumption_formula_count + len(dfs_node.properties)
-				properties_formulas = []
-				get_properties_formula(properties_formulas, dfs_node, deduction_rule)
-				properties_formula = properties_formulas[0]
-				properties_step = ProofStep(ProofStepType.AXIOM, [], properties_formula)
-				dfs_proof.append(properties_step)
-				conclusion = fol.substitute(properties_formula.operand.consequent, fol.FOLVariable(1), fol.FOLConstant(entity_name))
-				next_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [properties_step, dfs_step], conclusion)
-				dfs_step = next_step
-				dfs_proof.append(dfs_step)
+						intro_step = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, operand_proofs, current_step.conclusion)
+						for s in operand_proofs:
+							if s.step_type == ProofStepType.AXIOM:
+								path.append(s)
+						path.append(intro_step)
+						break
+				if path[-1].conclusion == current_step.conclusion:
+					break
 
-				if type(conclusion) == fol.FOLAnd:
-					dfs_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [dfs_step], fol.FOLNot(fol.FOLFuncApplication(dfs_node.negated_properties[index], [fol.FOLConstant(entity_name)])))
-					dfs_proof.append(dfs_step)
-				break
+			# consider all possible deduction steps from here
+			available_steps = []
+			for formula in formulas:
+				if not (type(formula) == fol.FOLForAll and type(formula.operand) == fol.FOLIfThen):
+					continue
+				first_var_map = {}
+				second_var_map = {}
+				if fol.unify(current_lf, formula.operand.antecedent, first_var_map, second_var_map):
+					subsumption_axiom = ProofStep(ProofStepType.AXIOM, [], formula)
+					conclusion = fol.substitute(formula.operand.consequent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+					subsumption_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_axiom, current], conclusion)
+					available_steps.append([subsumption_axiom, subsumption_step])
+				elif unify_conjunction(current_lf, formula.operand.antecedent, first_var_map, second_var_map):
+					antecedent_formula = fol.substitute(formula.operand.antecedent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+					elim_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [current], antecedent_formula)
+					subsumption_axiom = ProofStep(ProofStepType.AXIOM, [], formula)
+					conclusion = fol.substitute(formula.operand.consequent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+					subsumption_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_axiom, elim_step], conclusion)
+					available_steps.append([elim_step, subsumption_axiom, subsumption_step])
+				elif type(formula.operand.antecedent) == fol.FOLOr:
+					for operand in formula.operand.antecedent.operands:
+						if fol.unify(current_lf, operand, first_var_map, second_var_map):
+							antecedent_formula = fol.substitute(formula.operand.antecedent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							intro_step = ProofStep(ProofStepType.DISJUNCTION_INTRODUCTION, [current], antecedent_formula)
+							subsumption_axiom = ProofStep(ProofStepType.AXIOM, [], formula)
+							conclusion = fol.substitute(formula.operand.consequent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							subsumption_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_axiom, intro_step], conclusion)
+							available_steps.append([intro_step, subsumption_axiom, subsumption_step])
+						elif unify_conjunction(current_lf, operand, first_var_map, second_var_map):
+							operand_formula = fol.substitute(operand, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							elim_step = ProofStep(ProofStepType.CONJUNCTION_ELIMINATION, [current], operand_formula)
+							antecedent_formula = fol.substitute(formula.operand.antecedent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							intro_step = ProofStep(ProofStepType.DISJUNCTION_INTRODUCTION, [elim_step], antecedent_formula)
+							subsumption_axiom = ProofStep(ProofStepType.AXIOM, [], formula)
+							conclusion = fol.substitute(formula.operand.consequent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							subsumption_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_axiom, intro_step], conclusion)
+							available_steps.append([elim_step, intro_step, subsumption_axiom, subsumption_step])
+				elif type(formula.operand.antecedent) == fol.FOLAnd:
+					for i in range(len(formula.operand.antecedent.operands)):
+						operand = formula.operand.antecedent.operands[i]
+						if fol.unify(current_lf, operand, first_var_map, second_var_map):
+							# collect the other operands
+							operand_proofs = []
+							new_steps = []
+							for j in range(len(formula.operand.antecedent.operands)):
+								if i == j:
+									operand_proofs.append(current)
+									continue
+								other_operand = formula.operand.antecedent.operands[j]
+								grounded_operand = fol.substitute(other_operand, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+								if grounded_operand in formulas or grounded_operand in premises:
+									operand_proofs.append(ProofStep(ProofStepType.AXIOM, [], grounded_operand))
+									new_steps.append(operand_proofs[-1])
+									continue
+								for step in path:
+									if step.conclusion == grounded_operand:
+										operand_proofs.append(step)
+										break
+							if len(operand_proofs) != len(formula.operand.antecedent.operands):
+								continue
 
-		if dfs_proof[0] != linearized_proof[branch_index + 1]:
-			linearized_proof[(branch_index + 1):(branch_index + 1)] = dfs_proof
+							antecedent_formula = fol.substitute(formula.operand.antecedent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							intro_step = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, operand_proofs, antecedent_formula)
+							subsumption_axiom = ProofStep(ProofStepType.AXIOM, [], formula)
+							conclusion = fol.substitute(formula.operand.consequent, fol.FOLVariable(formula.variable), second_var_map[formula.variable])
+							subsumption_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_axiom, intro_step], conclusion)
+							available_steps.append(new_steps + [intro_step, subsumption_axiom, subsumption_step])
+
+			unvisited_steps = []
+			for step in available_steps:
+				if all([step[-1].conclusion != prev_step.conclusion for prev_step in path]):
+					unvisited_steps.append(step)
+			if len(unvisited_steps) != 0:
+				if len(unvisited_steps) > 1:
+					stack.append([ProofStep(current.step_type, current.premises, fol.FOLFuncApplication("BACKTRACK", [current_lf]))])
+				stack.append(choice(unvisited_steps))
+
+		if path[-1].conclusion != current_step.conclusion:
+			raise Exception("DFS failed to find proof.")
+		linearized_proof = path
 
 	shuffle(premises)
 	return (premises, current_step.conclusion, current_step, current_num_steps, linearized_proof)

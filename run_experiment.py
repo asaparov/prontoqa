@@ -324,7 +324,7 @@ for name in available_entity_names:
 
 config = OntologyConfig(max_child_count=1, generate_negation=True, generate_properties=True, require_properties=False, stop_probability=0.3)
 
-def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, use_dfs=False, proof_width=2, no_adjectives=False, generate_non_atomic_steps=False, num_rule_types=3):
+def generate_question(num_deduction_steps, available_concept_names, formula_ordering="postorder", ontology="fictional", add_distractor=True, deduction_rule="ModusPonens", proofs_only=False, dfs_mode="none", proof_width=2, no_adjectives=False, generate_non_atomic_steps=False, num_rule_types=3):
 	if num_deduction_steps < 2:
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
@@ -489,7 +489,7 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		generate_questions_about_types = False
 		if deduction_rule in {"AndIntro", "AndElim", "OrIntro"}:
 			generate_questions_about_types = True
-		(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, use_dfs, proof_width, add_distractor)
+		(premises, conclusion, proof, num_steps, linearized_proof) = generate_membership_question(theory, formulas, selected_entity, num_deduction_steps, generate_questions_about_types, True, deduction_rule, dfs_mode != "none", proof_width, add_distractor)
 		if not add_distractor and linearized_proof != None:
 			# if we don't want distractors, remove parts of the ontology that are unused by the proof
 			formulas = [formula for formula in formulas if any([formula == step.conclusion for step in linearized_proof])]
@@ -548,6 +548,9 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 	for k in range(len(proof_formulas)):
 		proof_formula = proof_formulas[k]
 
+		if dfs_mode == "nobacktrack" and type(proof_formula) == fol.FOLFuncApplication and proof_formula.function in ["BACKTRACK", "START_OVER"]:
+			continue
+
 		# find the sentence corresponding to this formula
 		found_formula = False
 		for i in range(len(formulas)):
@@ -570,6 +573,8 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		if type(proof_formula) == fol.FOLFuncApplication and proof_formula.function in {"ASSUME", "SINCE"} and len(chain_of_thought) > 1 and chain_of_thought[-2][-2:] != '\n\n':
 			# if this formula is an `ASSUME` instance, then add a newline
 			chain_of_thought[-2] = chain_of_thought[-2] + '\n\n'
+		if type(proof_formula) == fol.FOLFuncApplication and proof_formula.function == "START_OVER":
+			chain_of_thought[-1] = chain_of_thought[-1] + '\n'
 	return (question_text, query, formulas + premises, chain_of_thought, str(expected_answer), linearized_proof)
 
 def print_output(str, log):
@@ -1068,6 +1073,10 @@ def evaluate_response(response_proof, response_label, expected_answer, axioms, p
 			proof[i] = proof_step
 			current_hypotheses.add(proof_step)
 			is_assumption = True
+		elif type(proof_step) == fol.FOLFuncApplication and proof_step.function in ["BACKTRACK", "START_OVER"]:
+			i += 1
+			hypotheses.append(current_hypotheses)
+			continue
 
 		is_useful = (proof_step in expected_proof)
 		if type(expected_proof[-1]) == type(proof_step) and (type(proof_step) == fol.FOLAnd or type(proof_step) == fol.FOLOr):
@@ -1487,7 +1496,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 					curr_deduction_rule = args.deduction_rule
 				while True:
 					next_concept_names = (None if available_concept_names == None else available_concept_names[i])
-					(question_i, query_i, _, chain_of_thought_i, answer_i, proof_i) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.use_dfs, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps, args.rule_types)
+					(question_i, query_i, _, chain_of_thought_i, answer_i, proof_i) = generate_question(curr_proof_steps, next_concept_names, args.ordering, args.ontology, not args.no_distractor, curr_deduction_rule, args.proofs_only, args.DFS, curr_proof_width, args.no_adjectives, args.generate_non_atomic_steps, args.rule_types)
 					if question_i != None:
 						break
 				questions.append(question_i)
@@ -1500,7 +1509,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 				if t == 0:
 					while True:
 						next_concept_names = (None if available_concept_names == None else available_concept_names[args.few_shot_examples])
-						test_question = generate_question(test_num_proof_steps, next_concept_names, args.test_ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, False, args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
+						test_question = generate_question(test_num_proof_steps, next_concept_names, args.test_ordering, args.ontology, test_distractor, args.deduction_rule, args.proofs_only, "none", args.proof_width + args.test_width_diff, args.no_adjectives, False, args.rule_types)
 						(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 						if question != None:
 							break
@@ -1608,7 +1617,7 @@ if __name__ == "__main__":
 	parser.add_argument("--test-with-distractor", action='store_true')
 	parser.add_argument("--no-adjectives", action='store_true')
 	parser.add_argument("--proofs-only", action='store_true')
-	parser.add_argument("--use-dfs", action='store_true')
+	parser.add_argument("--DFS", type=str, default="none", choices=["none", "backtrack", "nobacktrack"])
 	parser.add_argument("--disjoint-concept-names", action='store_true')
 	parser.add_argument("--OOD", action='store_true')
 	parser.add_argument("--api-key", type=str, default=None)
@@ -1645,8 +1654,10 @@ if __name__ == "__main__":
 			log_suffix += '_{}shot'.format(args.few_shot_examples)
 		if args.prompting != "COT":
 			log_suffix += '_' + args.prompting
-		if args.use_dfs:
-			log_suffix += '_DFS'
+		if args.DFS == 'backtrack':
+			log_suffix += '_DFS_backtrack'
+		if args.DFS == 'nobacktrack':
+			log_suffix += '_DFS_nobacktrack'
 		if args.disjoint_concept_names:
 			log_suffix += '_disjointconcepts'
 		if args.proof_width != 2:
