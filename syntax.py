@@ -625,6 +625,8 @@ def parse_clause(tokens, index, morphology):
 		is_negated = False
 		
 	(right_lf, index, vp_is_plural) = parse_vp_arg(tokens, index, morphology)
+	if right_lf == None:
+		return (None, None, None)
 	if vp_is_plural != None and vp_is_plural != is_plural:
 		return (None, None, None) # grammatical number does not agree
 

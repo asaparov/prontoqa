@@ -293,6 +293,20 @@ morphology.add_noun("herbivore", "herbivores")
 morphology.add_noun("shepherd", "shepherds")
 morphology.add_noun("icon", "icons")
 morphology.add_noun("bumblebee", "bumblebees")
+morphology.add_noun("lemur", "lemurs")
+morphology.add_noun("flower", "flowers")
+morphology.add_noun("fig", "figs")
+morphology.add_noun("word", "words")
+morphology.add_noun("spice", "spices")
+morphology.add_noun("human", "humans")
+morphology.add_noun("light", "lights")
+morphology.add_noun("armadillo", "armadillos")
+morphology.add_noun("mouse", "mice")
+morphology.add_noun("creature", "creatures")
+morphology.add_noun("dragonfly", "dragonflies")
+morphology.add_noun("grape", "grapes")
+morphology.add_noun("virus", "viruses")
+morphology.add_noun("mineral", "minerals")
 
 available_entity_names = ["Fae", "Rex", "Sally", "Max", "Alex", "Sam", "Polly", "Stella", "Wren"]
 for name in available_entity_names:
@@ -500,7 +514,7 @@ def find_premise(premise, axioms, proof, proof_index, correct_steps, skip_steps)
 			missing_axiom = True
 			prev_step = prev_step_index
 		if prev_step == premise:
-			return (1 if missing_axiom else 0, [prev_step])
+			return (1 if missing_axiom else 0, [prev_step], [prev_step_index], proof_index)
 
 	(num_steps, valid_subproof, subproof_axioms, _) = is_provable(premise, axioms, proof, proof_index, correct_steps, skip_steps)
 	if num_steps != None:
@@ -630,7 +644,7 @@ def parse_reasoning(response, keep_sentences=False):
 	start = 0
 	lfs = []
 	for end in range(len(tokens)):
-		if tokens[end] == '.':
+		if tokens[end] == '.' or tokens[end] == ';':
 			# parse this sentence
 			lf = parse_sentence(tokens[start:end], morphology, False)
 			if lf == None:
