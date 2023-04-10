@@ -315,7 +315,7 @@ if len(argv) > 1:
 	if correct_labels != None:
 		print("Proof accuracy of examples with label `True`: {}".format(get_count(expected_label_true, offset + 1) / (expected_label_true[0] + expected_label_true[1])))
 		print("Proof accuracy of examples with label `False`: {}".format((num_correct_proofs - get_count(expected_label_true, offset + 1)) / (num_examples - expected_label_true[0] - expected_label_true[1])))
-		
+
 	if num_correct_proofs == 0:
 		print("(there are no correct proofs)")
 	else:
@@ -344,7 +344,7 @@ if len(argv) > 1:
 		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
 		print("Proportion of incorrect proofs that contain a \"useless branch\" AND \"useful non-atomic step\" AND \"invalid step\": {}".format(get_count(contains_wrong_branch_or_useful_non_atomic_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
 		print("Proportion of incorrect proofs with ANY OF THE ABOVE:                    {}".format(get_count(contains_wrong_branch_or_skip_step_or_non_atomic_step_or_invalid_step, offset + 0) / (num_examples - num_correct_proofs)))
-		
+
 	print("\nProportion of ALL proofs that are strictly correct: {}".format(strictly_correct_proofs / num_examples))
 	print("Proportion of ALL proofs that would be correct if \"skip steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_skip_step) / num_examples))
 	print("Proportion of ALL proofs that would be correct if \"non-atomic steps\" are considered correct: {}".format((strictly_correct_proofs + contains_correct_proof_with_non_atomic_step) / num_examples))
@@ -547,36 +547,37 @@ else:
 		x6 = [x + bar_width for x in x5]
 
 		fig = plt.gcf()
-		fig.set_size_inches(10.0, figure_height, forward=True)
-		plt.bar(x1, correct_proofs_wrong_branch, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x1, correct_proof_fraction - correct_proofs_wrong_branch, width=bar_width, bottom=correct_proofs_wrong_branch, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x1, incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x1, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_branch, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		figure_width = 1.667 * len(correct_proof_fraction)
+		fig.set_size_inches(figure_width, figure_height, forward=True)
+		plt.bar(x1, correct_proofs_wrong_branch, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x1, correct_proof_fraction - correct_proofs_wrong_branch, width=bar_width, bottom=correct_proofs_wrong_branch, color=lighten_color(colors[1], 0.8))
+		plt.bar(x1, incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x1, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_branch, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_branch, color=lighten_color(colors[0], 0.8))
 
-		plt.bar(x2, correct_proofs_useful_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x2, correct_proof_fraction - correct_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs_useful_non_atomic_step, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x2, incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x2, 1.0 - correct_proof_fraction - incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_non_atomic_step, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		plt.bar(x2, correct_proofs_useful_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x2, correct_proof_fraction - correct_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proofs_useful_non_atomic_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x2, incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x2, 1.0 - correct_proof_fraction - incorrect_proofs_useful_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_non_atomic_step, color=lighten_color(colors[0], 0.8))
 
-		plt.bar(x3, correct_proofs_wrong_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x3, correct_proof_fraction - correct_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs_wrong_non_atomic_step, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x3, incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x3, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_non_atomic_step, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		plt.bar(x3, correct_proofs_wrong_non_atomic_step, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x3, correct_proof_fraction - correct_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proofs_wrong_non_atomic_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x3, incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x3, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_non_atomic_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_non_atomic_step, color=lighten_color(colors[0], 0.8))
 
-		plt.bar(x4, correct_proofs_useful_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x4, correct_proof_fraction - correct_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs_useful_skip_step, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x4, incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x4, 1.0 - correct_proof_fraction - incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_skip_step, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		plt.bar(x4, correct_proofs_useful_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x4, correct_proof_fraction - correct_proofs_useful_skip_step, width=bar_width, bottom=correct_proofs_useful_skip_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x4, incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x4, 1.0 - correct_proof_fraction - incorrect_proofs_useful_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_useful_skip_step, color=lighten_color(colors[0], 0.8))
 
-		plt.bar(x5, correct_proofs_wrong_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x5, correct_proof_fraction - correct_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs_wrong_skip_step, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x5, incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x5, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_skip_step, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		plt.bar(x5, correct_proofs_wrong_skip_step, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x5, correct_proof_fraction - correct_proofs_wrong_skip_step, width=bar_width, bottom=correct_proofs_wrong_skip_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x5, incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x5, 1.0 - correct_proof_fraction - incorrect_proofs_wrong_skip_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_wrong_skip_step, color=lighten_color(colors[0], 0.8))
 
-		plt.bar(x6, correct_proofs_invalid_step, width=bar_width, color=lighten_color(colors[1], 1.3))
-		plt.bar(x6, correct_proof_fraction - correct_proofs_invalid_step, width=bar_width, bottom=correct_proofs_invalid_step, color=lighten_color(colors[1], 0.8 if subbars else 1.3))
-		plt.bar(x6, incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3))
-		plt.bar(x6, 1.0 - correct_proof_fraction - incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_invalid_step, color=lighten_color(colors[0], 0.8 if subbars else 1.3))
+		plt.bar(x6, correct_proofs_invalid_step, width=bar_width, color=lighten_color(colors[1], 1.3 if subbars else 0.8))
+		plt.bar(x6, correct_proof_fraction - correct_proofs_invalid_step, width=bar_width, bottom=correct_proofs_invalid_step, color=lighten_color(colors[1], 0.8))
+		plt.bar(x6, incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction, color=lighten_color(colors[0], 1.3 if subbars else 0.8))
+		plt.bar(x6, 1.0 - correct_proof_fraction - incorrect_proofs_invalid_step, width=bar_width, bottom=correct_proof_fraction+incorrect_proofs_invalid_step, color=lighten_color(colors[0], 0.8))
 
 		# draw the error bars
 		(lower_bound, upper_bound) = wilson_conf_interval(correct_proof_fraction, example_count)
@@ -608,7 +609,7 @@ else:
 			plt.text(0.0 + 3*bar_width - delta, 1.0, "correct ``skip steps''", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
 			plt.text(0.0 + 4*bar_width - delta, 1.0, "misleading ``skip steps''", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
 			plt.text(0.0 + 5*bar_width - delta, 1.0, "invalid steps", rotation=70, color=(0.3,0.3,0.3), fontsize=8.0, horizontalalignment='left', verticalalignment='bottom')
-		fig.savefig(chart_filename, dpi=128, bbox_inches=Bbox([[0.3, -0.1], [10.0 - 0.3, figure_height]]))
+		fig.savefig(chart_filename, dpi=(128 if '.pdf' in chart_filename else 512), bbox_inches=Bbox([[0.3 if '.pdf' in chart_filename else 0.0, -0.1], [figure_width - 0.3, figure_height]]))
 		plt.clf()
 
 		if wrong_branch_lengths_filename != None:
@@ -962,14 +963,14 @@ else:
 	make_step_type_plot('',
 		['gpt_textdavinci002_5hop_preorder_trueontology.log', 'gpt_textdavinci002_5hop_preorder.log', 'gpt_textdavinci002_5hop_preorder_falseontology.log'],
 		['true ontology', 'fictional ontology', 'false ontology'],
-		'iclr2023_ontology_type.png', 'iclr2023_ontology_type_first_error.png', 'iclr2023_ontology_type_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
-
-	make_step_type_plot('',
-		['gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop_preorder.log'],
-		['1 hop', '3 hops', '5 hops'],
-		'iclr2023_proof_length.png', 'iclr2023_proof_length_first_error.png', 'iclr2023_proof_length_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6)
+		'iclr2023_ontology_type.png', 'iclr2023_ontology_type_first_error.png', 'iclr2023_ontology_type_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, subbars=False)
 
 	make_step_type_plot('',
 		['gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop_preorder.log'],
 		['1 hop', '3 hops', '5 hops'],
 		'iclr2023_proof_length.png', 'iclr2023_proof_length_first_error.png', 'iclr2023_proof_length_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, subbars=False)
+
+	make_step_type_plot('',
+		['gpt_textdavinci002_1hop_preorder.log', 'gpt_textdavinci002_3hop_preorder.log', 'gpt_textdavinci002_5hop_preorder.log'],
+		['1 hop', '3 hops', '5 hops'],
+		'iclr2023_proof_length_subbars.png', 'iclr2023_proof_length_first_error.png', 'iclr2023_proof_length_wrong_branch_lengths.png', first_error_figure_height=1.8, wrong_branch_lengths_figure_height=1.6, subbars=True)
