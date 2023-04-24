@@ -1699,5 +1699,5 @@ if __name__ == "__main__":
 		elif args.model_name == 'json':
 			run_experiment("json", args, 1 + hops, 1 + hops + args.test_hops_diff, log_suffix[1:] + ".json")
 		else:
-			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'dummy'}))
+			print('ERROR: --model-name must be either ' + str({'gpt3', 'opt', 'unifiedqa', 'json', 'dummy'}))
 			break

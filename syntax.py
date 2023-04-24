@@ -460,6 +460,7 @@ def parse_np_prime(tokens, index, morphology):
 def parse_adjp(tokens, index, morphology):
 	# this could be a coordinated ADJP
 	operands = []
+	first_operand_index = None
 	is_conjunction = False
 	is_disjunction = False
 	while index < len(tokens):
@@ -489,6 +490,8 @@ def parse_adjp(tokens, index, morphology):
 			break
 		operands.append(fol.FOLFuncApplication(tokens[index].lower(), [fol.FOLVariable(1)]))
 		index += 1
+		if first_operand_index == None:
+			first_operand_index = index
 
 	if len(operands) == 0:
 		return (None, None)
@@ -499,7 +502,7 @@ def parse_adjp(tokens, index, morphology):
 	elif is_disjunction:
 		return (fol.FOLOr(operands), index)
 	else:
-		return (None, None)
+		return (operands[0], first_operand_index)
 
 def parse_np(tokens, index, morphology):
 	if tokens[index].lower() in {"each", "every"}:
@@ -687,7 +690,7 @@ def parse_vp_arg(tokens, index, morphology):
 				operand_indices.extend([-1]*(len(operands)-1) + [index])
 				operand_plural.extend([is_plural]*len(operands))
 				is_conjunction = True
-			if type(operand) == fol.FOLOr:
+			elif type(operand) == fol.FOLOr:
 				operands.extend(operand.operands)
 				operand_indices.extend([-1]*(len(operands)-1) + [index])
 				operand_plural.extend([is_plural]*len(operands))
