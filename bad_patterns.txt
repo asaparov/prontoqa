@@ -57,6 +57,7 @@
 ^Dumpures.*
 ^Dumpers.*
 ^Fapres.*
+^Leimpuses.*
 ^Sheeps.*
 .*\svumpuse\s.*
 ^Earthy\sis\s.*
@@ -221,6 +222,7 @@
 .*\sare\san\sinteger$
 .*\sis\sa\sluminous$
 .*\sis\sa\sfeisty$
+.*\sis\sa\shappy$
 .*\sttp$
 .*\sis\sarithmetic$
 .*\sis\sa\swren$
@@ -255,7 +257,6 @@
 ^Each\ssour\sis\s.*
 ^Each\sunicellular\sis\s.*
 ^Every\sunicellular\sis\s.*
-^Each\sliquid\sis\s.*
 ^Each\sfruity\sis\s.*
 ^Every\ssmall\sis\s.*
 ^Each\sfeisty\sis\s.*
@@ -263,9 +264,12 @@
 ^Each\smuffled\sis\s.*
 ^Every\smuffled\sis\s.*
 ^Every\smetallic\sis\s.*
+^Each\sliquid\sis\s.*
 ^Every\sliquid\sis\s.*
 ^Every\swooden\sis\s.*
 ^Each\swooden\sis\s.*
+^Each\shot\sis\s.*
+^Each\ssmall\sis\s.*
 ^composite\snumber\sis\s.*
 ^Each\sred\sis\s.*
 ^Each\sorange\sis\s.*
@@ -345,6 +349,9 @@
 .*\sis\ssweet\s,\s\w+puses.*
 .*\sis\sfeisty\sand\sshy\sand\s\w+puses.*
 .*\sis\sshy\sand\sa\stransparent$
+.*\sand\sa\sfloral$
+.*\sand\san\sangry$
+.*\sand\sa\sslow$
 .*\sis\saggressive\s,\skind\s,\s\w+puses.*
 .*\sis\sluminous\sand\smetallic\sand\s\w+puses.*
 .*\sand\stherefore\smelodic$

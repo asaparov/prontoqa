@@ -53,7 +53,17 @@ palm_results = {
 	'4hop_Composed_random_noadj': 0.19,
 	'4hop_OOD_Composed_random_noadj': 0.37,
 	'4hop_ProofsOnly_random_noadj': 0.01,
-	'5hop_ProofsOnly_random_noadj': 0.01
+	'5hop_ProofsOnly_random_noadj': 0.01,
+	'1hop_AndElim_random_noadj': 1.0,
+	'1hop_AndIntro_random_noadj': 0.98,
+	'1hop_OrElim_3proofwidth_testrandom_nodistractor_testdistractor_noadj': 0.35,
+	'1hop_ProofByContra_testrandom_nodistractor_testdistractor_noadj': 0.3,
+	'1hop_ProofsOnly_random_noadj': 0.91,
+	'2hop_AndElim_testrandom_nodistractor_testdistractor_noadj': 0.34,
+	'2hop_AndIntro_testrandom_nodistractor_testdistractor_noadj': 0.34,
+	'2hop_OrIntro_random_noadj': 0.27,
+	'2hop_OrIntro_testrandom_nodistractor_testdistractor_noadj': 0.42,
+	'2hop_ProofsOnly_testrandom_nodistractor_testdistractor_noadj': 0.36
 }
 
 missing_files = []
@@ -73,7 +83,7 @@ def get_proof_accuracy(logfile):
 	correct_proof_count = np.sum(contains_correct_proof)
 	return ((correct_proof_count + contains_correct_proof_with_skip_step_or_non_atomic_step) / num_examples, num_examples)
 
-def make_rule_plot(output_filename, filenames, group_labels, title=None):
+def make_rule_plot(output_filename, filenames, group_labels, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1):
 	bar_group_size = 4
 	bar_spacing = 0.2
 	bar_width = (1.0 - bar_spacing) / bar_group_size
@@ -94,16 +104,26 @@ def make_rule_plot(output_filename, filenames, group_labels, title=None):
 	err = np.maximum(0, np.stack((accuracies - lower_bound, upper_bound - accuracies), axis=2))
 
 	fig = plt.gcf()
-	fig.set_size_inches(8.0, 1.8, forward=True)
+	fig.set_size_inches(width, 1.8, forward=True)
 	if title != None:
-		plt.title(title)
+		plt.title(title, pad=-0.2, fontsize=11)
 	plt.bar(x1, accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0])
 	plt.bar(x2, accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1])
 	plt.bar(x3, accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5])
 	plt.bar(x4, accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2])
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
-	plt.legend(labels, loc='center left', bbox_to_anchor=(1.01, 0.5), fontsize=8, facecolor='white', edgecolor='white')
+	if legend_pos == None:
+		pass
+	elif type(legend_pos) == str:
+		plt.legend(labels, loc=legend_pos, fontsize=7.5, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	else:
+		plt.legend(labels, loc='center left', bbox_to_anchor=legend_pos, fontsize=8, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	delta_width, delta_height = 0.0, 0.0
+	if type(legend_pos) == tuple and legend_pos[0] >= 1.0:
+		delta_width = 0.35
+	elif type(legend_pos) == tuple and legend_pos[1] >= 1.0:
+		delta_height = 0.25
 
 	ax = plt.gca()
 	plt.ylabel('proof accuracy')
@@ -113,11 +133,11 @@ def make_rule_plot(output_filename, filenames, group_labels, title=None):
 	plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=10)
 	plt.tick_params(axis='x', which='both', length=0)
 	xlabel_line_count = np.max([label.count('\n') for label in group_labels])
-	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[0.3, (xlabel_line_count + 1) * -0.1], [8.0 + 0.6 - 0.3, 1.8]]))
+	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, (xlabel_line_count + 1) * -0.1], [width + delta_width - 0.3, 1.8 + delta_height]]))
 	plt.clf()
 	return accuracies, lower_bound, upper_bound
 
-def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, base_lower_bound, base_upper_bound, title=None):
+def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, base_lower_bound, base_upper_bound, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1, ymin=-1.0, ymax=0.5):
 	bar_group_size = 4
 	bar_spacing = 0.2
 	bar_width = (1.0 - bar_spacing) / bar_group_size
@@ -141,9 +161,9 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 	err = np.maximum(0, np.stack((delta_accuracies - delta_lower_bound, delta_upper_bound - delta_accuracies), axis=2))
 
 	fig = plt.gcf()
-	fig.set_size_inches(8.0, 1.8, forward=True)
+	fig.set_size_inches(width, 1.8, forward=True)
 	if title != None:
-		plt.title(title)
+		plt.title(title, pad=-0.2, fontsize=11)
 	plt.plot([-bar_spacing, len(filenames) - 0.12], [0.0, 0.0], c='#555', linewidth=1, label='_nolegend_')
 	plt.bar(x1, delta_accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0])
 	plt.bar(x2, delta_accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1])
@@ -151,17 +171,27 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 	plt.bar(x4, delta_accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2])
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
-	plt.legend(labels, loc='center left', bbox_to_anchor=(1.01, 0.5), fontsize=8, facecolor='white', edgecolor='white')
+	if legend_pos == None:
+		pass
+	elif type(legend_pos) == str:
+		plt.legend(labels, loc=legend_pos, fontsize=7.5, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	else:
+		plt.legend(labels, loc='center left', bbox_to_anchor=legend_pos, fontsize=8, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	delta_width, delta_height = 0.0, 0.0
+	if type(legend_pos) == tuple and legend_pos[0] >= 1.0:
+		delta_width = 0.35
+	elif type(legend_pos) == tuple and legend_pos[1] >= 1.0:
+		delta_height = 0.25
 
 	ax = plt.gca()
 	plt.ylabel('$\Delta$ proof accuracy')
 	plt.xlim([-bar_spacing, len(filenames) - 0.12])
-	plt.ylim([-1.0, 0.5])
+	plt.ylim([ymin, ymax])
 	delta = (1.0 - bar_spacing) / (2*bar_group_size)
 	plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=10)
 	plt.tick_params(axis='x', which='both', length=0)
 	xlabel_line_count = np.max([label.count('\n') for label in group_labels])
-	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[0.3, (xlabel_line_count + 1) * -0.1], [8.0 + 0.6 - 0.3, 1.8]]))
+	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, (xlabel_line_count + 1) * -0.1], [width + delta_width - 0.3, 1.8 + delta_height]]))
 	plt.clf()
 
 plt.rcParams.update({
@@ -203,7 +233,8 @@ rule_accuracies, rule_lower_bound, rule_upper_bound = make_rule_plot('rule_accur
 		 'llama/1hop_ProofByContra_random_noadj.json',
 		 'flan-t5/latest/1hop_ProofByContra_random_noadj.json']
 		],
-		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'])
+		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
+		title="ID: Rule generalization")
 make_diff_plot('ood_accuracies.pdf', [
 		['gpt_textdavinci003_2hop_OOD_ModusPonens_random_noadj.log',
 		 'palm/2hop_OOD_ModusPonens_random_noadj.log',
@@ -231,7 +262,8 @@ make_diff_plot('ood_accuracies.pdf', [
 		 'flan-t5/latest/1hop_OOD_ProofByContra_random_noadj.json']
 		],
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
-		rule_accuracies, rule_lower_bound, rule_upper_bound)
+		rule_accuracies, rule_lower_bound, rule_upper_bound,
+		title="OOD: Rule generalization")
 
 compositional_accuracies, compositional_lower_bound, compositional_upper_bound = make_rule_plot('compositional_id_accuracies.pdf',
 		[
@@ -252,7 +284,8 @@ compositional_accuracies, compositional_lower_bound, compositional_upper_bound =
 		 'llama/4hop_Composed_random_noadj.json',
 		 'flan-t5/latest/4hop_Composed_random_noadj.json']
 		],
-		['min depth: 2\nrule types: 2', 'min depth: 2\nrule types: 3', 'min depth: 2\nrule types: 4', 'min depth: 4\nrule types: 3'])
+		['min depth: 2\nrule types: 2', 'min depth: 2\nrule types: 3', 'min depth: 2\nrule types: 4', 'min depth: 4\nrule types: 3'],
+		title="ID: Compositional examples", width=5.0, legend_pos='upper right', legend_cols=4)
 make_diff_plot('compositional_ood_accuracies.pdf', [
 		['gpt_textdavinci003_2hop_OOD_Composed_2ruletypes_random_noadj.log',
 		 'palm/2hop_OOD_Composed_2ruletypes_random_noadj.log',
@@ -272,7 +305,8 @@ make_diff_plot('compositional_ood_accuracies.pdf', [
 		 'flan-t5/latest/4hop_OOD_Composed_random_noadj.json']
 		],
 		['min depth: 2\nrule types: 2', 'min depth: 2\nrule types: 3', 'min depth: 2\nrule types: 4', 'min depth: 4\nrule types: 3'],
-		compositional_accuracies, compositional_lower_bound, compositional_upper_bound)
+		compositional_accuracies, compositional_lower_bound, compositional_upper_bound,
+		title="OOD: Compositional examples", width=5.0, legend_pos=None, ymin=-0.5)
 
 distractor_accuracies, distractor_lower_bound, distractor_upper_bound = make_rule_plot('distractor_accuracies.pdf',
 		[
@@ -301,7 +335,8 @@ distractor_accuracies, distractor_lower_bound, distractor_upper_bound = make_rul
 		 'llama/1hop_ProofByContra_random_noadj.json',
 		 'flan-t5/latest/1hop_ProofByContra_random_noadj.json']
 		],
-		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'])
+		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
+		title="ID: In-context examples with distractors")
 make_diff_plot('nodistractor_accuracies.pdf', [
 		['gpt_textdavinci003_2hop_ProofsOnly_testrandom_nodistractor_testdistractor_noadj.log',
 		 'palm/2hop_ProofsOnly_testrandom_nodistractor_testdistractor_noadj.log',
@@ -329,7 +364,8 @@ make_diff_plot('nodistractor_accuracies.pdf', [
 		 'flan-t5/latest/1hop_ProofByContra_testrandom_nodistractor_testdistractor_noadj.json']
 		],
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
-		distractor_accuracies, distractor_lower_bound, distractor_upper_bound)
+		distractor_accuracies, distractor_lower_bound, distractor_upper_bound,
+		title="OOD: In-context examples without distractors")
 
 depth1_accuracies, depth1_lower_bound, depth1_upper_bound = make_rule_plot('1hop_accuracies.pdf',
 		[
@@ -347,7 +383,7 @@ depth1_accuracies, depth1_lower_bound, depth1_upper_bound = make_rule_plot('1hop
 		 'flan-t5/latest/1hop_AndElim_random_noadj.json']
 		],
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination'],
-		title="Train depth: 1, test depth: 1")
+		title="ID: Train depth = 1, test depth = 1", width=4.0, legend_pos=(-0.05, 1.25), legend_cols=4)
 make_diff_plot('1hop_accuracies_2testhops.pdf', [
 		['gpt_textdavinci003_1hop_ProofsOnly_2testhops_random_noadj.log',
 		 'palm/1hop_ProofsOnly_2testhops_random_noadj.log',
@@ -363,7 +399,8 @@ make_diff_plot('1hop_accuracies_2testhops.pdf', [
 		 'flan-t5/latest/1hop_AndElim_2testhops_random_noadj.json']
 		],
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination'],
-		depth1_accuracies, depth1_lower_bound, depth1_upper_bound, title="Test depth: 2")
+		depth1_accuracies, depth1_lower_bound, depth1_upper_bound,
+		title="OOD: Train depth = 1, test depth = 2", width=4.0, legend_pos=None)
 make_diff_plot('1hop_accuracies_3testhops.pdf', [
 		['gpt_textdavinci003_1hop_ProofsOnly_3testhops_random_noadj.log',
 		 'palm/1hop_ProofsOnly_3testhops_random_noadj.log',
@@ -379,7 +416,8 @@ make_diff_plot('1hop_accuracies_3testhops.pdf', [
 		 'flan-t5/latest/1hop_AndElim_3testhops_random_noadj.json']
 		],
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination'],
-		depth1_accuracies, depth1_lower_bound, depth1_upper_bound, title="Test depth: 3")
+		depth1_accuracies, depth1_lower_bound, depth1_upper_bound,
+		title="OOD: Train depth = 1, test depth = 3", width=4.0, legend_pos=None)
 
 depth2_accuracies, depth2_lower_bound, depth2_upper_bound = make_rule_plot('2hop_accuracies.pdf',
 		[
@@ -393,7 +431,7 @@ depth2_accuracies, depth2_lower_bound, depth2_upper_bound = make_rule_plot('2hop
 		 'flan-t5/latest/2hop_AndElim_random_noadj.json']
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
-		title="Train depth: 2, test depth: 2")
+		title="ID: Train depth = 2, test depth = 2", width=3.2, legend_pos=None)
 make_diff_plot('2hop_accuracies_3testhops.pdf', [
 		['gpt_textdavinci003_2hop_AndIntro_3testhops_random_noadj.log',
 		 'palm/2hop_AndIntro_3testhops_random_noadj.log',
@@ -405,7 +443,8 @@ make_diff_plot('2hop_accuracies_3testhops.pdf', [
 		 'flan-t5/latest/2hop_AndElim_3testhops_random_noadj.json']
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
-		depth2_accuracies, depth2_lower_bound, depth2_upper_bound, title="Test depth: 3")
+		depth2_accuracies, depth2_lower_bound, depth2_upper_bound,
+		title="OOD: Train depth = 2, test depth = 3", width=3.2, legend_pos=None)
 
 width_accuracies, width_lower_bound, width_upper_bound = make_rule_plot('width_accuracies.pdf',
 		[
@@ -419,7 +458,7 @@ width_accuracies, width_lower_bound, width_upper_bound = make_rule_plot('width_a
 		 'flan-t5/latest/2hop_AndElim_random_noadj.json']
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
-		title="Train width: 2, test width: 2")
+		title="ID: Train width = 2, test width = 2", width=3.2, legend_pos=(-0.25, 1.25), legend_cols=4)
 make_diff_plot('width_accuracies_3testwidth.pdf', [
 		['gpt_textdavinci003_2hop_AndIntro_3testwidth_random_noadj.log',
 		 'palm/2hop_AndIntro_3testwidth_random_noadj.log',
@@ -431,7 +470,8 @@ make_diff_plot('width_accuracies_3testwidth.pdf', [
 		 'flan-t5/latest/2hop_AndElim_3testwidth_random_noadj.json']
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
-		width_accuracies, width_lower_bound, width_upper_bound, title="Test width: 3")
+		width_accuracies, width_lower_bound, width_upper_bound,
+		title="OOD: Train width = 2, test width = 3", width=3.2, legend_pos=None)
 make_diff_plot('width_accuracies_4testwidth.pdf', [
 		['gpt_textdavinci003_2hop_AndIntro_4testwidth_random_noadj.log',
 		 'palm/2hop_AndIntro_4testwidth_random_noadj.log',
@@ -443,7 +483,8 @@ make_diff_plot('width_accuracies_4testwidth.pdf', [
 		 'flan-t5/latest/2hop_AndElim_4testwidth_random_noadj.json']
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
-		width_accuracies, width_lower_bound, width_upper_bound, title="Test width: 4")
+		width_accuracies, width_lower_bound, width_upper_bound,
+		title="OOD: Train width = 2, test width = 4", width=3.2, legend_pos=None)
 
 if len(missing_files) != 0:
 	print('[WARNING] The following files are missing:\n  ' + '\n  '.join(missing_files))
