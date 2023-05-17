@@ -839,9 +839,8 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 			if is_plural:
 				continue # outside the coverage of the grammar
 			lf = fol.substitute(right_lf, fol.FOLVariable(1), left_lf)
-			while num_negations > 0:
+			for _ in range(num_negations):
 				lf = fol.FOLNot(lf)
-				num_negations -= 1
 		elif is_quantified or np_is_plural == True or np_is_plural == None:
 			if np_is_negated:
 				if type(right_lf) == fol.FOLAnd:
@@ -850,9 +849,8 @@ def parse_clause(tokens, index, morphology, can_be_coordinated=True, complete_se
 					remaining_conjuncts = [right_lf]
 				lf = fol.FOLNot(fol.FOLExists(1, fol.FOLAnd([left_lf] + remaining_conjuncts)))
 			else:
-				while num_negations > 0:
+				for _ in range(num_negations):
 					right_lf = fol.FOLNot(right_lf)
-					num_negations -= 1
 				lf = fol.FOLForAll(1, fol.FOLIfThen(left_lf, right_lf))
 		else:
 			continue # outside the coverage of the grammar

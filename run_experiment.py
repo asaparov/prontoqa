@@ -889,7 +889,7 @@ def is_provable(formula, axioms, proof, proof_index, correct_steps, non_atomic_s
 						if unifies:
 							break
 			else:
-				unifies = fol.unify(formula, contrapositive.operand.consequent, first_var_map, second_var_map)
+				unifies = fol.unify(negate(formula.operand) if type(formula) == fol.FOLNot else formula, contrapositive.operand.consequent, first_var_map, second_var_map)
 			if unifies:
 				# make sure the antecedent isn't the same as the thing we want to prove (since that would cause infinite recursion)
 				if fol.substitute(contrapositive.operand.antecedent, fol.FOLVariable(contrapositive.variable), second_var_map[contrapositive.variable]) in prev_formulas + [formula]:
@@ -1012,6 +1012,10 @@ def split_since_formulas(formulas):
 			formulas[i] = formulas[i].args[0]
 		if type(formulas[i]) == fol.FOLFuncApplication and formulas[i].function in {"HOWEVER", "THEREFORE"}:
 			formulas[i] = formulas[i].args[0]
+		if type(formulas[i]) == fol.FOLNot and type(formulas[i].operand) == fol.FOLAnd:
+			formulas[i] = fol.FOLOr([(operand.operand if type(operand) == fol.FOLNot else fol.FOLNot(operand)) for operand in formulas[i].operand.operands])
+		elif type(formulas[i]) == fol.FOLNot and type(formulas[i].operand) == fol.FOLOr:
+			formulas[i] = fol.FOLAnd([(operand.operand if type(operand) == fol.FOLNot else fol.FOLNot(operand)) for operand in formulas[i].operand.operands])
 		i += 1
 	return formulas
 
