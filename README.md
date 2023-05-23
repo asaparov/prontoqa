@@ -30,7 +30,32 @@ To generate the examples and evaluate models, use [`run_experiment.py`](run_expe
 The output of the experiments are written to a file whose name is automatically determined based on the above flag configuration.
  - `--resume` is another very useful flag that prevents the program from restarting the experiment at trial 0 if partial results already exist. Rather, the program will continue the experiment where it left off.
 
-The generated data for our experiments is available in `generated_ood_data.zip`. The model outputs from our experiments are provided in `model_outputs_v1.zip` (for the original PrOntoQA) and `model_outputs_ood.zip` (for PrOntoQA-OOD).
+The model outputs from our experiments are provided in `model_outputs_v1.zip` (for the original PrOntoQA) and `model_outputs_ood.zip` (for PrOntoQA-OOD).
+
+## Generating data without running experiments
+
+To generate data in JSON format, use the `run_experiment.py` script with the flag `--model-name json`. See the above section for details on the other arguments.
+
+The generated data for our experiments is available in `generated_ood_data.zip`.
 
 ## Analyzing output
-Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in the PrOntoQA paper. The script `make_plots.py` generates all the plots in the PrOntoQA-OOD paper.
+Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in our paper. The script `make_plots.py` generates all the plots in the PrOntoQA-OOD paper. To analyze the output of a single file, run `analyze_results.py <filename>`. This script supports the reading of both JSON-formatted output files as well as the log files output by `run_experiment.py`. The expected JSON format is as follows:
+```
+{
+  "example1": {
+    ...
+    "test_example": {
+      ...
+      "model_output": <model output as a string, including the predicted label>
+    }
+  },
+  "example2": {
+    ...
+    "test_example": {
+      ...
+      "model_output": <model output as a string, including the predicted label>
+    }
+  },
+  ...
+}
+```
