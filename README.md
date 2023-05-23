@@ -1,5 +1,5 @@
-# PrOntoQA
-This repo contains PrOntoQA, as described in our paper, [Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought](https://arxiv.org/pdf/2210.01240.pdf). PrOntoQA generates question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models such as GPT-3.
+# PrOntoQA and PrOntoQA-OOD
+This repo contains PrOntoQA-OOD, as described in our paper, [Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought](https://arxiv.org/pdf/2210.01240.pdf). PrOntoQA and PrOntoQA-OOD generate question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models.
 
 If you use our code in your work, please cite our paper:
 ```
@@ -28,7 +28,7 @@ To generate the examples and evaluate models, use [`run_experiment.py`](run_expe
 The output of the experiments are written to a file whose name is automatically determined based on the above flag configuration.
  - `--resume` is another very useful flag that prevents the program from restarting the experiment at trial 0 if partial results already exist. Rather, the program will continue the experiment where it left off.
 
-The model outputs from our experiments are provided in `model_outputs.zip`.
+The generated data for our experiments is available in `generated_ood_data.zip`. The model outputs from our experiments are provided in `model_outputs_v1.zip` (for the original PrOntoQA) and `model_outputs_ood.zip` (for PrOntoQA-OOD).
 
 ## Analyzing output
-Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in our paper.
+Once `run_experiment.py` has saved the model predictions to files, they can be analyzed with [`analyze_results.py`](analyze_results.py). Without any arguments, this script will reproduce all results figures in the PrOntoQA paper. The script `make_plots.py` generates all the plots in the PrOntoQA-OOD paper.
