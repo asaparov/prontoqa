@@ -3,15 +3,13 @@ This repo contains PrOntoQA, as described in our paper, [Language Models Are Gre
 
 If you use our code in your work, please cite our paper:
 ```
-@article{SaparovHe22,
-  author    = {Abulhair Saparov and He He},
-  title     = {Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought},
-  journal   = {CoRR},
-  volume    = {abs/2210.01240},
-  year      = {2022},
-  url       = {https://arxiv.org/abs/2210.01240},
-  eprinttype = {arXiv},
-  eprint    = {2210.01240},
+@inproceedings{
+  SaparovHe2023,
+  title={Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought},
+  author={Abulhair Saparov and He He},
+  booktitle={The Eleventh International Conference on Learning Representations },
+  year={2023},
+  url={https://openreview.net/forum?id=qFVVBzXxR2V}
 }
 ```
 
