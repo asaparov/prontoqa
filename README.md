@@ -7,7 +7,7 @@ If you use our code in your work, please cite our paper:
   SaparovHe2023,
   title={Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought},
   author={Abulhair Saparov and He He},
-  booktitle={The Eleventh International Conference on Learning Representations },
+  booktitle={The Eleventh International Conference on Learning Representations},
   year={2023},
   url={https://openreview.net/forum?id=qFVVBzXxR2V}
 }
