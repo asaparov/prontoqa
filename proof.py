@@ -44,7 +44,7 @@ def get_nodes(theory, level=0):
 		nodes.extend(get_nodes(child, level + 1))
 	return nodes
 
-def generate_membership_question(theories, formulas, entity_name, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True, proof_width=2, add_distractor=True):
+def generate_membership_question(theories, formulas, entity_name, irrelevant_entity, num_deduction_steps=None, generate_questions_about_types=True, generate_questions_about_properties=True, deduction_rule="ModusPonens", use_dfs=True, proof_width=2, distractors="relevant"):
 	nodes = get_nodes(theories[0])
 	max_level = 0
 	for _, level in nodes:
@@ -57,38 +57,42 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 		return (None, None, None, None, None)
 	start = choice(sufficiently_deep_nodes)
 
+	distractor_entity = entity_name if distractors == "relevant" else irrelevant_entity
+
 	if deduction_rule == "AndElim":
 		child = choice(start.children)
 		properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in child.properties]
 		properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in child.negated_properties]
-		if add_distractor:
+		if distractors != "none":
 			expected_num_properties = max(proof_width, 2) - 2 # the conjunction should have 2 concept names and proof_width - 2 properties
 		else:
 			expected_num_properties = max(proof_width, 1) - 1
 		if len(properties) != expected_num_properties:
 			raise ValueError("Expected exactly {} defining propert{}.".format(expected_num_properties, "y" if expected_num_properties == 1 else "ies"))
-		if add_distractor:
-			other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(entity_name)]) for parent in start.parents[1:]] + [fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])]
+		if distractors != "none":
+			distractor_entity = entity_name if distractors == "relevant" else irrelevant_entity
+			other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(distractor_entity)]) for parent in start.parents[1:]] + [fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])]
 			shuffle(other_conjuncts)
 		else:
 			other_conjuncts = [fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])]
 		start_formula = fol.FOLAnd(properties + other_conjuncts)
 
-		if add_distractor:
+		if distractors != "none":
 			distractor_child = choice(theories[1].children)
-			distractor_properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)]) for property in distractor_child.properties]
-			distractor_properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(entity_name)])) for property in distractor_child.negated_properties]
-			other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(entity_name)]) for parent in distractor_child.parents]
+			distractor_properties = [fol.FOLFuncApplication(property, [fol.FOLConstant(distractor_entity)]) for property in distractor_child.properties]
+			distractor_properties += [fol.FOLNot(fol.FOLFuncApplication(property, [fol.FOLConstant(distractor_entity)])) for property in distractor_child.negated_properties]
+			other_conjuncts = [fol.FOLFuncApplication(parent.name, [fol.FOLConstant(distractor_entity)]) for parent in distractor_child.parents]
 			shuffle(other_conjuncts)
 			if len(distractor_properties) != expected_num_properties:
-				raise ValueError("Expected exactly {} defining propert{}.".format(expected_num_properties, "y" if expected_num_properties == 1 else "ies"))
+				print("Expected exactly {} defining propert{}.".format(expected_num_properties, "y" if expected_num_properties == 1 else "ies"))
+				return (None, None, None, None, None)
 			distractor_formula = fol.FOLAnd(distractor_properties + other_conjuncts)
 	else:
 		start_formula = fol.FOLFuncApplication(start.name, [fol.FOLConstant(entity_name)])
-		if add_distractor:
+		if distractors != "none":
 			distractor_child = choice(theories[-1].children)
-			distractor_formula = fol.FOLFuncApplication(distractor_child.name, [fol.FOLConstant(entity_name)])
-	if add_distractor:
+			distractor_formula = fol.FOLFuncApplication(distractor_child.name, [fol.FOLConstant(distractor_entity)])
+	if distractors != "none":
 		premises = [start_formula, distractor_formula]
 	else:
 		premises = [start_formula]
@@ -99,10 +103,10 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 
 	branch_points = []
 	while True:
-		if add_distractor and deduction_rule == "ModusPonens" and len(current_node.parents) == 1:
+		if distractors == "relevant" and deduction_rule == "ModusPonens" and len(current_node.parents) == 1:
 			# make sure there is at least one distractor at each hop
 			return (None, None, None, None, None)
-		elif add_distractor and deduction_rule == "AndElim" and not any([len(parent.parents) > 1 for parent in current_node.parents[1:]]):
+		elif distractors == "relevant" and deduction_rule == "AndElim" and not any([len(parent.parents) > 1 for parent in current_node.parents[1:]]):
 			# make sure there is at least one distractor at each hop
 			return (None, None, None, None, None)
 		if len(current_node.parents) == 0:
@@ -111,10 +115,6 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 			true_parent = current_node.parents[0]
 
 		if deduction_rule == "AndIntro":
-			if true_parent == None:
-				if not generate_questions_about_types:
-					return (None, None, None, None, None)
-				break
 			subsumption_formulas = get_subsumption_formula(current_node, deduction_rule)
 			other_axioms = []
 			other_axiom_steps = []
@@ -134,6 +134,10 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 			if generate_questions_about_types and ((num_deduction_steps != None and current_num_steps == num_deduction_steps) or (num_deduction_steps == None and random() < 0.3)):
 				break
 
+			if true_parent == None:
+				if not generate_questions_about_types:
+					return (None, None, None, None, None)
+				break
 			subsumption_step = ProofStep(ProofStepType.AXIOM, [], subsumption_formulas[0])
 			conclusion = fol.FOLFuncApplication(true_parent.name, [fol.FOLConstant(entity_name)])
 			next_step = ProofStep(ProofStepType.UNIVERSAL_INSTANTIATION, [subsumption_step, current_step], conclusion)
@@ -142,10 +146,10 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 			current_step = next_step
 
 			# make sure to add distractor axioms for the distractor subsumption formulas (so they are not so easily identifiable)
-			if add_distractor:
+			if distractors != "none":
 				for distractor_formula in subsumption_formulas[1:]:
 					for operand in distractor_formula.operand.antecedent.operands:
-						other_axiom = fol.substitute(operand, fol.FOLVariable(1), fol.FOLConstant(entity_name))
+						other_axiom = fol.substitute(operand, fol.FOLVariable(1), fol.FOLConstant(distractor_entity))
 						if other_axiom not in premises:
 							premises.append(other_axiom)
 
@@ -399,14 +403,17 @@ def generate_membership_question(theories, formulas, entity_name, num_deduction_
 	shuffle(premises)
 	return (premises, current_step.conclusion, current_step, current_num_steps, linearized_proof)
 
-def generate_de_morgans_question(theories, entity_name, distractor_concept, num_deduction_steps=None, proof_width=2, add_distractor=True):
+def generate_de_morgans_question(theories, entity_name, irrelevant_entity, distractor_concept, num_deduction_steps=None, proof_width=2, distractors="relevant"):
 	assert(num_deduction_steps - 1 == 1)
 
 	theory = theories[0]
 
 	premise = fol.FOLNot(fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 	premise_axiom = ProofStep(ProofStepType.AXIOM, [], premise)
-	distractor_premise = fol.FOLNot(fol.FOLFuncApplication(distractor_concept, [fol.FOLConstant(entity_name)]))
+	if distractors == "irrelevant":
+		distractor_premise = fol.FOLNot(fol.FOLFuncApplication(distractor_concept, [fol.FOLConstant(irrelevant_entity)]))
+	else:
+		distractor_premise = fol.FOLNot(fol.FOLFuncApplication(distractor_concept, [fol.FOLConstant(entity_name)]))
 	antecedent_formula = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLVariable(1)]) for child in theory.children[:proof_width]])
 	grounded_antecedent_formula = fol.substitute(antecedent_formula, fol.FOLVariable(1), fol.FOLConstant(entity_name))
 	subsumption_formula = fol.FOLForAll(1, fol.FOLIfThen(antecedent_formula, fol.FOLFuncApplication(theory.name, [fol.FOLVariable(1)])))
@@ -423,7 +430,7 @@ def generate_de_morgans_question(theories, entity_name, distractor_concept, num_
 
 	proof = ProofStep(ProofStepType.CONJUNCTION_INTRODUCTION, subproofs, fol.FOLAnd([subproof.conclusion for subproof in subproofs][::-1]))
 
-	if add_distractor:
+	if distractors != "none":
 		premises = [premise, distractor_premise]
 		shuffle(premises)
 	else:
@@ -431,14 +438,15 @@ def generate_de_morgans_question(theories, entity_name, distractor_concept, num_
 	return (premises, proof.conclusion, proof, num_deduction_steps, linearize_proof_steps(proof))
 
 
-def generate_proof_by_cases_question(theories, entity_name, num_deduction_steps=None, proof_width=2, add_distractor=True):
+def generate_proof_by_cases_question(theories, entity_name, irrelevant_entity, num_deduction_steps=None, proof_width=2, distractors="relevant"):
 	assert num_deduction_steps - 1 == 1
 
 	theory = theories[0] # generate the question from the non-distractor ontology
 	premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in theory.children[:proof_width]])
-	if add_distractor:
+	if distractors != "none":
+		distractor_entity = entity_name if distractors == "relevant" else irrelevant_entity
 		distractor_theory = theories[1]
-		distractor_premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(entity_name)]) for child in distractor_theory.children[:proof_width]])
+		distractor_premise = fol.FOLOr([fol.FOLFuncApplication(child.name, [fol.FOLConstant(distractor_entity)]) for child in distractor_theory.children[:proof_width]])
 	premise_axiom = ProofStep(ProofStepType.AXIOM, [], premise)
 	
 	subproofs = []
@@ -455,7 +463,7 @@ def generate_proof_by_cases_question(theories, entity_name, num_deduction_steps=
 
 	proof = ProofStep(ProofStepType.DISJUNCTION_ELIMINATION, subproofs + [premise_axiom], fol.FOLFuncApplication(theory.name, [fol.FOLConstant(entity_name)]))
 
-	if add_distractor:
+	if distractors != "none":
 		premises = [premise, distractor_premise]
 		shuffle(premises)
 	else:

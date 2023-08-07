@@ -36,6 +36,16 @@ class OntologyNode(object):
 			num_properties += child_num_properties
 		return (num_concepts, num_properties)
 
+def get_descendants(node):
+	stack = [node]
+	descendants = []
+	while len(stack) != 0:
+		current = stack.pop()
+		descendants.append(current)
+		for child in current.children:
+			stack.append(child)
+	return descendants
+
 
 def generate_concept_properties(node, num_properties, available_properties, available_negative_properties, generate_negation):
 	for _ in range(num_properties):
