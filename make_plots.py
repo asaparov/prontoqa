@@ -16,6 +16,39 @@ palm_results = {
 	'2hop_OrIntro_random_noadj': 0.27,
 	'2hop_OrIntro_testrandom_nodistractor_testdistractor_noadj': 0.42,
 	'2hop_ProofsOnly_testrandom_nodistractor_testdistractor_noadj': 0.36,
+	'1hop_OrElim_3proofwidth_testrandom_irrelevantdistractor_testdistractor_noadj': 0.3,
+	'1hop_ProofByContra_testrandom_irrelevantdistractor_testdistractor_noadj': 0.81,
+	'2hop_AndElim_4shot_3proofwidth_random_noadj': 0.27,
+	'2hop_AndElim_4shot_3testwidth_random_noadj': 0.2,
+	'2hop_AndElim_4shot_4proofwidth_random_noadj': 0.18,
+	'2hop_AndElim_4shot_4testwidth_random_noadj': 0.23,
+	'2hop_AndElim_4shot_5proofwidth_random_noadj': 0.18,
+	'2hop_AndElim_4shot_5testwidth_random_noadj': 0.13,
+	'2hop_AndElim_4shot_random_noadj': 0.32,
+	'2hop_AndElim_testrandom_irrelevantdistractor_testdistractor_noadj': 0.22,
+	'2hop_AndIntro_4shot_3proofwidth_random_noadj': 0.15,
+	'2hop_AndIntro_4shot_3testhops_random_noadj': 0.2,
+	'2hop_AndIntro_4shot_3testwidth_random_noadj': 0.08,
+	'2hop_AndIntro_4shot_4proofwidth_random_noadj': 0.08,
+	'2hop_AndIntro_4shot_4testhops_random_noadj': 0.09,
+	'2hop_AndIntro_4shot_4testwidth_random_noadj': 0.08,
+	'2hop_AndIntro_4shot_5proofwidth_random_noadj': 0.06,
+	'2hop_AndIntro_4shot_5testhops_random_noadj': 0.02,
+	'2hop_AndIntro_4shot_5testwidth_random_noadj': 0.1,
+	'2hop_AndIntro_4shot_random_noadj': 0.3,
+	'2hop_AndIntro_testrandom_irrelevantdistractor_testdistractor_noadj': 0.1,
+	'2hop_OrIntro_testrandom_irrelevantdistractor_testdistractor_noadj': 0.41,
+	'2hop_ProofsOnly_4shot_3testhops_random_noadj': 0.23,
+	'2hop_ProofsOnly_4shot_4testhops_random_noadj': 0.05,
+	'2hop_ProofsOnly_4shot_5testhops_random_noadj': 0.03,
+	'2hop_ProofsOnly_4shot_random_noadj': 0.53,
+	'2hop_ProofsOnly_testrandom_irrelevantdistractor_testdistractor_noadj': 0.47,
+	'3hop_AndIntro_4shot_random_noadj': 0.18,
+	'3hop_ProofsOnly_4shot_random_noadj': 0.16,
+	'4hop_AndIntro_4shot_random_noadj': 0.17,
+	'4hop_ProofsOnly_4shot_random_noadj': 0.08,
+	'5hop_AndIntro_4shot_random_noadj': 0.02,
+	'5hop_ProofsOnly_4shot_random_noadj': 0.0,
 	'1hop_AndElim_2testhops_random_noadj': 0.45,
 	'1hop_AndElim_3testhops_random_noadj': 0.42,
 	'1hop_AndIntro_2testhops_random_noadj': 0.0,
@@ -138,7 +171,7 @@ def make_rule_plot(output_filename, filenames, group_labels, title=None, width=8
 	plt.clf()
 	return accuracies, lower_bound, upper_bound
 
-def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, base_lower_bound, base_upper_bound, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1, ymin=-1.0, ymax=0.5):
+def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, base_lower_bound, base_upper_bound, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1, ymin=-1.0, ymax=0.5, absolute_accuracy=False):
 	bar_group_size = 4
 	bar_spacing = 0.2
 	bar_width = (1.0 - bar_spacing) / bar_group_size
@@ -155,21 +188,129 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 			accuracies[i,j], example_counts[i,j] = get_proof_accuracy(filenames[j][i])
 
 	(lower_bound, upper_bound) = wilson_conf_interval(accuracies, example_counts)
-	lower_bound[np.isnan(lower_bound)] = 0.0; upper_bound[np.isnan(upper_bound)] = 1.0
-	delta_accuracies = accuracies - base_accuracies
-	delta_lower_bound = delta_accuracies - np.sqrt((accuracies - lower_bound)**2 + (base_upper_bound - base_accuracies)**2)
-	delta_upper_bound = delta_accuracies + np.sqrt((upper_bound - accuracies)**2 + (base_accuracies - base_lower_bound)**2)
-	err = np.maximum(0, np.stack((delta_accuracies - delta_lower_bound, delta_upper_bound - delta_accuracies), axis=2))
+	lower_bound[accuracies == -100] = -1.0; upper_bound[accuracies == -100] = -1.0
+	if absolute_accuracy:
+		err = np.maximum(0, np.stack((accuracies - lower_bound, upper_bound - accuracies), axis=2))
+	else:
+		delta_accuracies = accuracies - base_accuracies
+		delta_lower_bound = delta_accuracies - np.sqrt((accuracies - lower_bound)**2 + (base_upper_bound - base_accuracies)**2)
+		delta_upper_bound = delta_accuracies + np.sqrt((upper_bound - accuracies)**2 + (base_accuracies - base_lower_bound)**2)
+		err = np.maximum(0, np.stack((delta_accuracies - delta_lower_bound, delta_upper_bound - delta_accuracies), axis=2))
 
 	fig = plt.gcf()
 	fig.set_size_inches(width, 1.8, forward=True)
 	if title != None:
 		plt.title(title, pad=-0.2, fontsize=11)
 	plt.plot([-bar_spacing, len(filenames) - 0.12], [0.0, 0.0], c='#555', linewidth=1, label='_nolegend_')
-	plt.bar(x1, delta_accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0])
-	plt.bar(x2, delta_accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1])
-	plt.bar(x3, delta_accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5])
-	plt.bar(x4, delta_accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2])
+	if not absolute_accuracy:
+		plt.bar(x1, delta_accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0], visible=(accuracies[0,0]!=-100))
+		plt.bar(x2, delta_accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1], visible=(accuracies[1,0]!=-100))
+		plt.bar(x3, delta_accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5], visible=(accuracies[2,0]!=-100))
+		plt.bar(x4, delta_accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2], visible=(accuracies[3,0]!=-100))
+	else:
+		plt.bar(x1, accuracies[0,:], width=bar_width, color=colors[0])
+		plt.bar(x2, accuracies[1,:], width=bar_width, color=colors[1])
+		plt.bar(x3, accuracies[2,:], width=bar_width, color=colors[5])
+		plt.bar(x4, accuracies[3,:], width=bar_width, color=colors[2])
+		plt.errorbar(x1, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x2, accuracies[1,:], yerr=err[1,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x3, accuracies[2,:], yerr=err[2,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x4, accuracies[3,:], yerr=err[3,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
+
+	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
+	if legend_pos == None:
+		pass
+	elif type(legend_pos) == str:
+		plt.legend(labels, loc=legend_pos, fontsize=7.5, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	else:
+		plt.legend(labels, loc='center left', bbox_to_anchor=legend_pos, fontsize=8, facecolor='white', edgecolor='white', ncols=legend_cols, columnspacing=1.0, handletextpad=0.5)
+	delta_width, delta_height = 0.0, 0.0
+	if type(legend_pos) == tuple and legend_pos[0] >= 1.0:
+		delta_width = 0.35
+	elif type(legend_pos) == tuple and legend_pos[1] >= 1.0:
+		delta_height = 0.25
+
+	if absolute_accuracy:
+		dx = bar_width * 0.25
+		for i in range(len(filenames)):
+			def start_point(j):
+				dy = 0.021 if (base_accuracies[j,i] > accuracies[j,i]) else -0.021
+				return base_accuracies[j,i] + dy
+			def arrow_length(j):
+				dy = accuracies[j,i] - base_accuracies[j,i]
+				return dy #(dy - 0.02) if dy > 0.0 else (dy + 0.02)
+			if np.abs(arrow_length(0)) >= 0.05:
+				plt.arrow(x1[i]-dx, start_point(0), 0, arrow_length(0), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			if np.abs(arrow_length(1)) >= 0.05:
+				plt.arrow(x2[i]-dx, start_point(1), 0, arrow_length(1), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			if np.abs(arrow_length(2)) >= 0.05:
+				plt.arrow(x3[i]-dx, start_point(2), 0, arrow_length(2), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			if np.abs(arrow_length(3)) >= 0.05:
+				plt.arrow(x4[i]-dx, start_point(3), 0, arrow_length(3), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			plt.plot([x1[i]-0.45*bar_width,x1[i]+0.45*bar_width], [base_accuracies[0,i]]*2, color=lighten_color(colors[0],1.3))
+			plt.plot([x2[i]-0.45*bar_width,x2[i]+0.45*bar_width], [base_accuracies[1,i]]*2, color=lighten_color(colors[1],1.3))
+			plt.plot([x3[i]-0.45*bar_width,x3[i]+0.45*bar_width], [base_accuracies[2,i]]*2, color=lighten_color(colors[5],1.3))
+			plt.plot([x4[i]-0.45*bar_width,x4[i]+0.45*bar_width], [base_accuracies[3,i]]*2, color=lighten_color(colors[2],1.3))
+
+	ax = plt.gca()
+	if absolute_accuracy:
+		plt.ylabel('Proof accuracy')
+		plt.ylim([0.0, 1.0])
+	else:
+		plt.ylabel('$\Delta$ proof accuracy')
+		plt.ylim([ymin, ymax])
+	plt.xlim([-bar_spacing, len(filenames) - 0.12])
+	delta = (1.0 - bar_spacing) / (2*bar_group_size)
+	plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=10)
+	plt.tick_params(axis='x', which='both', length=0)
+	xlabel_line_count = np.max([label.count('\n') for label in group_labels])
+	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, (xlabel_line_count + 1) * -0.1], [width + delta_width - 0.3, 1.8 + delta_height]]))
+	plt.clf()
+
+def make_line_plot(output_filename, filenames, ID_filenames, x, xlabel, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1):
+	accuracies = np.empty((4,len(filenames)))
+	example_counts = np.empty((4,len(filenames)))
+	for i in range(4):
+		for j in range(len(filenames)):
+			accuracies[i,j], example_counts[i,j] = get_proof_accuracy(filenames[j][i])
+
+	(lower_bound, upper_bound) = wilson_conf_interval(accuracies, example_counts)
+	lower_bound[accuracies == -100] = -1.0; upper_bound[accuracies == -100] = -1.0
+	err = np.maximum(0, np.stack((accuracies - lower_bound, upper_bound - accuracies), axis=2))
+
+	ID_accuracies = np.empty((4,len(filenames)))
+	ID_example_counts = np.empty((4,len(filenames)))
+	for i in range(4):
+		for j in range(len(ID_filenames)):
+			ID_accuracies[i,j], ID_example_counts[i,j] = get_proof_accuracy(ID_filenames[j][i])
+
+	(ID_lower_bound, ID_upper_bound) = wilson_conf_interval(ID_accuracies, ID_example_counts)
+	ID_lower_bound[ID_accuracies == -100] = -1.0; ID_upper_bound[ID_accuracies == -100] = -1.0
+	ID_err = np.maximum(0, np.stack((ID_accuracies - ID_lower_bound, ID_upper_bound - ID_accuracies), axis=2))
+
+	fig = plt.gcf()
+	fig.set_size_inches(width, 1.8, forward=True)
+	if title != None:
+		plt.title(title, pad=-0.2, fontsize=11)
+	plt.plot(x, accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.35)
+	plt.plot(x, accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.35)
+	plt.plot(x, accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.35)
+	plt.plot(x, accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.35)
+
+	plt.plot(x, ID_accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.35, linestyle='--')
+	plt.plot(x, ID_accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.35, linestyle='--')
+	plt.plot(x, ID_accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.35, linestyle='--')
+	plt.plot(x, ID_accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.35, linestyle='--')
+
+	plt.errorbar(x, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', ecolor=colors[0], capsize=3.0)
+	plt.errorbar(x, accuracies[1,:], yerr=err[1,:,:].T, fmt='none', ecolor=colors[1], capsize=3.0)
+	plt.errorbar(x, accuracies[2,:], yerr=err[2,:,:].T, fmt='none', ecolor=colors[5], capsize=3.0)
+	plt.errorbar(x, accuracies[3,:], yerr=err[3,:,:].T, fmt='none', ecolor=colors[2], capsize=3.0)
+
+	plt.errorbar(x, ID_accuracies[0,:], yerr=ID_err[0,:,:].T, fmt='none', ecolor=colors[0], capsize=3.0)
+	plt.errorbar(x, ID_accuracies[1,:], yerr=ID_err[1,:,:].T, fmt='none', ecolor=colors[1], capsize=3.0)
+	plt.errorbar(x, ID_accuracies[2,:], yerr=ID_err[2,:,:].T, fmt='none', ecolor=colors[5], capsize=3.0)
+	plt.errorbar(x, ID_accuracies[3,:], yerr=ID_err[3,:,:].T, fmt='none', ecolor=colors[2], capsize=3.0)
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
 	if legend_pos == None:
@@ -185,15 +326,14 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 		delta_height = 0.25
 
 	ax = plt.gca()
-	plt.ylabel('$\Delta$ proof accuracy')
-	plt.xlim([-bar_spacing, len(filenames) - 0.12])
-	plt.ylim([ymin, ymax])
-	delta = (1.0 - bar_spacing) / (2*bar_group_size)
-	plt.xticks([x + ((1.0 - bar_spacing) / 2) - delta for x in x1], group_labels, fontsize=10)
+	plt.xlabel(xlabel)
+	plt.ylabel('proof accuracy')
+	plt.xticks(x)
+	plt.ylim([0.0, 1.0])
 	plt.tick_params(axis='x', which='both', length=0)
-	xlabel_line_count = np.max([label.count('\n') for label in group_labels])
-	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, (xlabel_line_count + 1) * -0.1], [width + delta_width - 0.3, 1.8 + delta_height]]))
+	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, -0.25], [width + delta_width - 0.3, 1.8 + delta_height]]))
 	plt.clf()
+	return accuracies, lower_bound, upper_bound
 
 plt.rcParams.update({
 	"text.usetex": True,
@@ -367,8 +507,37 @@ make_diff_plot('nodistractor_accuracies.pdf', [
 		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
 		distractor_accuracies, distractor_lower_bound, distractor_upper_bound,
 		title="OOD: In-context examples without distractors")
+make_diff_plot('irrelevant_accuracies.pdf', [
+		['gpt_textdavinci003_2hop_ProofsOnly_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/2hop_ProofsOnly_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/2hop_ProofsOnly_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_testrandom_irrelevantdistractor_testdistractor_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/2hop_AndIntro_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/2hop_AndIntro_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_testrandom_irrelevantdistractor_testdistractor_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/2hop_AndElim_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/2hop_AndElim_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_testrandom_irrelevantdistractor_testdistractor_noadj.json'],
+		['gpt_textdavinci003_2hop_OrIntro_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/2hop_OrIntro_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/2hop_OrIntro_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/2hop_OrIntro_testrandom_irrelevantdistractor_testdistractor_noadj.json'],
+		['gpt_textdavinci003_1hop_OrElim_3proofwidth_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/1hop_OrElim_3proofwidth_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/1hop_OrElim_3proofwidth_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/1hop_OrElim_3proofwidth_testrandom_irrelevantdistractor_testdistractor_noadj.json'],
+		['gpt_textdavinci003_1hop_ProofByContra_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'palm/1hop_ProofByContra_testrandom_irrelevantdistractor_testdistractor_noadj.log',
+		 'llama/1hop_ProofByContra_testrandom_irrelevantdistractor_testdistractor_noadj.json',
+		 'flan-t5/latest/1hop_ProofByContra_testrandom_irrelevantdistractor_testdistractor_noadj.json']
+		],
+		['implication\nelimination', 'conjunction\nintroduction', 'conjunction\nelimination', 'disjunction\nintroduction', 'disjunction\nelimination', 'proof by\ncontradiction'],
+		distractor_accuracies, distractor_lower_bound, distractor_upper_bound,
+		title="OOD: In-context examples with irrelevant sentences")
 
-depth1_accuracies, depth1_lower_bound, depth1_upper_bound = make_rule_plot('1hop_accuracies.pdf',
+'''depth1_accuracies, depth1_lower_bound, depth1_upper_bound = make_rule_plot('1hop_accuracies.pdf',
 		[
 		['gpt_textdavinci003_1hop_ProofsOnly_random_noadj.log',
 		 'palm/1hop_ProofsOnly_random_noadj.log',
@@ -485,7 +654,167 @@ make_diff_plot('width_accuracies_4testwidth.pdf', [
 		],
 		['conjunction\nintroduction', 'conjunction\nelimination'],
 		width_accuracies, width_lower_bound, width_upper_bound,
-		title="OOD: Train width = 2, test width = 4", width=3.2, legend_pos=None)
+		title="OOD: Train width = 2, test width = 4", width=3.2, legend_pos=None)'''
+
+make_line_plot('depth_gen_modus_ponens.pdf',
+		[
+		['gpt_textdavinci003_2hop_ProofsOnly_4shot_random_noadj.log',
+		 'palm/2hop_ProofsOnly_4shot_random_noadj.log',
+		 'llama/2hop_ProofsOnly_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_ProofsOnly_4shot_3testhops_random_noadj.log',
+		 'palm/2hop_ProofsOnly_4shot_3testhops_random_noadj.log',
+		 'llama/2hop_ProofsOnly_4shot_3testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_4shot_3testhops_random_noadj.json'],
+		['gpt_textdavinci003_2hop_ProofsOnly_4shot_4testhops_random_noadj.log',
+		 'palm/2hop_ProofsOnly_4shot_4testhops_random_noadj.log',
+		 'llama/2hop_ProofsOnly_4shot_4testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_4shot_4testhops_random_noadj.json'],
+		['gpt_textdavinci003_2hop_ProofsOnly_4shot_5testhops_random_noadj.log',
+		 'palm/2hop_ProofsOnly_4shot_5testhops_random_noadj.log',
+		 'llama/2hop_ProofsOnly_4shot_5testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_4shot_5testhops_random_noadj.json']
+		],
+		[
+		['gpt_textdavinci003_2hop_ProofsOnly_4shot_random_noadj.log',
+		 'palm/2hop_ProofsOnly_4shot_random_noadj.log',
+		 'llama/2hop_ProofsOnly_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_ProofsOnly_4shot_random_noadj.json'],
+		['gpt_textdavinci003_3hop_ProofsOnly_4shot_random_noadj.log',
+		 'palm/3hop_ProofsOnly_4shot_random_noadj.log',
+		 'llama/3hop_ProofsOnly_4shot_random_noadj.json',
+		 'flan-t5/latest/3hop_ProofsOnly_4shot_random_noadj.json'],
+		['gpt_textdavinci003_4hop_ProofsOnly_4shot_random_noadj.log',
+		 'palm/4hop_ProofsOnly_4shot_random_noadj.log',
+		 'llama/4hop_ProofsOnly_4shot_random_noadj.json',
+		 'flan-t5/latest/4hop_ProofsOnly_4shot_random_noadj.json'],
+		['gpt_textdavinci003_5hop_ProofsOnly_4shot_random_noadj.log',
+		 'palm/5hop_ProofsOnly_4shot_random_noadj.log',
+		 'llama/5hop_ProofsOnly_4shot_random_noadj.json',
+		 'flan-t5/latest/5hop_ProofsOnly_4shot_random_noadj.json']
+		],
+		[2, 3, 4, 5], "proof depth of test example",
+		title="Depth generalization: Implication elimination", width=4.0, legend_pos=(-0.05, 1.25), legend_cols=4)
+
+make_line_plot('depth_gen_and_intro.pdf',
+		[
+		['gpt_textdavinci003_2hop_AndIntro_4shot_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_3testhops_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_3testhops_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_3testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_3testhops_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_4testhops_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_4testhops_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_4testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_4testhops_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_5testhops_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_5testhops_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_5testhops_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_5testhops_random_noadj.json']
+		],
+		[
+		['gpt_textdavinci003_2hop_AndIntro_4shot_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_3hop_AndIntro_4shot_random_noadj.log',
+		 'palm/3hop_AndIntro_4shot_random_noadj.log',
+		 'llama/3hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/3hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_4hop_AndIntro_4shot_random_noadj.log',
+		 'palm/4hop_AndIntro_4shot_random_noadj.log',
+		 'llama/4hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/4hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_5hop_AndIntro_4shot_random_noadj.log',
+		 'palm/5hop_AndIntro_4shot_random_noadj.log',
+		 'llama/5hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/5hop_AndIntro_4shot_random_noadj.json']
+		],
+		[2, 3, 4, 5], "proof depth of test example",
+		title="Depth generalization: Conjunction introduction", width=4.0, legend_pos=None)
+
+make_line_plot('width_gen_and_intro.pdf',
+		[
+		['gpt_textdavinci003_2hop_AndIntro_4shot_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_3testwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_3testwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_3testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_3testwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_4testwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_4testwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_4testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_4testwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_5testwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_5testwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_5testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_5testwidth_random_noadj.json']
+		],
+		[
+		['gpt_textdavinci003_2hop_AndIntro_4shot_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_3proofwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_3proofwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_3proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_3proofwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_4proofwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_4proofwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_4proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_4proofwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndIntro_4shot_5proofwidth_random_noadj.log',
+		 'palm/2hop_AndIntro_4shot_5proofwidth_random_noadj.log',
+		 'llama/2hop_AndIntro_4shot_5proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndIntro_4shot_5proofwidth_random_noadj.json']
+		],
+		[2, 3, 4, 5], "proof width of test example",
+		title="Width generalization: Conjunction introduction", width=4.0, legend_pos=None)
+
+make_line_plot('width_gen_and_elim.pdf',
+		[
+		['gpt_textdavinci003_2hop_AndElim_4shot_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_3testwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_3testwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_3testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_3testwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_4testwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_4testwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_4testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_4testwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_5testwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_5testwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_5testwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_5testwidth_random_noadj.json']
+		],
+		[
+		['gpt_textdavinci003_2hop_AndElim_4shot_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_3proofwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_3proofwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_3proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_3proofwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_4proofwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_4proofwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_4proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_4proofwidth_random_noadj.json'],
+		['gpt_textdavinci003_2hop_AndElim_4shot_5proofwidth_random_noadj.log',
+		 'palm/2hop_AndElim_4shot_5proofwidth_random_noadj.log',
+		 'llama/2hop_AndElim_4shot_5proofwidth_random_noadj.json',
+		 'flan-t5/latest/2hop_AndElim_4shot_5proofwidth_random_noadj.json']
+		],
+		[2, 3, 4, 5], "proof width of test example",
+		title="Width generalization: Conjunction elimination", width=4.0, legend_pos=None)
 
 if len(missing_files) != 0:
 	print('[WARNING] The following files are missing:\n  ' + '\n  '.join(missing_files))

@@ -672,7 +672,8 @@ def parse_vp_arg(tokens, index, morphology):
 			negated = False
 		(operand, new_index, operand_is_plural, is_negated, is_quantified) = parse_np(tokens, index, morphology)
 		if type(operand) == fol.FOLConstant:
-			index = operand_indices[-1]
+			if len(operands) > 0:
+				index = operand_indices[-1]
 			if len(operands) == 1:
 				is_conjunction = False
 				is_disjunction = False
