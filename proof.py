@@ -486,6 +486,7 @@ class ProvabilityVertex(object):
 		self.provable_from = []
 		self.subsets = []
 		self.supersets = []
+		self.members = []
 
 	def name(self):
 		return self.definition
@@ -499,6 +500,7 @@ class ProvabilityConjunction(object):
 		self.provable_from = []
 		self.subsets = []
 		self.supersets = []
+		self.members = []
 
 	def name(self):
 		return '&'.join([s.definition for s in self.conjuncts])
@@ -512,6 +514,7 @@ class ProvabilityDisjunction(object):
 		self.provable_from = []
 		self.subsets = []
 		self.supersets = []
+		self.members = []
 
 	def name(self):
 		return '|'.join([s.definition for s in self.disjuncts])
@@ -551,6 +554,9 @@ def prove_graph(graph):
 			if new_premise not in conclusion.provable_from:
 				conclusion.provable_from.append(new_premise)
 				proves[new_premise].append(conclusion)
+				for member in new_premise.members:
+					if member not in conclusion.members:
+						conclusion.members.append(member)
 				found_new_premise = True
 		if not found_new_premise:
 			return
@@ -560,6 +566,9 @@ def prove_graph(graph):
 			for conjunction in conjunction_map[conclusion]:
 				if conjunction not in queue:
 					queue.append(conjunction)
+				for member in new_premise.members:
+					if all([member in conjunct.members for conjunct in conjunction.conjuncts]) and member not in conjunction.members:
+						conjunction.members.append(member)
 		if premise in disjunction_map:
 			for disjunction in disjunction_map[premise]:
 				if disjunction not in queue:
@@ -582,10 +591,17 @@ def prove_graph(graph):
 			add_provable(current_vertex, superset)
 
 def try_get_vertex(graph, fol_definition):
+	member = None
 	if type(fol_definition) == fol.FOLFuncApplication:
+		if fol_definition.function == 'ASSUME':
+			return
 		definition = fol_definition.function
+		if type(fol_definition.args[0]) == fol.FOLConstant:
+			member = fol_definition.args[0]
 	elif type(fol_definition) == fol.FOLNot:
 		definition = "~" + fol_definition.operand.function
+		if type(fol_definition.operand.args[0]) == fol.FOLConstant:
+			member = fol_definition.operand.args[0]
 	elif type(fol_definition) == fol.FOLAnd:
 		definition = "&".join(sorted([("~" + operand.operand.function if type(operand) == fol.FOLNot else operand.function) for operand in fol_definition.operands]))
 	elif type(fol_definition) == fol.FOLOr:
@@ -645,6 +661,8 @@ def try_get_vertex(graph, fol_definition):
 					value.subsets(vertex)
 		graph[definition] = vertex
 
+	if member != None and member not in vertex.members:
+		vertex.members.append(member)
 	return vertex
 
 def add_edge_to_provability_graph(graph, antecedent, consequent):
@@ -660,7 +678,7 @@ def add_axiom_to_provabilty_graph(graph, axiom):
 		for antecedent in antecedents:
 			for consequent in consequents:
 				add_edge_to_provability_graph(graph, antecedent, consequent)
-	elif type(axiom) in [fol.FOLAnd, fol.FOLOr]:
+	elif type(axiom) in [fol.FOLAnd, fol.FOLOr, fol.FOLFuncApplication]:
 		try_get_vertex(graph, axiom)
 
 def do_generate_compositional_question(conclusion, allowed_deduction_rules, disallowed_deduction_rules, depth, available_types, entity, is_hypothetical):
@@ -824,7 +842,7 @@ def generate_compositional_question(allowed_deduction_rules, depth, available_ty
 			if negation not in graph:
 				continue
 			negated_vertex = graph[negation]
-			if negated_vertex in value.provable_from or any([premise in negated_vertex.provable_from for premise in value.provable_from]) or any([value in s.provable_from for s in value.supersets]):
+			if negated_vertex in value.provable_from or any([premise in negated_vertex.provable_from for premise in value.provable_from]) or any([value in s.provable_from for s in value.supersets]) or any([member in value.members for member in negated_vertex.members]):
 				is_valid = False
 				break
 		if is_valid:
@@ -927,12 +945,15 @@ def generate_compositional_distractors(last_step, distractor_concepts, entity):
 			return None
 		selected_concepts = sample(distractor_concepts, num_operands + 1)
 		operands = [fol.FOLFuncApplication(s, [fol.FOLVariable(1)]) for s in selected_concepts[:-1]]
-		operands.insert(randrange(0, len(operands)), fol.substitute(last_step.premises[0].conclusion, fol.FOLConstant(entity), fol.FOLVariable(1)))
+		operand_index = randrange(0, len(operands))
+		operands.insert(operand_index, fol.substitute(last_step.premises[0].conclusion, fol.FOLConstant(entity), fol.FOLVariable(1)))
 		if last_step.step_type == ProofStepType.DISJUNCTION_INTRODUCTION:
 			distractors = [fol.FOLForAll(1, fol.FOLIfThen(fol.FOLOr(operands), fol.FOLFuncApplication(selected_concepts[-1], [fol.FOLVariable(1)])))]
 		else:
 			distractors = [fol.FOLForAll(1, fol.FOLIfThen(fol.FOLAnd(operands), fol.FOLFuncApplication(selected_concepts[-1], [fol.FOLVariable(1)])))]
 		if last_step.step_type == ProofStepType.CONJUNCTION_INTRODUCTION:
+			if type(last_step.premises[0]) == fol.FOLFuncApplication and last_step.premises[0].function == "ASSUME":
+				del operands[operand_index]
 			distractors.extend([fol.substitute(o, fol.FOLVariable(1), fol.FOLConstant(entity)) for o in operands])
 		other_distractors = generate_compositional_distractors(last_step.premises[0], distractor_concepts, entity)
 		if other_distractors == None:
@@ -966,9 +987,9 @@ def generate_compositional_distractors(last_step, distractor_concepts, entity):
 		if len(distractor_concepts) == 0:
 			return None
 		distractor_concept = choice(distractor_concepts)
+		distractor_concepts.remove(distractor_concept)
 		subsumption_step = fol.FOLForAll(1, fol.FOLIfThen(fol.FOLFuncApplication(distractor_concept, [fol.FOLVariable(1)]), fol.substitute(last_step.premises[1].conclusion, fol.FOLConstant(entity), fol.FOLVariable(1))))
-		axiom = fol.FOLFuncApplication(distractor_concept, [fol.FOLConstant(entity)])
-		distractors = [axiom, subsumption_step]
+		distractors = [subsumption_step]
 		for premise in last_step.premises:
 			other_distractors = generate_compositional_distractors(premise, distractor_concepts, entity)
 			if other_distractors == None:

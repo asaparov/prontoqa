@@ -1536,7 +1536,7 @@ def run_experiment(model_name, args, num_proof_steps, test_num_proof_steps, log_
 					# re-use the same test question from the first sub-iteration
 					(question, query, question_lfs, chain_of_thought, answer, proof) = test_question
 				# get the deduction rules used in the test proof
-				available_train_rules = list(set([str(step.step_type) for step in proof if step.step_type != ProofStepType.AXIOM]))
+				available_train_rules = sorted(list(set([str(step.step_type) for step in proof if step.step_type != ProofStepType.AXIOM])))
 
 			questions = []
 			queries = []
