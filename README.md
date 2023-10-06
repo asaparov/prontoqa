@@ -2,6 +2,7 @@
 This repo contains PrOntoQA-OOD, as described in our papers:
  1. [Language Models Are Greedy Reasoners: A Systematic Formal Analysis of Chain-of-Thought](https://arxiv.org/pdf/2210.01240.pdf)
  2. [Testing the General Deductive Reasoning Capacity of Large Language Models Using OOD Examples](https://browse.arxiv.org/pdf/2305.15269.pdf)
+
 PrOntoQA and PrOntoQA-OOD generate question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models.
 
 Note: The `v1` branch contains the version of the repo corresponding to the original PrOntoQA paper.

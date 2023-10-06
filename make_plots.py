@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from matplotlib.transforms import Bbox
 from analyze_results import analyze_log, wilson_conf_interval, lighten_color
+from os.path import splitext
 
 palm_results = {
 	'1hop_AndElim_random_noadj': 1.0,
@@ -141,10 +142,10 @@ def make_rule_plot(output_filename, filenames, group_labels, title=None, width=8
 	fig.set_size_inches(width, 1.8, forward=True)
 	if title != None:
 		plt.title(title, pad=-0.2, fontsize=11)
-	plt.bar(x1, accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0])
-	plt.bar(x2, accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1])
-	plt.bar(x3, accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5])
-	plt.bar(x4, accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2])
+	plt.bar(x1, accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, error_kw=dict(lw=0.8,capthick=0.8), color=colors[0])
+	plt.bar(x2, accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, error_kw=dict(lw=0.8,capthick=0.8), color=colors[1])
+	plt.bar(x3, accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, error_kw=dict(lw=0.8,capthick=0.8), color=colors[5])
+	plt.bar(x4, accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, error_kw=dict(lw=0.8,capthick=0.8), color=colors[2])
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
 	if legend_pos == None:
@@ -203,19 +204,19 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 		plt.title(title, pad=-0.2, fontsize=11)
 	plt.plot([-bar_spacing, len(filenames) - 0.12], [0.0, 0.0], c='#555', linewidth=1, label='_nolegend_')
 	if not absolute_accuracy:
-		plt.bar(x1, delta_accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0], visible=(accuracies[0,0]!=-100))
-		plt.bar(x2, delta_accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1], visible=(accuracies[1,0]!=-100))
-		plt.bar(x3, delta_accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5], visible=(accuracies[2,0]!=-100))
-		plt.bar(x4, delta_accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2], visible=(accuracies[3,0]!=-100))
+		plt.bar(x1, delta_accuracies[0,:], width=bar_width, yerr=err[0,:,:].T, capsize=2.0, color=colors[0], visible=(accuracies[0,0]!=-100), error_kw=dict(lw=0.8,capthick=0.8))
+		plt.bar(x2, delta_accuracies[1,:], width=bar_width, yerr=err[1,:,:].T, capsize=2.0, color=colors[1], visible=(accuracies[1,0]!=-100), error_kw=dict(lw=0.8,capthick=0.8))
+		plt.bar(x3, delta_accuracies[2,:], width=bar_width, yerr=err[2,:,:].T, capsize=2.0, color=colors[5], visible=(accuracies[2,0]!=-100), error_kw=dict(lw=0.8,capthick=0.8))
+		plt.bar(x4, delta_accuracies[3,:], width=bar_width, yerr=err[3,:,:].T, capsize=2.0, color=colors[2], visible=(accuracies[3,0]!=-100), error_kw=dict(lw=0.8,capthick=0.8))
 	else:
-		plt.bar(x1, accuracies[0,:], width=bar_width, color=colors[0])
-		plt.bar(x2, accuracies[1,:], width=bar_width, color=colors[1])
-		plt.bar(x3, accuracies[2,:], width=bar_width, color=colors[5])
-		plt.bar(x4, accuracies[3,:], width=bar_width, color=colors[2])
-		plt.errorbar(x1, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
-		plt.errorbar(x2, accuracies[1,:], yerr=err[1,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
-		plt.errorbar(x3, accuracies[2,:], yerr=err[2,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
-		plt.errorbar(x4, accuracies[3,:], yerr=err[3,:,:].T, fmt='none', capsize=2.0, color='#000', zorder=3)
+		plt.bar(x1, accuracies[0,:], width=bar_width-0.04, color=colors[0])
+		plt.bar(x2, accuracies[1,:], width=bar_width-0.04, color=colors[1])
+		plt.bar(x3, accuracies[2,:], width=bar_width-0.04, color=colors[5])
+		plt.bar(x4, accuracies[3,:], width=bar_width-0.04, color=colors[2])
+		plt.errorbar(x1, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', elinewidth=0.8, markeredgewidth=0.8, capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x2, accuracies[1,:], yerr=err[1,:,:].T, fmt='none', elinewidth=0.8, markeredgewidth=0.8, capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x3, accuracies[2,:], yerr=err[2,:,:].T, fmt='none', elinewidth=0.8, markeredgewidth=0.8, capsize=2.0, color='#000', zorder=3)
+		plt.errorbar(x4, accuracies[3,:], yerr=err[3,:,:].T, fmt='none', elinewidth=0.8, markeredgewidth=0.8, capsize=2.0, color='#000', zorder=3)
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
 	if legend_pos == None:
@@ -239,22 +240,26 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 			def arrow_length(j):
 				dy = accuracies[j,i] - base_accuracies[j,i]
 				return dy #(dy - 0.02) if dy > 0.0 else (dy + 0.02)
-			if np.abs(arrow_length(0)) >= 0.05:
-				plt.arrow(x1[i]-dx, start_point(0), 0, arrow_length(0), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
-			if np.abs(arrow_length(1)) >= 0.05:
-				plt.arrow(x2[i]-dx, start_point(1), 0, arrow_length(1), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
-			if np.abs(arrow_length(2)) >= 0.05:
-				plt.arrow(x3[i]-dx, start_point(2), 0, arrow_length(2), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
-			if np.abs(arrow_length(3)) >= 0.05:
-				plt.arrow(x4[i]-dx, start_point(3), 0, arrow_length(3), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
-			plt.plot([x1[i]-0.45*bar_width,x1[i]+0.45*bar_width], [base_accuracies[0,i]]*2, color=lighten_color(colors[0],1.3))
-			plt.plot([x2[i]-0.45*bar_width,x2[i]+0.45*bar_width], [base_accuracies[1,i]]*2, color=lighten_color(colors[1],1.3))
-			plt.plot([x3[i]-0.45*bar_width,x3[i]+0.45*bar_width], [base_accuracies[2,i]]*2, color=lighten_color(colors[5],1.3))
-			plt.plot([x4[i]-0.45*bar_width,x4[i]+0.45*bar_width], [base_accuracies[3,i]]*2, color=lighten_color(colors[2],1.3))
+			#if np.abs(arrow_length(0)) >= 0.05:
+			#	plt.arrow(x1[i]-dx, start_point(0), 0, arrow_length(0), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			#if np.abs(arrow_length(1)) >= 0.05:
+			#	plt.arrow(x2[i]-dx, start_point(1), 0, arrow_length(1), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			#if np.abs(arrow_length(2)) >= 0.05:
+			#	plt.arrow(x3[i]-dx, start_point(2), 0, arrow_length(2), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			#if np.abs(arrow_length(3)) >= 0.05:
+			#	plt.arrow(x4[i]-dx, start_point(3), 0, arrow_length(3), length_includes_head=True, head_starts_at_zero=True, color='#000', width=0.015, head_width=0.05, head_length=0.035, capstyle='projecting', linestyle='-')
+			#plt.plot([x1[i]-0.45*bar_width,x1[i]+0.45*bar_width], [base_accuracies[0,i]]*2, color=lighten_color(colors[0],1.3))
+			#plt.plot([x2[i]-0.45*bar_width,x2[i]+0.45*bar_width], [base_accuracies[1,i]]*2, color=lighten_color(colors[1],1.3))
+			#plt.plot([x3[i]-0.45*bar_width,x3[i]+0.45*bar_width], [base_accuracies[2,i]]*2, color=lighten_color(colors[5],1.3))
+			#plt.plot([x4[i]-0.45*bar_width,x4[i]+0.45*bar_width], [base_accuracies[3,i]]*2, color=lighten_color(colors[2],1.3))
+		plt.bar(x1, base_accuracies[0,:], width=bar_width-0.03, facecolor=(1.0, 1.0, 1.0, 0.0), linestyle=(0,(3,3)), error_kw=dict(lw=0.8,capthick=0.8), linewidth=0.8, edgecolor='#000')
+		plt.bar(x2, base_accuracies[1,:], width=bar_width-0.03, facecolor=(1.0, 1.0, 1.0, 0.0), linestyle=(0,(3,3)), error_kw=dict(lw=0.8,capthick=0.8), linewidth=0.8, edgecolor='#000')
+		plt.bar(x3, base_accuracies[2,:], width=bar_width-0.03, facecolor=(1.0, 1.0, 1.0, 0.0), linestyle=(0,(3,3)), error_kw=dict(lw=0.8,capthick=0.8), linewidth=0.8, edgecolor='#000')
+		plt.bar(x4, base_accuracies[3,:], width=bar_width-0.03, facecolor=(1.0, 1.0, 1.0, 0.0), linestyle=(0,(3,3)), error_kw=dict(lw=0.8,capthick=0.8), linewidth=0.8, edgecolor='#000')
 
 	ax = plt.gca()
 	if absolute_accuracy:
-		plt.ylabel('Proof accuracy')
+		plt.ylabel('proof accuracy')
 		plt.ylim([0.0, 1.0])
 	else:
 		plt.ylabel('$\Delta$ proof accuracy')
@@ -266,6 +271,11 @@ def make_diff_plot(output_filename, filenames, group_labels, base_accuracies, ba
 	xlabel_line_count = np.max([label.count('\n') for label in group_labels])
 	fig.savefig(output_filename, dpi=128, bbox_inches=Bbox([[(width-5.5)/8, (xlabel_line_count + 1) * -0.1], [width + delta_width - 0.3, 1.8 + delta_height]]))
 	plt.clf()
+
+	if not absolute_accuracy:
+		basename, extension = splitext(output_filename)
+		new_filename = basename + '_absolute' + extension
+		make_diff_plot(new_filename, filenames, group_labels, base_accuracies, base_lower_bound, base_upper_bound, title, width, legend_pos, legend_cols, ymin, ymax, absolute_accuracy=True)
 
 def make_line_plot(output_filename, filenames, ID_filenames, x, xlabel, title=None, width=8.0, legend_pos=(1.0, 0.5), legend_cols=1):
 	accuracies = np.empty((4,len(filenames)))
@@ -292,17 +302,17 @@ def make_line_plot(output_filename, filenames, ID_filenames, x, xlabel, title=No
 	fig.set_size_inches(width, 1.8, forward=True)
 	if title != None:
 		plt.title(title, pad=-0.2, fontsize=11)
-	plt.plot(x, accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.35)
-	plt.plot(x, accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.35)
-	plt.plot(x, accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.35)
-	plt.plot(x, accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.35)
+	plt.plot(x, accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6)
+	plt.plot(x, accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6)
+	plt.plot(x, accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6)
+	plt.plot(x, accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6)
 
-	plt.plot(x, ID_accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.35, linestyle='--')
-	plt.plot(x, ID_accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.35, linestyle='--')
-	plt.plot(x, ID_accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.35, linestyle='--')
-	plt.plot(x, ID_accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.35, linestyle='--')
+	plt.plot(x, ID_accuracies[0,:], color=colors[0], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6, linestyle=(0, (5, 8)))
+	plt.plot(x, ID_accuracies[1,:], color=colors[1], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6, linestyle=(0, (5, 8)))
+	plt.plot(x, ID_accuracies[2,:], color=colors[5], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6, linestyle=(0, (5, 8)))
+	plt.plot(x, ID_accuracies[3,:], color=colors[2], marker='o', markeredgewidth=0.1, markersize=3, linewidth=0.6, linestyle=(0, (5, 8)))
 
-	plt.errorbar(x, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', ecolor=colors[0], capsize=3.0)
+	'''plt.errorbar(x, accuracies[0,:], yerr=err[0,:,:].T, fmt='none', ecolor=colors[0], capsize=3.0)
 	plt.errorbar(x, accuracies[1,:], yerr=err[1,:,:].T, fmt='none', ecolor=colors[1], capsize=3.0)
 	plt.errorbar(x, accuracies[2,:], yerr=err[2,:,:].T, fmt='none', ecolor=colors[5], capsize=3.0)
 	plt.errorbar(x, accuracies[3,:], yerr=err[3,:,:].T, fmt='none', ecolor=colors[2], capsize=3.0)
@@ -310,7 +320,7 @@ def make_line_plot(output_filename, filenames, ID_filenames, x, xlabel, title=No
 	plt.errorbar(x, ID_accuracies[0,:], yerr=ID_err[0,:,:].T, fmt='none', ecolor=colors[0], capsize=3.0)
 	plt.errorbar(x, ID_accuracies[1,:], yerr=ID_err[1,:,:].T, fmt='none', ecolor=colors[1], capsize=3.0)
 	plt.errorbar(x, ID_accuracies[2,:], yerr=ID_err[2,:,:].T, fmt='none', ecolor=colors[5], capsize=3.0)
-	plt.errorbar(x, ID_accuracies[3,:], yerr=ID_err[3,:,:].T, fmt='none', ecolor=colors[2], capsize=3.0)
+	plt.errorbar(x, ID_accuracies[3,:], yerr=ID_err[3,:,:].T, fmt='none', ecolor=colors[2], capsize=3.0)'''
 
 	labels = ['GPT-3.5', 'PaLM', 'LLaMA', 'FLAN-T5']
 	if legend_pos == None:

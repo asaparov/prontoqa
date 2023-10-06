@@ -329,7 +329,12 @@ def generate_question(num_deduction_steps, available_concept_names, formula_orde
 		# `num_deduction_steps` includes the axiom step
 		raise ValueError("num_deduction_steps must be at least 2.")
 	if ontology == "true":
-		(theory, selected_entity, distractor_map) = sample_real_ontology(available_entity_names, num_deduction_steps)
+		(true_theory, selected_entity, distractor_map) = sample_real_ontology(available_entity_names, num_deduction_steps)
+		theory = [true_theory]
+		if distractors == "irrelevant":
+			irrelevant_entity = choice([name for name in available_entity_names if name != selected_entity])
+		else:
+			irrelevant_entity = None
 	else:
 		if ontology == "false":
 			r = randrange(3)
