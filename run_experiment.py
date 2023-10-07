@@ -1733,6 +1733,9 @@ if __name__ == "__main__":
 			log_suffix += '_OOD'
 		if args.OOD or args.deduction_rule != "ModusPonens":
 			log_suffix += '_' + args.deduction_rule
+			if not args.proofs_only:
+				print("Without '--proofs-only', deduction rules other than ModusPonens are not supported.")
+				break
 		if not args.OOD and args.deduction_rule == "ModusPonens" and args.proofs_only:
 			log_suffix += '_ProofsOnly'
 		elif not args.OOD and args.deduction_rule != "ModusPonens" and not args.proofs_only:
@@ -1761,6 +1764,12 @@ if __name__ == "__main__":
 			log_suffix += '_test' + args.test_ordering
 		if args.ontology == "true":
 			log_suffix += '_trueontology'
+			if args.distractors != 'none' or args.test_distractors != 'none':
+				print("True ontology is only supported with '--distractors none --test-distractors none'.")
+				break
+			if args.deduction_rule != 'ModusPonens':
+				print("True ontology is only supported with the ModusPonens deduction rule.")
+				break
 		elif args.ontology == "false":
 			log_suffix += '_falseontology'
 		if args.distractors != 'relevant':
