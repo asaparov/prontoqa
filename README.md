@@ -20,7 +20,7 @@ If you use our code in your work, please cite our papers:
 
 @article{
   PrOntoQAOOD,
-  title={Testing the General Deductive Reasoning Capacity of Large Language Models Using {OOD} Examples}
+  title={Testing the General Deductive Reasoning Capacity of Large Language Models Using {OOD} Examples},
   author={Abulhair Saparov and
           Richard Yuanzhe Pang and
           Vishakh Padmakumar and
