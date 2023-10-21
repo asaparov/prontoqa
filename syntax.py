@@ -47,7 +47,7 @@ def can_be_adjp_np(formula, morphology):
 		return False
 
 def formula_to_np(formula, morphology, quantified_variable, is_plural, is_universally_quantified, is_negated, no_adjectives):
-	if (type(formula) == fol.FOLOr and is_universally_quantified and not is_plural) or (no_adjectives and type(formula) == fol.FOLAnd and is_universally_quantified and not is_plural):
+	if (type(formula) == fol.FOLOr and is_universally_quantified and not is_plural) or ((no_adjectives or not can_be_adjp_np(formula, morphology)) and type(formula) == fol.FOLAnd and is_universally_quantified and not is_plural):
 		child_nodes = []
 		for operand in formula.operands:
 			if type(operand) == fol.FOLFuncApplication and not morphology.is_noun(operand.function):
@@ -121,7 +121,7 @@ def formula_to_adjp(formula, morphology, quantified_variable):
 def formula_to_vp_arg(formula, morphology, quantified_variable, is_plural, no_adjectives):
 	if type(formula) == fol.FOLFuncApplication and not morphology.is_noun(formula.function):
 		return formula_to_adjp(formula, morphology, quantified_variable)
-	elif (type(formula) == fol.FOLOr or type(formula) == fol.FOLAnd) and (no_adjectives or not can_be_adjp_np(formula, morphology)):
+	elif type(formula) == fol.FOLOr or (type(formula) == fol.FOLAnd and (no_adjectives or not can_be_adjp_np(formula, morphology))):
 		child_nodes = []
 		for operand in formula.operands:
 			if type(operand) == fol.FOLFuncApplication and not morphology.is_noun(operand.function):
@@ -154,7 +154,7 @@ def formula_to_clause(formula, morphology, no_adjectives=False, invert=False):
 		is_plural = choice([True, False])
 		if invert:
 			is_plural = False
-		elif type(formula.operand.antecedent) == fol.FOLOr or (type(formula.operand.antecedent) == fol.FOLAnd and no_adjectives):
+		elif type(formula.operand.antecedent) == fol.FOLOr or (type(formula.operand.antecedent) == fol.FOLAnd and (no_adjectives or not can_be_adjp_np(formula.operand.antecedent, morphology))):
 			is_plural = False
 
 		# generate the subject and object phrases
