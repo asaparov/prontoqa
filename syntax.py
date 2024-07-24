@@ -466,11 +466,12 @@ def parse_np_prime(tokens, index, morphology):
 	return (lf, index, is_plural)
 
 def parse_adjp(tokens, index, morphology):
-	# this could be a coordinated ADJP
+	# this could be a coordinated or compound ADJP
 	operands = []
 	first_operand_index = None
 	is_conjunction = False
 	is_disjunction = False
+	is_compound = False
 	while index < len(tokens):
 		last_index = index
 		if len(operands) != 0:
@@ -479,17 +480,19 @@ def parse_adjp(tokens, index, morphology):
 				index += 1
 				has_comma = True
 			if tokens[index] == 'and':
-				if is_disjunction:
+				if is_compound or is_disjunction:
 					break
 				is_conjunction = True
 				index += 1
 			elif tokens[index] == 'or':
-				if is_conjunction:
+				if is_compound or is_conjunction:
 					break
 				is_disjunction = True
 				index += 1
 			elif not has_comma:
-				break
+				if is_disjunction or is_conjunction:
+					break
+				is_compound = True
 		if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
 			index = last_index
 			break
@@ -508,7 +511,7 @@ def parse_adjp(tokens, index, morphology):
 		return (None, None)
 	elif len(operands) == 1:
 		return (operands[0], index)
-	elif is_conjunction:
+	elif is_conjunction or is_compound:
 		return (fol.FOLAnd(operands), index)
 	elif is_disjunction:
 		return (fol.FOLOr(operands), index)
