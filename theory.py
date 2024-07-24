@@ -66,11 +66,17 @@ def generate_concept_properties(node, num_properties, available_properties, avai
 			del available_negative_properties[index]
 
 def generate_ontology(parent, level, available_concept_names, available_property_families, config):
+	if config.generate_distractor_branch:
+		num_properties = max(2, config.proof_width) - 2
+	else:
+		num_properties = config.proof_width - 1
+
 	# choose a family of properties for the children at this node
-	if len(available_property_families) == 0:
+	valid_property_indices = [i for i in range(len(available_property_families)) if not config.require_properties or len(available_property_families[i]) >= num_properties]
+	if len(valid_property_indices) == 0:
 		print('WARNING: Could not extend ontology due to insufficient property families.')
 		return []
-	index = randrange(len(available_property_families))
+	index = choice(valid_property_indices)
 	available_properties = available_property_families[index]
 	available_negative_properties = list(available_properties)
 	del available_property_families[index]
@@ -94,15 +100,7 @@ def generate_ontology(parent, level, available_concept_names, available_property
 		if not config.generate_negation:
 			parent.are_children_disjoint = False
 
-	if config.generate_distractor_branch:
-		num_properties = max(2, config.proof_width) - 2
-	else:
-		num_properties = config.proof_width - 1
 	for i in range(num_children):
-		# if properties are required but none are available, then stop creating new nodes
-		if config.require_properties and len(available_properties) < num_properties:
-			break
-
 		# create a child node and choose its concept name
 		index = randrange(len(available_concept_names))
 		new_child = OntologyNode(available_concept_names[index], parent)

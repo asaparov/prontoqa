@@ -1,5 +1,6 @@
 *.log
 *.pdf
 *.png
+*.json
 __pycache__
 .vs
