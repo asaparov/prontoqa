@@ -474,6 +474,8 @@ def parse_adjp(tokens, index, morphology):
 	is_compound = False
 	while index < len(tokens):
 		last_index = index
+		if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
+			break
 		if len(operands) != 0:
 			has_comma = False
 			if tokens[index] == ',':
@@ -493,9 +495,6 @@ def parse_adjp(tokens, index, morphology):
 				if is_disjunction or is_conjunction:
 					break
 				is_compound = True
-		if tokens[index].lower() in {"and", "or", ",", "a", "an", "each", "every", "no", "all", "that", "is", "are", "so", "since", "as", "however", "therefore", "because"}:
-			index = last_index
-			break
 		if tokens[index].lower() == 'also':
 			index += 1
 		if len(operands) != 0 and morphology.is_any_noun(tokens[index].lower()):
