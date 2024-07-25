@@ -1777,7 +1777,7 @@ if __name__ == "__main__":
 				log_suffix += '_nodistractor'
 			else:
 				if args.deduction_rule == "Composed":
-					print("Generation of irrelevant distractors have not yet been with the Composed deduction rule.")
+					print("Generation of irrelevant distractors have not yet been implemented with the Composed deduction rule.")
 					break
 				log_suffix += '_irrelevantdistractor'
 		if args.distractors != args.test_distractors:
@@ -1785,7 +1785,7 @@ if __name__ == "__main__":
 				log_suffix += '_testdistractor'
 			elif args.test_distractors == 'irrelevant':
 				if args.deduction_rule == "Composed":
-					print("Generation of irrelevant distractors have not yet been with the Composed deduction rule.")
+					print("Generation of irrelevant distractors have not yet been implemented with the Composed deduction rule.")
 					break
 				log_suffix += '_testirrelevantdistractor'
 			else:
