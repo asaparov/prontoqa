@@ -5,7 +5,9 @@ This repo contains PrOntoQA-OOD, as described in our papers:
 
 PrOntoQA and PrOntoQA-OOD generate question-answering examples with chains-of-thought that describe the reasoning required to answer the questions correctly. The sentences in the examples are syntactically simple and amenable to semantic parsing, and so this code can be used to formally analyze the predicted chain-of-thought from large language models.
 
-Note: The `v1` branch contains the version of the repo corresponding to the original PrOntoQA paper.
+**Note:** The `v1` branch contains the version of the repo corresponding to the original PrOntoQA paper.
+
+**Note:** The `Composed` datasets in [generated_ood_data.zip](generated_ood_data.zip) may contain contradictions due to a bug that was fixed in Oct 2023. If you wish to use contradiction-free versions of those datasets, please regenerate them using `run_experiment.py --model-name json`.
 
 If you use our code in your work, please cite our papers:
 ```
