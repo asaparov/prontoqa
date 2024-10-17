@@ -7,7 +7,7 @@ PrOntoQA and PrOntoQA-OOD generate question-answering examples with chains-of-th
 
 **Note:** The `v1` branch contains the version of the repo corresponding to the original PrOntoQA paper.
 
-**Note:** The `Composed` datasets in [generated_ood_data.zip](generated_ood_data.zip) may contain contradictions due to a bug that was fixed in Oct 2023. If you wish to use contradiction-free versions of those datasets, please regenerate them using `run_experiment.py --model-name json`.
+**Update:** (Oct 17, 2024) The datasets in [generated_ood_data.zip](generated_ood_data.zip) were regenerated to incorporate the latest bug fixes.
 
 If you use our code in your work, please cite our papers:
 ```
