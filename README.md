@@ -30,17 +30,10 @@ If you use our code in your work, please cite our papers:
           Seyed Mehran Kazemi and
           Najoung Kim and
           He He},
-  editor={Alice Oh and
-          Tristan Naumann and
-          Amir Globerson and
-          Kate Saenko and
-          Moritz Hardt and
-          Sergey Levine},
   booktitle={Advances in Neural Information Processing Systems},
   pages = {3083--3105},
   volume = {36},
   year={2023},
-  publisher = {Curran Associates, Inc.},
   url={https://proceedings.neurips.cc/paper_files/paper/2023/file/09425891e393e64b0535194a81ba15b7-Paper-Conference.pdf}
 }
 ```
