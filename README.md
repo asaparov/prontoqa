@@ -20,9 +20,9 @@ If you use our code in your work, please cite our papers:
   url={https://openreview.net/forum?id=qFVVBzXxR2V}
 }
 
-@article{
+@inproceedings{
   PrOntoQAOOD,
-  title={Testing the General Deductive Reasoning Capacity of Large Language Models Using {OOD} Examples},
+  title= {Testing the General Deductive Reasoning Capacity of Large Language Models Using {OOD} Examples},
   author={Abulhair Saparov and
           Richard Yuanzhe Pang and
           Vishakh Padmakumar and
@@ -30,13 +30,18 @@ If you use our code in your work, please cite our papers:
           Seyed Mehran Kazemi and
           Najoung Kim and
           He He},
-  journal={CoRR},
-  volume={abs/2305.15269},
+  editor={Alice Oh and
+          Tristan Naumann and
+          Amir Globerson and
+          Kate Saenko and
+          Moritz Hardt and
+          Sergey Levine},
+  booktitle={Advances in Neural Information Processing Systems},
+  pages = {3083--3105},
+  volume = {36},
   year={2023},
-  url={https://doi.org/10.48550/arXiv.2305.15269},
-  doi={10.48550/arXiv.2305.15269},
-  eprinttype={arXiv},
-  eprint={2305.15269},
+  publisher = {Curran Associates, Inc.},
+  url={https://proceedings.neurips.cc/paper_files/paper/2023/file/09425891e393e64b0535194a81ba15b7-Paper-Conference.pdf}
 }
 ```
 
